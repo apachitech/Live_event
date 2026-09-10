@@ -3,7 +3,7 @@ const { parse } = require('url');
 const next = require('next');
 const { Server } = require('socket.io');
 
-const dev = process.env.NODE_ENV !== 'production';
+const dev = (process.env.NODE_ENV || '').trim().toLowerCase() === 'development';
 const hostname = '0.0.0.0';
 const port = parseInt(process.env.PORT || '3000', 10);
 
@@ -34,6 +34,13 @@ function checkRateLimit(userId) {
 
 app.prepare().then(() => {
   const server = createServer(async (req, res) => {
+    // Immediate lightweight health check for Render port scanner
+    if (req.url === '/healthz' || req.url === '/ping') {
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'text/plain');
+      return res.end('OK');
+    }
+
     try {
       const parsedUrl = parse(req.url, true);
       await handle(req, res, parsedUrl);

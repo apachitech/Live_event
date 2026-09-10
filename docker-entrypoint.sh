@@ -1,9 +1,11 @@
 #!/bin/sh
 set -e
+export NODE_ENV="production"
+export NEXT_TELEMETRY_DISABLED=1
 
 echo "=== PulseStream Container Bootstrapping ==="
 echo "PORT: ${PORT:-3000}"
-echo "NODE_ENV: ${NODE_ENV:-production}"
+echo "NODE_ENV: $NODE_ENV"
 
 # Detect if PostgreSQL DATABASE_URL is configured
 if [ -n "$DATABASE_URL" ] && echo "$DATABASE_URL" | grep -qE '^postgres(ql)?://'; then
