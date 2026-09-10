@@ -32,7 +32,9 @@ COPY --from=builder /app/server.js ./server.js
 COPY --from=builder /app/next.config.mjs ./next.config.mjs
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/.next ./.next
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma db push --skip-generate || true; node server.js"]
+CMD ["sh", "/app/docker-entrypoint.sh"]
