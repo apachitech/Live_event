@@ -35,4 +35,4 @@ COPY --from=builder /app/.next ./.next
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "npx prisma db push --skip-generate || true; node server.js"]

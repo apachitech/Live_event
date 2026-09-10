@@ -166,7 +166,7 @@ app.prepare().then(() => {
     });
   });
 
-  const serverInstance = server.listen(port, (err) => {
+  const serverInstance = server.listen(port, hostname, (err) => {
     if (err) throw err;
     console.log(`> Live Streaming Web Server ready on http://${hostname}:${port}`);
   });
