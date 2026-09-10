@@ -1,0 +1,273 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id               String            @id @default(uuid())
+  email            String            @unique
+  username         String            @unique
+  passwordHash     String
+  role             String            @default("VIEWER") // VIEWER, STREAMER, MODERATOR, ADMIN
+  ageVerifiedAt    DateTime?
+  dob              DateTime?
+  avatarUrl        String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  
+  wallet           Wallet?
+  streamerProfile  StreamerProfile?
+  chatMessages     ChatMessage[]
+  sentTransactions Transaction[]     @relation("SenderTransactions")
+  receivedTransactions Transaction[] @relation("RecipientTransactions")
+  subscriptions    Subscription[]    @relation("UserSubscriptions")
+  moderationFlags  ModerationFlag[]  @relation("ReportedByUser")
+  auditLogs        AuditLog[]
+  privateSessions  PrivateSession[]  @relation("ViewerPrivateSessions")
+}
+
+model StreamerProfile {
+  id                    String          @id @default(uuid())
+  userId                String          @unique
+  user                  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName           String
+  bio                   String?
+  payoutMethod          String?         // STRIPE_CONNECT, PAYPAL, WIRE
+  payoutDetails         String?         // JSON string for tokenized account metadata
+  kycStatus             String          @default("NOT_SUBMITTED") // NOT_SUBMITTED, PENDING, VERIFIED, REJECTED
+  kycSubmittedAt        DateTime?
+  kycVerifiedAt         DateTime?
+  externalDeviceWebhook String?         // Generic external event trigger URL (e.g. interactive toy/hardware)
+  
+  streams               Stream[]
+  vods                  Vod[]
+  tipMenus              TipMenuItem[]
+  subscribers           Subscription[]  @relation("StreamerSubscribers")
+  payouts               Payout[]
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+}
+
+model Stream {
+  id                String          @id @default(uuid())
+  streamerId        String
+  streamer          StreamerProfile @relation(fields: [streamerId], references: [id], onDelete: Cascade)
+  title             String
+  category          String          @default("Gaming & Chat")
+  status            String          @default("OFFLINE") // OFFLINE, LIVE, PRIVATE, ENDED
+  streamKey         String          @unique @default(uuid())
+  playbackUrl       String?
+  roomName          String          @unique // Managed provider room ID
+  viewerCount       Int             @default(0)
+  totalTokensEarned Int             @default(0)
+  startedAt         DateTime?
+  endedAt           DateTime?
+  recordingUrl      String?
+  isPrivate         Boolean         @default(false)
+  privateUserId     String?         // In 1:1 private show
+  privateRatePerMin Int?            @default(60) // Tokens per minute
+  sourceType        String          @default("WEBRTC") // WEBRTC, RTMP, EXTERNAL_EMBED
+  externalStreamUrl String?         // Direct Cloudinary, HLS .m3u8 or MP4 URL
+  
+  chatMessages      ChatMessage[]
+  tipGoals          TipGoal[]
+  polls             Poll[]
+  transactions      Transaction[]
+  privateSessions   PrivateSession[]
+  createdAt         DateTime        @default(now())
+}
+
+model Vod {
+  id              String          @id @default(uuid())
+  streamerId      String
+  streamer        StreamerProfile @relation(fields: [streamerId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+  videoUrl        String          // Cloudflare R2 / S3 / Cloudinary URL or HLS link
+  thumbnailUrl    String?
+  durationSeconds Int             @default(0)
+  viewCount       Int             @default(0)
+  priceTokens     Int             @default(0) // 0 = Free, >0 = Pay-per-view
+  isPublished     Boolean         @default(true)
+  sourceType      String          @default("CLOUDINARY") // CLOUDINARY, R2, S3, LOCAL
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model ChatMessage {
+  id               String          @id @default(uuid())
+  streamId         String
+  stream           Stream          @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  body             String
+  flagged          Boolean         @default(false)
+  createdAt        DateTime        @default(now())
+}
+
+model Wallet {
+  id               String          @id @default(uuid())
+  userId           String          @unique
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance          Int             @default(0) // Viewer Balance in Tokens
+  earnedBalance    Int             @default(0) // Cashable Tokens for streamers
+  updatedAt        DateTime        @updatedAt
+}
+
+model Transaction {
+  id                String          @id @default(uuid())
+  senderId          String?
+  sender            User?           @relation("SenderTransactions", fields: [senderId], references: [id])
+  recipientId       String?
+  recipient         User?           @relation("RecipientTransactions", fields: [recipientId], references: [id])
+  streamId          String?
+  stream            Stream?         @relation(fields: [streamId], references: [id])
+  type              String          // PURCHASE, TIP, SUBSCRIPTION, PRIVATE_SHOW, STREAMER_PAYOUT, PLATFORM_FEE, REFUND
+  amount            Int             // Tokens transferred
+  fiatAmountCents   Int?            // Amount in cents (for purchases or payouts)
+  platformFeeTokens Int             @default(0)
+  netTokens         Int             // Tokens credited to recipient
+  memo              String?
+  metadata          String?         // JSON string for additional context
+  createdAt         DateTime        @default(now())
+
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([createdAt])
+}
+
+model TipMenuItem {
+  id               String          @id @default(uuid())
+  streamerId       String
+  streamer         StreamerProfile @relation(fields: [streamerId], references: [id], onDelete: Cascade)
+  label            String
+  tokenCost        Int
+  description      String?
+  active           Boolean         @default(true)
+}
+
+model TipGoal {
+  id               String          @id @default(uuid())
+  streamId         String
+  stream           Stream          @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  label            String
+  targetAmount     Int
+  currentAmount    Int             @default(0)
+  reached          Boolean         @default(false)
+  active           Boolean         @default(true)
+}
+
+model Subscription {
+  id               String          @id @default(uuid())
+  subscriberId     String
+  subscriber       User            @relation("UserSubscriptions", fields: [subscriberId], references: [id], onDelete: Cascade)
+  streamerId       String
+  streamer         StreamerProfile @relation("StreamerSubscribers", fields: [streamerId], references: [id], onDelete: Cascade)
+  tier             Int             @default(1)
+  monthlyTokenCost Int             @default(50)
+  active           Boolean         @default(true)
+  renewsAt         DateTime
+  createdAt        DateTime        @default(now())
+}
+
+model Payout {
+  id                String          @id @default(uuid())
+  streamerId        String
+  streamer          StreamerProfile @relation(fields: [streamerId], references: [id], onDelete: Cascade)
+  tokensDeducted    Int
+  payoutAmountCents Int
+  status            String          @default("REQUESTED") // REQUESTED, APPROVED, PROCESSING, COMPLETED, REJECTED
+  paymentReference  String?
+  requestedAt       DateTime        @default(now())
+  processedAt       DateTime?
+  reviewedByUserId  String?
+}
+
+model ModerationFlag {
+  id               String          @id @default(uuid())
+  targetType       String          // STREAM, CHAT_MESSAGE, USER_PROFILE
+  targetId         String
+  reason           String
+  reportedByUserId String?
+  reportedByUser   User?           @relation("ReportedByUser", fields: [reportedByUserId], references: [id])
+  status           String          @default("PENDING") // PENDING, REVIEWED, DISMISSED, ACTIONED
+  actionTaken      String?
+  createdAt        DateTime        @default(now())
+}
+
+model PlatformSetting {
+  key              String          @id
+  value            String
+  description      String?
+  updatedAt        DateTime        @updatedAt
+}
+
+model AuditLog {
+  id               String          @id @default(uuid())
+  actorUserId      String?
+  actor            User?           @relation(fields: [actorUserId], references: [id])
+  action           String
+  entityType       String
+  entityId         String
+  payload          String?         // JSON string
+  createdAt        DateTime        @default(now())
+}
+
+model Poll {
+  id           String       @id @default(uuid())
+  streamId     String
+  stream       Stream       @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  question     String
+  tokenCost    Int          @default(0) // 0 = Free, >0 = Paid per vote
+  active       Boolean      @default(true)
+  options      PollOption[]
+  votes        PollVote[]
+  createdAt    DateTime     @default(now())
+  endedAt      DateTime?
+}
+
+model PollOption {
+  id        String     @id @default(uuid())
+  pollId    String
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  text      String
+  voteCount Int        @default(0)
+  votes     PollVote[]
+}
+
+model PollVote {
+  id        String     @id @default(uuid())
+  pollId    String
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  optionId  String
+  option    PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime   @default(now())
+
+  @@unique([pollId, userId])
+}
+
+model PrivateSession {
+  id                String          @id @default(uuid())
+  streamId          String
+  stream            Stream          @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  viewerId          String
+  viewer            User            @relation("ViewerPrivateSessions", fields: [viewerId], references: [id], onDelete: Cascade)
+  ratePerMinute     Int
+  status            String          @default("REQUESTED") // REQUESTED, ACTIVE, ENDED, REJECTED
+  c2cEnabled        Boolean         @default(true) // Cam-to-Cam mutual video enabled
+  startedAt         DateTime?
+  endedAt           DateTime?
+  totalMinutes      Int             @default(0)
+  totalTokensSpent  Int             @default(0)
+  createdAt         DateTime        @default(now())
+
+  @@index([streamId])
+  @@index([viewerId])
+  @@index([status])
+}
+
