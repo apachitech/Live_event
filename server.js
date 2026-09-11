@@ -32,31 +32,45 @@ function checkRateLimit(userId) {
   return true;
 }
 
-app.prepare().then(() => {
-  const server = createServer(async (req, res) => {
-    // Immediate lightweight health check for Render port scanner
-    if (req.url === '/healthz' || req.url === '/ping') {
-      res.statusCode = 200;
-      res.setHeader('Content-Type', 'text/plain');
-      return res.end('OK');
-    }
+let isAppReady = false;
 
-    try {
-      const parsedUrl = parse(req.url, true);
-      await handle(req, res, parsedUrl);
-    } catch (err) {
-      console.error('Error occurred handling', req.url, err);
-      res.statusCode = 500;
-      res.end('internal server error');
-    }
-  });
+const server = createServer(async (req, res) => {
+  // Immediate lightweight health check for Render port scanner
+  if (req.url === '/healthz' || req.url === '/ping') {
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'text/plain');
+    return res.end('OK');
+  }
 
-  const io = new Server(server, {
-    cors: {
-      origin: '*',
-      methods: ['GET', 'POST'],
-    },
-  });
+  // Wait if Next.js app is still preparing
+  if (!isAppReady) {
+    const start = Date.now();
+    while (!isAppReady && Date.now() - start < 10000) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    if (!isAppReady) {
+      res.statusCode = 503;
+      res.setHeader('Retry-After', '2');
+      return res.end('Server initializing, please retry in a moment...');
+    }
+  }
+
+  try {
+    const parsedUrl = parse(req.url, true);
+    await handle(req, res, parsedUrl);
+  } catch (err) {
+    console.error('Error occurred handling', req.url, err);
+    res.statusCode = 500;
+    res.end('internal server error');
+  }
+});
+
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST'],
+  },
+});
 
   // Make io instance available globally so Next.js API routes can emit alerts if needed
   global.io = io;
@@ -175,8 +189,18 @@ app.prepare().then(() => {
 
   const serverInstance = server.listen(port, hostname, (err) => {
     if (err) throw err;
-    console.log(`> Live Streaming Web Server ready on http://${hostname}:${port}`);
+    console.log(`> Web Server listening immediately on http://${hostname}:${port}`);
   });
+
+  // Prepare Next.js asynchronously in background without blocking port scan
+  app.prepare()
+    .then(() => {
+      isAppReady = true;
+      console.log(`> Next.js application ready and serving traffic!`);
+    })
+    .catch((err) => {
+      console.error('> Error during Next.js app.prepare():', err);
+    });
 
   // Graceful shutdown signals for zero-downtime rolling deploys on Render
   const gracefulShutdown = () => {
@@ -189,4 +213,3 @@ app.prepare().then(() => {
 
   process.on('SIGTERM', gracefulShutdown);
   process.on('SIGINT', gracefulShutdown);
-});
