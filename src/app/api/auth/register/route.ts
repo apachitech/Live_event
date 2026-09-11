@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { hashPassword, signToken, AUTH_COOKIE_OPTIONS } from '@/lib/auth';
 import { defaultKYCProvider } from '@/lib/kyc/selfAttestation';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   try {
     const { email, username, password, role, birthDate, agreeAgeVerification } = await req.json();
@@ -11,13 +13,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required registration fields' }, { status: 400 });
     }
 
+    const cleanEmail = String(email).trim().toLowerCase();
+    const cleanUsername = String(username).trim();
+    const cleanPassword = String(password);
+
     if (!birthDate || !agreeAgeVerification) {
       return NextResponse.json({ error: 'Mandatory age attestation and birth date are required.' }, { status: 400 });
     }
 
     // Age validation check via KYC adapter
     const dob = new Date(birthDate);
-    const kycResult = await defaultKYCProvider.verifyAgeSelfAttestation(username, dob, agreeAgeVerification);
+    const kycResult = await defaultKYCProvider.verifyAgeSelfAttestation(cleanUsername, dob, agreeAgeVerification);
     if (!kycResult.isOver18) {
       return NextResponse.json({ error: kycResult.rejectionReason || 'You must be at least 18 years old.' }, { status: 403 });
     }
@@ -25,7 +31,7 @@ export async function POST(req: Request) {
     // Check duplicate email or username
     const existing = await prisma.user.findFirst({
       where: {
-        OR: [{ email }, { username }],
+        OR: [{ email: cleanEmail }, { username: cleanUsername }],
       },
     });
 
@@ -33,13 +39,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Email or username is already taken' }, { status: 409 });
     }
 
-    const passwordHash = await hashPassword(password);
+    const passwordHash = await hashPassword(cleanPassword);
     const assignedRole = role === 'STREAMER' ? 'STREAMER' : 'VIEWER';
 
     const user = await prisma.user.create({
       data: {
-        email,
-        username,
+        email: cleanEmail,
+        username: cleanUsername,
         passwordHash,
         role: assignedRole,
         ageVerifiedAt: new Date(),

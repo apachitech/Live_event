@@ -2,19 +2,25 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { comparePassword, signToken, AUTH_COOKIE_OPTIONS } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   try {
     const { emailOrUsername, password } = await req.json();
 
     if (!emailOrUsername || !password) {
-      return NextResponse.json({ error: 'Missing credentials' }, { status: 400 });
+      return NextResponse.json({ error: 'Please provide both email/username and password' }, { status: 400 });
     }
+
+    const cleanIdentifier = String(emailOrUsername).trim();
+    const cleanPassword = String(password);
 
     const user = await prisma.user.findFirst({
       where: {
         OR: [
-          { email: emailOrUsername },
-          { username: emailOrUsername },
+          { email: cleanIdentifier.toLowerCase() },
+          { email: cleanIdentifier },
+          { username: cleanIdentifier },
         ],
       },
       include: {
@@ -24,10 +30,10 @@ export async function POST(req: Request) {
     });
 
     if (!user) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+      return NextResponse.json({ error: 'Invalid email/username or password' }, { status: 401 });
     }
 
-    const valid = await comparePassword(password, user.passwordHash);
+    const valid = await comparePassword(cleanPassword, user.passwordHash);
     if (!valid) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
