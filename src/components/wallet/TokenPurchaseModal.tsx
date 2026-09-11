@@ -153,7 +153,20 @@ export default function TokenPurchaseModal() {
           <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">
             Select Payment Method:
           </label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('LEMON_SQUEEZY')}
+              className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1 transition ${
+                paymentMethod === 'LEMON_SQUEEZY'
+                  ? 'border-yellow-400 bg-yellow-400/20 text-white font-bold shadow-sm shadow-yellow-500/20'
+                  : 'border-surfaceBorder bg-surfaceLight/50 text-gray-400 hover:border-gray-600'
+              }`}
+            >
+              <span className="text-sm leading-none">🍋</span>
+              <span className="text-[11px]">Lemon Squeezy</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setPaymentMethod('STRIPE')}
@@ -292,7 +305,9 @@ export default function TokenPurchaseModal() {
                 <Coins className="w-4 h-4 text-black" />
                 <span>
                   Buy {selectedPackage.tokens} Tokens with{' '}
-                  {paymentMethod === 'MOBILE_MONEY'
+                  {paymentMethod === 'LEMON_SQUEEZY'
+                    ? 'Lemon Squeezy'
+                    : paymentMethod === 'MOBILE_MONEY'
                     ? `${selectedNetwork}`
                     : paymentMethod === 'CCBILL'
                     ? 'CCBill'

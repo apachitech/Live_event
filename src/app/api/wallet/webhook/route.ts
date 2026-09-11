@@ -13,7 +13,9 @@ export async function POST(req: Request) {
 
     // Detect payment provider from webhook headers
     let providerMethod: SupportedPaymentMethod = 'STRIPE';
-    if (headersObj['verif-hash']) {
+    if (headersObj['x-signature']) {
+      providerMethod = 'LEMON_SQUEEZY';
+    } else if (headersObj['verif-hash']) {
       providerMethod = 'MOBILE_MONEY';
     } else if (headersObj['user-agent']?.toString().includes('CCBill') || rawBody.includes('clientAccnum')) {
       providerMethod = 'CCBILL';

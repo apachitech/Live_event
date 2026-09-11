@@ -1,6 +1,6 @@
 import { TokenPackage } from '@/types';
 
-export type SupportedPaymentMethod = 'STRIPE' | 'CCBILL' | 'MOBILE_MONEY' | 'MOCK';
+export type SupportedPaymentMethod = 'STRIPE' | 'CCBILL' | 'MOBILE_MONEY' | 'LEMON_SQUEEZY' | 'MOCK';
 
 export interface MobileMoneyOptions {
   country: string; // 'KE' | 'NG' | 'GH' | 'CI' | 'SN' | 'UG' | 'CM' | 'ZA' | 'RW'
