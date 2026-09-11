@@ -19,7 +19,7 @@ import {
 export default function TokenPurchaseModal() {
   const { isPurchaseModalOpen, closePurchaseModal, refreshUser } = useAuth();
   const [selectedPackage, setSelectedPackage] = useState<TokenPackage>(TOKEN_PACKAGES[1]);
-  const [paymentMethod, setPaymentMethod] = useState<SupportedPaymentMethod>('STRIPE');
+  const [paymentMethod, setPaymentMethod] = useState<SupportedPaymentMethod>('LEMON_SQUEEZY');
 
   // African Mobile Money state
   const [selectedCountryCode, setSelectedCountryCode] = useState('KE');
