@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 import { paymentProcessor } from '@/lib/payment';
+import { logChangeData } from '@/lib/audit';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
@@ -64,6 +65,20 @@ export async function POST(req: Request) {
         },
       });
 
+      // Hard copy payout approval change data
+      await logChangeData({
+        actorUserId: session.userId,
+        action: 'PAYOUT_APPROVED',
+        entityType: 'Payout',
+        entityId: payoutId,
+        payload: {
+          streamerId: payout.streamerId,
+          tokensDeducted: payout.tokensDeducted,
+          payoutAmountCents: payout.payoutAmountCents,
+          referenceId: execution.referenceId,
+        },
+      });
+
       return NextResponse.json({ success: true, payout: updated });
     }
 
@@ -83,6 +98,19 @@ export async function POST(req: Request) {
             reviewedByUserId: session.userId,
           },
         });
+      });
+
+      // Hard copy payout rejection change data
+      await logChangeData({
+        actorUserId: session.userId,
+        action: 'PAYOUT_REJECTED',
+        entityType: 'Payout',
+        entityId: payoutId,
+        payload: {
+          streamerId: payout.streamerId,
+          tokensRefunded: payout.tokensDeducted,
+          payoutAmountCents: payout.payoutAmountCents,
+        },
       });
 
       return NextResponse.json({ success: true, status: 'REJECTED' });

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { logChangeData } from '@/lib/audit';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request, { params }: { params: { streamId: string } }) {
@@ -28,6 +29,19 @@ export async function POST(req: Request, { params }: { params: { streamId: strin
         label,
         tokenCost: parseInt(tokenCost, 10),
         description,
+      },
+    });
+
+    // Hard copy tip menu item change data
+    await logChangeData({
+      actorUserId: session.userId,
+      action: 'TIP_MENU_ITEM_CREATED',
+      entityType: 'TipMenuItem',
+      entityId: item.id,
+      payload: {
+        streamerId: stream.streamer.id,
+        label: item.label,
+        tokenCost: item.tokenCost,
       },
     });
 

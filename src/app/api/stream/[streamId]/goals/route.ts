@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { logChangeData } from '@/lib/audit';
 
 export async function POST(req: Request, { params }: { params: { streamId: string } }) {
   try {
@@ -34,6 +35,19 @@ export async function POST(req: Request, { params }: { params: { streamId: strin
         targetAmount: parseInt(targetAmount, 10),
         currentAmount: 0,
         active: true,
+      },
+    });
+
+    // Hard copy tip goal change data
+    await logChangeData({
+      actorUserId: session.userId,
+      action: 'TIP_GOAL_CREATED',
+      entityType: 'TipGoal',
+      entityId: goal.id,
+      payload: {
+        streamId,
+        label: goal.label,
+        targetAmount: goal.targetAmount,
       },
     });
 

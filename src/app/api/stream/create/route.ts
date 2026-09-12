@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 import { videoProvider } from '@/lib/video';
+import { logChangeData } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,6 +76,20 @@ export async function POST(req: Request) {
         targetAmount: 500,
         currentAmount: 0,
         active: true,
+      },
+    });
+
+    // Hard copy stream creation change data
+    await logChangeData({
+      actorUserId: session.userId,
+      action: 'STREAM_CREATED',
+      entityType: 'Stream',
+      entityId: stream.id,
+      payload: {
+        title: stream.title,
+        category: stream.category,
+        roomName: stream.roomName,
+        privateRatePerMin: stream.privateRatePerMin,
       },
     });
 

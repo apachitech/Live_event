@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { logChangeData } from '@/lib/audit';
 
 export async function POST(req: Request) {
   try {
@@ -43,6 +44,19 @@ export async function POST(req: Request) {
           ratePerMinute: stream.privateRatePerMin || 60,
           status: 'REQUESTED',
           c2cEnabled: Boolean(c2cEnabled),
+        },
+      });
+
+      // Hard copy private show request change data
+      await logChangeData({
+        actorUserId: session.userId,
+        action: 'PRIVATE_SESSION_REQUESTED',
+        entityType: 'PrivateSession',
+        entityId: privateSession.id,
+        payload: {
+          streamId: stream.id,
+          streamerId: stream.streamerId,
+          ratePerMinute: privateSession.ratePerMinute,
         },
       });
 
@@ -94,6 +108,19 @@ export async function POST(req: Request) {
             startedAt: new Date(),
           },
         });
+
+        // Hard copy private show accepted change data
+        await logChangeData({
+          actorUserId: session.userId,
+          action: 'PRIVATE_SESSION_ACCEPTED',
+          entityType: 'PrivateSession',
+          entityId: sessionId,
+          payload: {
+            streamId,
+            viewerId,
+            ratePerMin: stream.privateRatePerMin,
+          },
+        });
       }
 
       if ((global as any).io) {
@@ -137,6 +164,19 @@ export async function POST(req: Request) {
           data: {
             status: 'ENDED',
             endedAt,
+            totalMinutes,
+          },
+        });
+
+        // Hard copy private session ended change data
+        await logChangeData({
+          actorUserId: session.userId,
+          action: 'PRIVATE_SESSION_ENDED',
+          entityType: 'PrivateSession',
+          entityId: activeSession.id,
+          payload: {
+            streamId: stream.id,
+            viewerId: activeSession.viewerId,
             totalMinutes,
           },
         });

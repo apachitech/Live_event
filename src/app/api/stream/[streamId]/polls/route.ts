@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { logChangeData } from '@/lib/audit';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request, { params }: { params: { streamId: string } }) {
@@ -92,6 +93,20 @@ export async function POST(req: Request, { params }: { params: { streamId: strin
       },
     });
 
+    // Hard copy poll launch change data
+    await logChangeData({
+      actorUserId: session.userId,
+      action: 'POLL_LAUNCHED',
+      entityType: 'Poll',
+      entityId: poll.id,
+      payload: {
+        streamId,
+        question: poll.question,
+        tokenCost: poll.tokenCost,
+        optionsCount: poll.options.length,
+      },
+    });
+
     const pollPayload = {
       id: poll.id,
       streamId,
@@ -140,6 +155,19 @@ export async function PATCH(req: Request, { params }: { params: { streamId: stri
       where: { id: pollId },
       data: { active: false, endedAt: new Date() },
       include: { options: true },
+    });
+
+    // Hard copy poll closed change data
+    await logChangeData({
+      actorUserId: session.userId,
+      action: 'POLL_CLOSED',
+      entityType: 'Poll',
+      entityId: pollId,
+      payload: {
+        streamId,
+        question: updated.question,
+        totalVotes: updated.options.reduce((acc, o) => acc + o.voteCount, 0),
+      },
     });
 
     if ((global as any).io) {

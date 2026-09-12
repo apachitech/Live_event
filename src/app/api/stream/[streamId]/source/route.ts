@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { logChangeData } from '@/lib/audit';
 
 export async function GET(
   req: Request,
@@ -57,6 +58,19 @@ export async function PATCH(
       data: {
         sourceType: sourceType || 'WEBRTC',
         externalStreamUrl: externalStreamUrl || null,
+      },
+    });
+
+    // Hard copy stream source change data
+    await logChangeData({
+      actorUserId: session.userId,
+      action: 'STREAM_SOURCE_CHANGED',
+      entityType: 'Stream',
+      entityId: params.streamId,
+      payload: {
+        previousSourceType: stream.sourceType,
+        newSourceType: updated.sourceType,
+        externalStreamUrl: updated.externalStreamUrl,
       },
     });
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { logChangeData } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,6 +32,19 @@ export async function POST(req: Request) {
       data: {
         status,
         endedAt: status === 'ENDED' || status === 'OFFLINE' ? new Date() : undefined,
+      },
+    });
+
+    // Hard copy stream status change data
+    await logChangeData({
+      actorUserId: session.userId,
+      action: `STREAM_STATUS_${status}`,
+      entityType: 'Stream',
+      entityId: streamId,
+      payload: {
+        previousStatus: stream.status,
+        newStatus: status,
+        title: stream.title,
       },
     });
 

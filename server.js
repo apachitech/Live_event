@@ -37,6 +37,20 @@ const port = parseInt(process.env.PORT || '3000', 10);
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
+// Lazy Prisma Client for hard-copying live chat and change data
+let prismaClient = null;
+function getPrisma() {
+  if (!prismaClient) {
+    try {
+      const { PrismaClient } = require('@prisma/client');
+      prismaClient = new PrismaClient();
+    } catch (e) {
+      console.error('> Notice: Unable to initialize Prisma in server.js:', e.message);
+    }
+  }
+  return prismaClient;
+}
+
 // In-memory room viewer count tracker
 const roomViewers = new Map();
 // Rate limit tracker: userId -> [timestamp1, timestamp2, ...]
@@ -127,12 +141,14 @@ const io = new Server(server, {
       }
     });
 
-    socket.on('send_chat_message', (data) => {
+    socket.on('send_chat_message', async (data) => {
       const { streamId, user, body } = data;
       if (!streamId || !user || !body || !body.trim()) return;
 
+      const userId = user.userId || user.id;
+
       // Rate limit check
-      if (!checkRateLimit(user.userId || user.id || socket.id)) {
+      if (!checkRateLimit(userId || socket.id)) {
         socket.emit('chat_error', { message: 'You are sending messages too fast. Please wait a moment.' });
         return;
       }
@@ -140,17 +156,56 @@ const io = new Server(server, {
       // Basic profanity / harmful content filter
       const bannedWords = ['scam', 'phishing', 'botnet', 'malware', 'exploit'];
       const containsBanned = bannedWords.some((w) => body.toLowerCase().includes(w));
+      const cleanBody = containsBanned ? '[Flagged Message: Under Review]' : body.trim();
+
+      let savedId = `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      let createdAtStr = new Date().toISOString();
+
+      // Hard copy chat message to database
+      try {
+        const db = getPrisma();
+        if (db && userId && userId !== 'guest') {
+          const dbUser = await db.user.findUnique({ where: { id: userId } });
+          if (dbUser) {
+            const savedMsg = await db.chatMessage.create({
+              data: {
+                streamId,
+                userId: dbUser.id,
+                body: cleanBody,
+                flagged: containsBanned,
+              },
+            });
+            savedId = savedMsg.id;
+            createdAtStr = savedMsg.createdAt.toISOString();
+
+            // Hard copy change data / audit log if message was flagged
+            if (containsBanned) {
+              await db.auditLog.create({
+                data: {
+                  actorUserId: dbUser.id,
+                  action: 'CHAT_MESSAGE_FLAGGED',
+                  entityType: 'ChatMessage',
+                  entityId: savedMsg.id,
+                  payload: JSON.stringify({ originalBody: body.trim(), streamId }),
+                },
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error('> Notice: Failed to hard-copy chat message to DB:', err.message);
+      }
 
       const messagePayload = {
-        id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        id: savedId,
         streamId,
-        userId: user.userId || user.id,
-        username: user.username,
-        role: user.role,
+        userId: userId || 'guest',
+        username: user.username || 'Guest',
+        role: user.role || 'VIEWER',
         badge: user.badge || null,
-        body: containsBanned ? '[Flagged Message: Under Review]' : body.trim(),
+        body: cleanBody,
         flagged: containsBanned,
-        createdAt: new Date().toISOString(),
+        createdAt: createdAtStr,
       };
 
       io.to(`stream:${streamId}`).emit('new_chat_message', messagePayload);
@@ -194,10 +249,26 @@ const io = new Server(server, {
     });
 
     // Pinned chat announcement from streamer
-    socket.on('pinned_announcement', (data) => {
-      const { streamId, announcement } = data;
+    socket.on('pinned_announcement', async (data) => {
+      const { streamId, announcement, userId } = data;
       if (streamId) {
         io.to(`stream:${streamId}`).emit('pinned_announcement', announcement);
+        try {
+          const db = getPrisma();
+          if (db) {
+            await db.auditLog.create({
+              data: {
+                actorUserId: userId || null,
+                action: announcement ? 'PINNED_ANNOUNCEMENT_SET' : 'PINNED_ANNOUNCEMENT_CLEARED',
+                entityType: 'Stream',
+                entityId: streamId,
+                payload: JSON.stringify({ announcement }),
+              },
+            });
+          }
+        } catch (err) {
+          console.error('> Notice: Failed to hard-copy pinned announcement to DB:', err.message);
+        }
       }
     });
 

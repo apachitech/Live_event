@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { logChangeData } from '@/lib/audit';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
@@ -41,6 +42,16 @@ export async function POST(req: Request) {
           status: 'PENDING',
         },
       });
+
+      // Hard copy moderation flag creation change data
+      await logChangeData({
+        actorUserId: session?.userId || null,
+        action: 'CONTENT_FLAGGED',
+        entityType: targetType || 'STREAM',
+        entityId: targetId || flag.id,
+        payload: { reason, flagId: flag.id },
+      });
+
       return NextResponse.json({ success: true, flag });
     }
 
@@ -54,6 +65,19 @@ export async function POST(req: Request) {
       data: {
         status: action === 'DISMISS' ? 'DISMISSED' : 'ACTIONED',
         actionTaken: action,
+      },
+    });
+
+    // Hard copy moderation resolution change data
+    await logChangeData({
+      actorUserId: session.userId,
+      action: `MODERATION_ACTION_${action}`,
+      entityType: 'ModerationFlag',
+      entityId: flagId,
+      payload: {
+        actionTaken: action,
+        targetType: updated.targetType,
+        targetId: updated.targetId,
       },
     });
 

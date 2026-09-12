@@ -23,6 +23,20 @@ export default function ChatContainer({ streamId, initialMessages = [] }: ChatCo
 
   const isModerator = user?.role === 'STREAMER' || user?.role === 'ADMIN' || user?.role === 'MODERATOR';
 
+  // Load persisted chat history on mount if not provided
+  useEffect(() => {
+    if (initialMessages.length === 0 && streamId) {
+      fetch(`/api/stream/${streamId}/chat`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.messages && data.messages.length > 0) {
+            setMessages(data.messages);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [streamId, initialMessages]);
+
   useEffect(() => {
     const socket = io();
     socketRef.current = socket;
@@ -35,7 +49,11 @@ export default function ChatContainer({ streamId, initialMessages = [] }: ChatCo
     });
 
     socket.on('new_chat_message', (msg: ChatMessagePayload) => {
-      setMessages((prev) => [...prev.slice(-100), msg]);
+      setMessages((prev) => {
+        // Prevent duplicate messages if already present
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [...prev.slice(-100), msg];
+      });
     });
 
     socket.on('pinned_announcement', (announcement: string | null) => {
@@ -57,26 +75,44 @@ export default function ChatContainer({ streamId, initialMessages = [] }: ChatCo
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputText.trim() || !socketRef.current) return;
+    const text = inputText.trim();
+    if (!text) return;
 
     if (!user) {
       alert('Please sign in to participate in the live chat.');
       return;
     }
 
-    socketRef.current.emit('send_chat_message', {
-      streamId,
-      user: {
-        userId: user.id,
-        username: user.username,
-        role: user.role,
-      },
-      body: inputText.trim(),
-    });
-
     setInputText('');
+
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('send_chat_message', {
+        streamId,
+        user: {
+          userId: user.id,
+          username: user.username,
+          role: user.role,
+        },
+        body: text,
+      });
+    } else {
+      // Fallback to REST API for guaranteed hard-copying
+      try {
+        const res = await fetch(`/api/stream/${streamId}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body: text }),
+        });
+        const data = await res.json();
+        if (data.message) {
+          setMessages((prev) => [...prev.slice(-100), data.message]);
+        }
+      } catch (err: any) {
+        setRateLimitWarning('Failed to deliver message. Please retry.');
+      }
+    }
   };
 
   const handleUnpin = () => {
