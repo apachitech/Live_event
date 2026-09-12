@@ -23,19 +23,46 @@ export default function ChatContainer({ streamId, initialMessages = [] }: ChatCo
 
   const isModerator = user?.role === 'STREAMER' || user?.role === 'ADMIN' || user?.role === 'MODERATOR';
 
-  // Load persisted chat history on mount if not provided
+  // Sync initialMessages when passed or updated from parent
   useEffect(() => {
-    if (initialMessages.length === 0 && streamId) {
+    if (initialMessages && initialMessages.length > 0) {
+      setMessages((prev) => {
+        const existingIds = new Set(prev.map((m) => m.id));
+        const combined = [...prev];
+        for (const m of initialMessages) {
+          if (!existingIds.has(m.id)) {
+            combined.push(m);
+            existingIds.add(m.id);
+          }
+        }
+        return combined.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      });
+    }
+  }, [initialMessages]);
+
+  // Load persisted chat history from server
+  useEffect(() => {
+    if (streamId) {
       fetch(`/api/stream/${streamId}/chat`)
         .then((res) => res.json())
         .then((data) => {
           if (data.messages && data.messages.length > 0) {
-            setMessages(data.messages);
+            setMessages((prev) => {
+              const existingIds = new Set(prev.map((m) => m.id));
+              const combined = [...prev];
+              for (const m of data.messages) {
+                if (!existingIds.has(m.id)) {
+                  combined.push(m);
+                  existingIds.add(m.id);
+                }
+              }
+              return combined.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+            });
           }
         })
         .catch(() => {});
     }
-  }, [streamId, initialMessages]);
+  }, [streamId]);
 
   useEffect(() => {
     const socket = io();

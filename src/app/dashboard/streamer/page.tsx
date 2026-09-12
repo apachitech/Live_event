@@ -70,37 +70,37 @@ export default function StreamerStudioPage() {
 
   const socketRef = useRef<Socket | null>(null);
 
-  // Load existing stream or setup socket listeners
+  // Load current streamer stream or channel
   useEffect(() => {
     if (!user) return;
 
-    fetch('/api/stream/list')
+    fetch('/api/stream/current')
       .then((res) => res.json())
       .then((data) => {
-        if (data.streams) {
-          const myStream = data.streams.find((s: any) => s.streamer?.user?.username === user.username);
-          if (myStream) {
-            setStream(myStream);
-            setIsLive(myStream.status === 'LIVE' || myStream.status === 'PRIVATE');
-            setIsPrivateActive(myStream.status === 'PRIVATE');
-            setStreamTitle(myStream.title);
+        if (data.stream) {
+          const myStream = data.stream;
+          setStream(myStream);
+          setIsLive(myStream.status === 'LIVE' || myStream.status === 'PRIVATE');
+          setIsPrivateActive(myStream.status === 'PRIVATE');
+          if (myStream.title) setStreamTitle(myStream.title);
+          if (myStream.category) setCategory(myStream.category);
+          if (myStream.privateRatePerMin) setPrivateRate(myStream.privateRatePerMin);
 
-            // Fetch active poll for this stream
-            fetch(`/api/stream/${myStream.id}/polls`)
-              .then((r) => r.json())
-              .then((pData) => {
-                if (pData.poll) setActivePoll(pData.poll);
-              })
-              .catch(() => {});
+          // Fetch active poll for this stream
+          fetch(`/api/stream/${myStream.id}/polls`)
+            .then((r) => r.json())
+            .then((pData) => {
+              if (pData.poll) setActivePoll(pData.poll);
+            })
+            .catch(() => {});
 
-            // Fetch existing tip menu items
-            fetch(`/api/stream/${myStream.id}/tip-menu`)
-              .then((r) => r.json())
-              .then((m) => {
-                if (m.items) setTipMenuItems(m.items);
-              })
-              .catch(() => {});
-          }
+          // Fetch existing tip menu items
+          fetch(`/api/stream/${myStream.id}/tip-menu`)
+            .then((r) => r.json())
+            .then((m) => {
+              if (m.items) setTipMenuItems(m.items);
+            })
+            .catch(() => {});
         }
       })
       .catch(() => {});
@@ -195,7 +195,7 @@ export default function StreamerStudioPage() {
       });
       setIsLive(false);
       setIsPrivateActive(false);
-      setStream(null);
+      setStream((prev: any) => (prev ? { ...prev, status: 'ENDED' } : prev));
       setShowEndModal(false);
     } catch (e: any) {
       alert(e.message);
@@ -809,12 +809,24 @@ export default function StreamerStudioPage() {
         {/* Right Column (4 cols): Live Chat Monitor */}
         <div className="lg:col-span-4 h-[600px] lg:h-[calc(100vh-8rem)] sticky top-24">
           {stream ? (
-            <ChatContainer streamId={stream.id} />
+            <ChatContainer
+              streamId={stream.id}
+              initialMessages={stream.chatMessages?.map((m: any) => ({
+                id: m.id,
+                streamId: m.streamId,
+                userId: m.userId,
+                username: m.user?.username || 'Viewer',
+                role: m.user?.role || 'VIEWER',
+                body: m.body,
+                flagged: m.flagged,
+                createdAt: m.createdAt,
+              }))}
+            />
           ) : (
             <div className="h-full rounded-2xl glass-panel border border-surfaceBorder flex flex-col items-center justify-center text-center p-6 text-gray-500">
-              <Radio className="w-8 h-8 text-gray-600 mb-2 animate-pulse" />
-              <p className="text-xs font-bold text-gray-300">Live Chat Monitor</p>
-              <p className="text-[11px] text-gray-400 mt-1 max-w-xs">Start your stream broadcast to monitor viewer chat in real-time.</p>
+              <div className="w-7 h-7 border-2 border-brandPurple border-t-transparent rounded-full animate-spin mb-3" />
+              <p className="text-xs font-bold text-gray-300">Connecting Studio Chat...</p>
+              <p className="text-[11px] text-gray-400 mt-1 max-w-xs">Initializing real-time studio channel.</p>
             </div>
           )}
         </div>
