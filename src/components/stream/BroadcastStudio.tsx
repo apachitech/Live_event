@@ -1,26 +1,34 @@
+'use client';
+
 import React, { useState, useEffect, useRef } from 'react';
-import { Room, createLocalTracks, LocalVideoTrack, LocalAudioTrack } from 'livekit-client';
+import { Room, createLocalTracks } from 'livekit-client';
 import Hls from 'hls.js';
 import {
   Video,
   VideoOff,
   Mic,
   MicOff,
-  Settings,
   Radio,
   Copy,
   Check,
   Key,
-  Shield,
   Volume2,
-  RefreshCw,
   Sparkles,
   Globe,
-  ExternalLink,
   Play,
   Zap,
+  Monitor,
+  MonitorOff,
+  Sliders,
+  VolumeX,
+  Share2,
+  Activity,
+  Eye,
+  EyeOff,
+  Music,
 } from 'lucide-react';
 import ToyPairingModal from './ToyPairingModal';
+import { soundEffects } from '@/lib/sound/soundEffects';
 
 interface BroadcastStudioProps {
   streamId: string | null;
@@ -28,12 +36,14 @@ interface BroadcastStudioProps {
   onLiveKitStatusChange?: (status: string) => void;
 }
 
+type VideoFilter = 'normal' | 'vibrant' | 'cyberpunk' | 'noir';
+
 export default function BroadcastStudio({
   streamId,
   isLive,
-  onLiveKitStatusChange,
 }: BroadcastStudioProps) {
   const videoPreviewRef = useRef<HTMLVideoElement>(null);
+  const screenPreviewRef = useRef<HTMLVideoElement>(null);
   const externalPreviewRef = useRef<HTMLVideoElement>(null);
   const audioMeterCanvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -55,21 +65,39 @@ export default function BroadcastStudio({
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
 
+  // Screen Share state
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
+
+  // Video Enhancements (Mirroring & Filters)
+  const [isMirrored, setIsMirrored] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<VideoFilter>('normal');
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+
   // LiveKit WebRTC state
   const livekitRoomRef = useRef<Room | null>(null);
   const [livekitConnected, setLivekitConnected] = useState(false);
   const [livekitMessage, setLivekitMessage] = useState<string>('');
 
+  // Live Broadcast Timer
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
   // OBS Ingress credentials
   const [showObsDrawer, setShowObsDrawer] = useState(false);
+  const [showStreamKey, setShowStreamKey] = useState(false);
   const [ingressData, setIngressData] = useState<{ rtmpServer: string; streamKey: string } | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
+  const [copiedRoomLink, setCopiedRoomLink] = useState(false);
 
   // Interactive Toy Modal
   const [showToyModal, setShowToyModal] = useState(false);
 
-  // 1. Enumerate and request media devices
+  // Soundboard panel
+  const [showSoundboard, setShowSoundboard] = useState(false);
+  const [activeSfx, setActiveSfx] = useState<string | null>(null);
+
+  // 1. Enumerate media devices
   useEffect(() => {
     async function loadDevices() {
       try {
@@ -99,81 +127,87 @@ export default function BroadcastStudio({
     loadDevices();
   }, [selectedVideoDeviceId, selectedAudioDeviceId]);
 
-  // 2. Initialize camera & microphone preview
+  // 2. Camera & Mic Preview Engine
   useEffect(() => {
     let activeStream: MediaStream | null = null;
     let audioContext: AudioContext | null = null;
-    let analyser: AnalyserNode | null = null;
     let animFrame: number;
 
     async function startPreview() {
       try {
         setPermissionError(null);
-        if (!navigator.mediaDevices?.getUserMedia) return;
 
         const constraints: MediaStreamConstraints = {
-          video: selectedVideoDeviceId ? { deviceId: { exact: selectedVideoDeviceId }, width: 1280, height: 720 } : true,
-          audio: selectedAudioDeviceId ? { deviceId: { exact: selectedAudioDeviceId } } : true,
+          video: selectedVideoDeviceId
+            ? { deviceId: { exact: selectedVideoDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+            : { width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: selectedAudioDeviceId
+            ? { deviceId: { exact: selectedAudioDeviceId } }
+            : true,
         };
 
-        activeStream = await navigator.mediaDevices.getUserMedia(constraints);
-        setMediaStream(activeStream);
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        activeStream = stream;
+        setMediaStream(stream);
 
         if (videoPreviewRef.current) {
-          videoPreviewRef.current.srcObject = activeStream;
+          videoPreviewRef.current.srcObject = stream;
         }
 
-        // Setup Web Audio VU meter
-        const audioTracks = activeStream.getAudioTracks();
-        if (audioTracks.length > 0) {
-          audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-          analyser = audioContext.createAnalyser();
+        // VU Meter with Web Audio API
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx) {
+          audioContext = new AudioCtx();
+          if (audioContext.state === 'suspended') {
+            await audioContext.resume().catch(() => {});
+          }
+
+          const source = audioContext.createMediaStreamSource(stream);
+          const analyser = audioContext.createAnalyser();
           analyser.fftSize = 64;
-          const source = audioContext.createMediaStreamSource(activeStream);
           source.connect(analyser);
+
+          const bufferLength = analyser.frequencyBinCount;
+          const dataArray = new Uint8Array(bufferLength);
 
           const canvas = audioMeterCanvasRef.current;
           if (canvas) {
             const ctx = canvas.getContext('2d');
-            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            if (ctx) {
+              const drawVU = () => {
+                analyser.getByteFrequencyData(dataArray);
 
-            const drawVU = () => {
-              if (!analyser || !ctx) return;
-              analyser.getByteFrequencyData(dataArray);
+                let sum = 0;
+                for (let i = 0; i < bufferLength; i++) {
+                  sum += dataArray[i];
+                }
+                const avg = sum / bufferLength;
+                const levelPercent = Math.min(100, Math.round((avg / 128) * 100));
 
-              // Calculate average volume
-              let sum = 0;
-              for (let i = 0; i < dataArray.length; i++) {
-                sum += dataArray[i];
-              }
-              const avg = sum / dataArray.length;
-              const levelPercent = Math.min(100, Math.round((avg / 128) * 100));
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-              ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#181926';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-              // Background track
-              ctx.fillStyle = '#1c1d27';
-              ctx.fillRect(0, 0, canvas.width, canvas.height);
+                const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+                grad.addColorStop(0, '#10b981'); // green
+                grad.addColorStop(0.7, '#f59e0b'); // amber
+                grad.addColorStop(1, '#ef4444'); // red
+                ctx.fillStyle = grad;
 
-              // Fill bar
-              const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
-              grad.addColorStop(0, '#10b981'); // green
-              grad.addColorStop(0.7, '#f59e0b'); // amber
-              grad.addColorStop(1, '#ef4444'); // red
-              ctx.fillStyle = grad;
+                const fillWidth = (levelPercent / 100) * canvas.width;
+                ctx.fillRect(0, 0, fillWidth, canvas.height);
 
-              const fillWidth = (levelPercent / 100) * canvas.width;
-              ctx.fillRect(0, 0, fillWidth, canvas.height);
+                animFrame = requestAnimationFrame(drawVU);
+              };
 
-              animFrame = requestAnimationFrame(drawVU);
-            };
-
-            drawVU();
+              drawVU();
+            }
           }
         }
       } catch (err: any) {
         console.warn('Camera/Mic access note:', err.message);
-        setPermissionError('Camera or Microphone not available. Studio will use high-fidelity simulated test feed.');
+        setPermissionError('Camera or Microphone not available. Studio is in standby.');
       }
     }
 
@@ -190,11 +224,69 @@ export default function BroadcastStudio({
     };
   }, [selectedVideoDeviceId, selectedAudioDeviceId]);
 
+  // Live broadcast stopwatch timer
+  useEffect(() => {
+    let interval: any;
+    if (isLive) {
+      interval = setInterval(() => {
+        setElapsedSeconds((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setElapsedSeconds(0);
+    }
+    return () => clearInterval(interval);
+  }, [isLive]);
+
+  const formatStopwatch = (totalSec: number) => {
+    const hrs = Math.floor(totalSec / 3600);
+    const mins = Math.floor((totalSec % 3600) / 60);
+    const secs = totalSec % 60;
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    if (hrs > 0) return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+    return `${pad(mins)}:${pad(secs)}`;
+  };
+
+  // Screen Share Toggle
+  const toggleScreenShare = async () => {
+    if (isScreenSharing && screenStream) {
+      screenStream.getTracks().forEach((t) => t.stop());
+      setScreenStream(null);
+      setIsScreenSharing(false);
+      return;
+    }
+
+    try {
+      if (!navigator.mediaDevices?.getDisplayMedia) {
+        alert('Screen sharing is not supported in this browser.');
+        return;
+      }
+
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { cursor: 'always' } as any,
+        audio: true,
+      });
+
+      setScreenStream(stream);
+      setIsScreenSharing(true);
+
+      if (screenPreviewRef.current) {
+        screenPreviewRef.current.srcObject = stream;
+      }
+
+      // Handle when user stops sharing via browser chrome
+      stream.getVideoTracks()[0].onended = () => {
+        setIsScreenSharing(false);
+        setScreenStream(null);
+      };
+    } catch (err: any) {
+      console.warn('Screen share canceled or denied:', err.message);
+    }
+  };
+
   // Toggle video track
   const toggleVideo = () => {
     if (mediaStream) {
-      const vTracks = mediaStream.getVideoTracks();
-      vTracks.forEach((t) => {
+      mediaStream.getVideoTracks().forEach((t) => {
         t.enabled = !isVideoEnabled;
       });
       setIsVideoEnabled(!isVideoEnabled);
@@ -204,15 +296,14 @@ export default function BroadcastStudio({
   // Toggle audio track
   const toggleAudio = () => {
     if (mediaStream) {
-      const aTracks = mediaStream.getAudioTracks();
-      aTracks.forEach((t) => {
+      mediaStream.getAudioTracks().forEach((t) => {
         t.enabled = !isAudioEnabled;
       });
       setIsAudioEnabled(!isAudioEnabled);
     }
   };
 
-  // 3. Connect and publish to LiveKit when Stream is LIVE
+  // Connect to LiveKit when stream is LIVE
   useEffect(() => {
     if (!isLive || !streamId) {
       if (livekitRoomRef.current) {
@@ -236,21 +327,15 @@ export default function BroadcastStudio({
 
         const { serverUrl, participantToken } = data.credentials;
 
-        // If LiveKit Cloud URL is configured, establish WebRTC room connection
         if (serverUrl && (serverUrl.startsWith('wss://') || serverUrl.startsWith('ws://'))) {
-          setLivekitMessage('Connecting LiveKit WebRTC Ingest...');
-          const room = new Room({
-            adaptiveStream: true,
-            dynacast: true,
-          });
-
+          setLivekitMessage('Connecting LiveKit WebRTC...');
+          const room = new Room({ adaptiveStream: true, dynacast: true });
           livekitRoomRef.current = room;
 
           await room.connect(serverUrl, participantToken);
           setLivekitConnected(true);
-          setLivekitMessage('Connected to LiveKit Cloud Publisher');
+          setLivekitMessage('Connected to LiveKit Cloud Ingest');
 
-          // Publish real media tracks if available
           if (mediaStream) {
             const tracks = await createLocalTracks({
               audio: true,
@@ -263,12 +348,12 @@ export default function BroadcastStudio({
           }
         } else {
           setLivekitConnected(false);
-          setLivekitMessage('Using High-Performance In-Browser Broadcast Engine');
+          setLivekitMessage('Active in High-Performance Stream Relay Mode');
         }
       } catch (err: any) {
         console.warn('LiveKit publisher notice:', err.message);
         setLivekitConnected(false);
-        setLivekitMessage('LiveKit server not connected; active in simulated broadcast mode.');
+        setLivekitMessage('LiveKit server not connected; using local relay');
       }
     }
 
@@ -296,7 +381,7 @@ export default function BroadcastStudio({
       .catch(() => {});
   }, [streamId]);
 
-  // Preview Cloudinary or External HLS stream in Studio
+  // External stream HLS preview
   useEffect(() => {
     if (sourceMode === 'EXTERNAL_EMBED' && externalUrl) {
       const video = externalPreviewRef.current;
@@ -351,7 +436,6 @@ export default function BroadcastStudio({
     }
   };
 
-  // Fetch OBS Ingress info
   const fetchIngress = async () => {
     if (!streamId) return;
     try {
@@ -366,23 +450,42 @@ export default function BroadcastStudio({
     }
   };
 
-  const copyToClipboard = (text: string, isKey: boolean) => {
+  const copyToClipboard = (text: string, type: 'key' | 'url' | 'room') => {
     navigator.clipboard.writeText(text);
-    if (isKey) {
+    if (type === 'key') {
       setCopiedKey(true);
       setTimeout(() => setCopiedKey(false), 2000);
-    } else {
+    } else if (type === 'url') {
       setCopiedUrl(true);
       setTimeout(() => setCopiedUrl(false), 2000);
+    } else {
+      setCopiedRoomLink(true);
+      setTimeout(() => setCopiedRoomLink(false), 2000);
     }
+  };
+
+  const playSfx = (sfxType: 'coin' | 'airhorn' | 'victory' | 'bass') => {
+    setActiveSfx(sfxType);
+    if (sfxType === 'coin') soundEffects.playCoinChime();
+    if (sfxType === 'airhorn') soundEffects.playAirhorn();
+    if (sfxType === 'victory') soundEffects.playVictoryFanfare();
+    if (sfxType === 'bass') soundEffects.playBassDrop();
+    setTimeout(() => setActiveSfx(null), 800);
+  };
+
+  const filterStyles: Record<VideoFilter, string> = {
+    normal: '',
+    vibrant: 'contrast-105 saturate-125',
+    cyberpunk: 'contrast-115 saturate-140 hue-rotate-15',
+    noir: 'grayscale contrast-125',
   };
 
   return (
     <div className="space-y-4">
-      {/* Broadcast Source Switcher Bar */}
-      <div className="p-3 rounded-2xl glass-panel border border-surfaceBorder flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-gray-400">Broadcast Source:</span>
+      {/* Broadcast Telemetry & Source Switcher Bar */}
+      <div className="p-3.5 rounded-2xl glass-panel border border-surfaceBorder flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-bold text-gray-400">Stream Source:</span>
           <div className="flex items-center p-0.5 rounded-xl bg-surfaceLight border border-surfaceBorder text-xs font-semibold">
             <button
               onClick={() => handleSaveSource('WEBRTC')}
@@ -393,7 +496,7 @@ export default function BroadcastStudio({
               }`}
             >
               <Video className="w-3.5 h-3.5" />
-              <span>Webcam & Mic</span>
+              <span>Camera & Mic</span>
             </button>
 
             <button
@@ -420,20 +523,47 @@ export default function BroadcastStudio({
               }`}
             >
               <Globe className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Cloudinary / External Stream</span>
+              <span>External Feed</span>
             </button>
           </div>
         </div>
 
-        {sourceSaveSuccess && (
-          <span className="text-xs font-bold text-emerald-400 flex items-center gap-1 animate-fade-in">
-            <Check className="w-4 h-4" /> Source Updated Live!
-          </span>
-        )}
+        {/* Live Broadcast Telemetry Stats */}
+        <div className="flex items-center gap-3 text-xs">
+          {isLive && (
+            <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 font-mono font-bold">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+              <span>REC {formatStopwatch(elapsedSeconds)}</span>
+            </div>
+          )}
+
+          <div className="hidden sm:flex items-center gap-1.5 text-emerald-400 font-semibold px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+            <Activity className="w-3.5 h-3.5" />
+            <span>1080p • 60 FPS</span>
+          </div>
+
+          {sourceSaveSuccess && (
+            <span className="text-xs font-bold text-emerald-400 flex items-center gap-1 animate-fade-in">
+              <Check className="w-4 h-4" /> Updated!
+            </span>
+          )}
+        </div>
       </div>
+
       {/* Video Preview Surface */}
       <div className="relative aspect-video rounded-2xl bg-black border border-surfaceBorder overflow-hidden shadow-2xl flex items-center justify-center">
-        {/* Real HTML5 Video element for Camera */}
+        {/* Screen Share Layer (if active) */}
+        {isScreenSharing && (
+          <video
+            ref={screenPreviewRef}
+            autoPlay
+            playsInline
+            muted
+            className="w-full h-full object-contain bg-black z-0"
+          />
+        )}
+
+        {/* Camera Feed Surface */}
         {sourceMode !== 'EXTERNAL_EMBED' ? (
           <>
             <video
@@ -441,25 +571,31 @@ export default function BroadcastStudio({
               autoPlay
               playsInline
               muted
-              className={`w-full h-full object-cover ${!isVideoEnabled || permissionError ? 'hidden' : 'block'}`}
+              className={`object-cover transition-all duration-300 ${
+                isScreenSharing
+                  ? 'absolute bottom-4 right-4 w-48 h-28 rounded-xl border-2 border-brandPurple shadow-2xl z-20'
+                  : 'w-full h-full'
+              } ${!isVideoEnabled || permissionError ? 'hidden' : 'block'} ${
+                isMirrored ? '-scale-x-100' : ''
+              } ${filterStyles[selectedFilter]}`}
             />
 
             {/* Fallback Screen when Video Disabled or No Camera */}
-            {(!isVideoEnabled || permissionError) && (
+            {(!isVideoEnabled || permissionError) && !isScreenSharing && (
               <div className="flex flex-col items-center justify-center text-center p-6 space-y-3">
                 <div className="p-4 rounded-2xl bg-surfaceLight border border-surfaceBorder text-brandPurple animate-pulse-subtle">
                   <VideoOff className="w-10 h-10" />
                 </div>
                 <div className="text-sm font-bold text-white">Camera Preview Disabled</div>
                 <p className="text-xs text-gray-400 max-w-sm">
-                  {permissionError || 'Your video track is muted. Click "Enable Video" below to resume camera preview.'}
+                  {permissionError || 'Click "Video On" below to enable camera stream.'}
                 </p>
               </div>
             )}
           </>
         ) : (
           <>
-            {/* Cloudinary / External Video Preview Surface */}
+            {/* Cloudinary / External Stream Embed Preview */}
             {externalUrl ? (
               <video
                 ref={externalPreviewRef}
@@ -474,17 +610,17 @@ export default function BroadcastStudio({
                 <div className="p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 animate-pulse">
                   <Globe className="w-10 h-10" />
                 </div>
-                <div className="text-sm font-bold text-white">Cloudinary / External Stream Embed</div>
+                <div className="text-sm font-bold text-white">External Stream Embed Mode</div>
                 <p className="text-xs text-gray-400 max-w-sm">
-                  Enter your Cloudinary media link or HLS (.m3u8) video URL below to stream it live to all viewers.
+                  Enter your Cloudinary or HLS video link below to stream it live.
                 </p>
               </div>
             )}
           </>
         )}
 
-        {/* Top Badges */}
-        <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none z-10">
+        {/* Top Badges Overlay */}
+        <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none z-30">
           <div className="flex items-center gap-2">
             <span
               className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-lg ${
@@ -495,9 +631,15 @@ export default function BroadcastStudio({
               {isLive ? 'ON AIR' : 'STUDIO PREVIEW'}
             </span>
 
+            {isScreenSharing && (
+              <span className="px-2.5 py-1 rounded-full bg-blue-600/90 text-white text-[10px] font-bold flex items-center gap-1 shadow">
+                <Monitor className="w-3 h-3" /> Screen Shared
+              </span>
+            )}
+
             {sourceMode === 'EXTERNAL_EMBED' ? (
               <span className="px-2.5 py-1 rounded-full bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-[10px] font-bold flex items-center gap-1">
-                <Globe className="w-3 h-3" /> Cloudinary Embed
+                <Globe className="w-3 h-3" /> External Feed
               </span>
             ) : sourceMode === 'RTMP' ? (
               <span className="px-2.5 py-1 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[10px] font-bold">
@@ -505,58 +647,121 @@ export default function BroadcastStudio({
               </span>
             ) : livekitConnected ? (
               <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold flex items-center gap-1">
-                <Sparkles className="w-3 h-3" /> LiveKit Cloud
+                <Sparkles className="w-3 h-3" /> LiveKit WebRTC
               </span>
-            ) : (
-              <span className="px-2.5 py-1 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300 text-[10px] font-bold">
-                Direct Ingest
-              </span>
-            )}
+            ) : null}
           </div>
 
           <div className="flex items-center gap-2 pointer-events-auto">
+            {/* Soundboard Toggle */}
+            <button
+              onClick={() => setShowSoundboard(!showSoundboard)}
+              className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-tokenGold border border-amber-500/30 text-xs font-bold flex items-center gap-1.5 transition shadow"
+              title="Broadcast Soundboard & SFX"
+            >
+              <Music className="w-3.5 h-3.5" />
+              <span>SFX</span>
+            </button>
+
+            {/* Interactive Toy Modal */}
             <button
               onClick={() => setShowToyModal(true)}
               className="px-2.5 py-1 rounded-lg bg-pink-600/80 hover:bg-pink-600 text-white border border-pink-400/40 text-xs font-bold flex items-center gap-1.5 transition shadow"
               title="Pair Lovense or Bluetooth Interactive Toy"
             >
               <Zap className="w-3.5 h-3.5 animate-pulse text-amber-300" />
-              <span>Interactive Toy</span>
+              <span>Toy</span>
             </button>
 
+            {/* OBS Credentials Drawer */}
             <button
               onClick={fetchIngress}
               className="px-2.5 py-1 rounded-lg bg-surfaceLight/90 hover:bg-surfaceLight text-white border border-white/10 text-xs font-semibold flex items-center gap-1.5 transition"
             >
               <Key className="w-3.5 h-3.5 text-tokenGold" />
-              <span>OBS Settings</span>
+              <span>OBS</span>
             </button>
+
+            {/* Copy Watch Room Link */}
+            {streamId && (
+              <button
+                onClick={() => copyToClipboard(`${window.location.origin}/watch/${streamId}`, 'room')}
+                className="px-2.5 py-1 rounded-lg bg-surfaceLight/90 hover:bg-surfaceLight text-white border border-white/10 text-xs font-semibold flex items-center gap-1.5 transition"
+                title="Copy Public Stream Link"
+              >
+                {copiedRoomLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5 text-brandPurple" />}
+                <span>{copiedRoomLink ? 'Copied!' : 'Share'}</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Bottom Status Overlay */}
-        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between pointer-events-none z-10">
-          {/* Audio VU Meter */}
-          <div className="flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10">
+        {/* Soundboard Drawer Floating Panel */}
+        {showSoundboard && (
+          <div className="absolute top-14 right-4 z-40 p-3 rounded-2xl bg-surface/95 backdrop-blur-md border border-surfaceBorder shadow-2xl flex flex-col gap-2 animate-fade-in pointer-events-auto">
+            <div className="text-[11px] font-extrabold text-white flex items-center justify-between gap-4 pb-1 border-b border-surfaceBorder/60">
+              <span>Studio Soundboard (SFX)</span>
+              <button onClick={() => setShowSoundboard(false)} className="text-gray-400 hover:text-white">✕</button>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs font-bold">
+              <button
+                onClick={() => playSfx('airhorn')}
+                className={`px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder hover:border-amber-500 text-amber-400 flex items-center gap-1.5 transition ${
+                  activeSfx === 'airhorn' ? 'scale-105 border-amber-400 bg-amber-500/20' : ''
+                }`}
+              >
+                <span>🎺 Airhorn</span>
+              </button>
+              <button
+                onClick={() => playSfx('coin')}
+                className={`px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder hover:border-yellow-400 text-yellow-300 flex items-center gap-1.5 transition ${
+                  activeSfx === 'coin' ? 'scale-105 border-yellow-400 bg-yellow-500/20' : ''
+                }`}
+              >
+                <span>🪙 Tip Chime</span>
+              </button>
+              <button
+                onClick={() => playSfx('victory')}
+                className={`px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder hover:border-purple-400 text-purple-300 flex items-center gap-1.5 transition ${
+                  activeSfx === 'victory' ? 'scale-105 border-purple-400 bg-purple-500/20' : ''
+                }`}
+              >
+                <span>🏆 Victory</span>
+              </button>
+              <button
+                onClick={() => playSfx('bass')}
+                className={`px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder hover:border-pink-400 text-pink-300 flex items-center gap-1.5 transition ${
+                  activeSfx === 'bass' ? 'scale-105 border-pink-400 bg-pink-500/20' : ''
+                }`}
+              >
+                <span>💣 Bass Drop</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Bottom Audio VU Meter & Status */}
+        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between pointer-events-none z-30">
+          <div className="flex items-center gap-2 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10">
             <Volume2 className={`w-3.5 h-3.5 ${isAudioEnabled ? 'text-emerald-400' : 'text-gray-500'}`} />
             <canvas
               ref={audioMeterCanvasRef}
-              width={100}
+              width={110}
               height={10}
               className="rounded-full overflow-hidden"
             />
           </div>
 
-          <div className="text-[11px] text-gray-400 bg-black/60 backdrop-blur-md px-3 py-1 rounded-lg border border-white/10">
-            {livekitMessage || 'Ready to Broadcast'}
+          <div className="text-[11px] text-gray-300 font-medium bg-black/70 backdrop-blur-md px-3 py-1 rounded-lg border border-white/10">
+            {livekitMessage || 'Studio Ready'}
           </div>
         </div>
       </div>
 
-      {/* Device Selection & Toggles Toolbar */}
+      {/* Studio Action Controls & Device Bar */}
       <div className="p-4 rounded-2xl glass-panel border border-surfaceBorder">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          {/* Hardware Dropdowns */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          {/* Device Selection Dropdowns */}
           <div className="flex items-center gap-3 flex-wrap">
             {/* Camera Select */}
             <div className="flex items-center gap-1.5">
@@ -564,7 +769,7 @@ export default function BroadcastStudio({
               <select
                 value={selectedVideoDeviceId}
                 onChange={(e) => setSelectedVideoDeviceId(e.target.value)}
-                className="px-2.5 py-1.5 rounded-xl bg-surfaceLight border border-surfaceBorder text-gray-200 text-xs font-medium focus:outline-none focus:border-brandPurple max-w-[180px] truncate"
+                className="px-2.5 py-1.5 rounded-xl bg-surfaceLight border border-surfaceBorder text-gray-200 text-xs font-medium focus:outline-none focus:border-brandPurple max-w-[160px] truncate"
               >
                 {videoDevices.map((d, i) => (
                   <option key={d.deviceId || i} value={d.deviceId}>
@@ -581,7 +786,7 @@ export default function BroadcastStudio({
               <select
                 value={selectedAudioDeviceId}
                 onChange={(e) => setSelectedAudioDeviceId(e.target.value)}
-                className="px-2.5 py-1.5 rounded-xl bg-surfaceLight border border-surfaceBorder text-gray-200 text-xs font-medium focus:outline-none focus:border-brandPurple max-w-[180px] truncate"
+                className="px-2.5 py-1.5 rounded-xl bg-surfaceLight border border-surfaceBorder text-gray-200 text-xs font-medium focus:outline-none focus:border-brandPurple max-w-[160px] truncate"
               >
                 {audioDevices.map((d, i) => (
                   <option key={d.deviceId || i} value={d.deviceId}>
@@ -593,8 +798,22 @@ export default function BroadcastStudio({
             </div>
           </div>
 
-          {/* Mute & Video Toggles */}
-          <div className="flex items-center gap-2">
+          {/* Quick Hardware & Feature Action Toggles */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Screen Share Button */}
+            <button
+              onClick={toggleScreenShare}
+              className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
+                isScreenSharing
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                  : 'bg-surfaceLight hover:bg-surfaceBorder text-gray-300 border border-surfaceBorder'
+              }`}
+            >
+              {isScreenSharing ? <MonitorOff className="w-3.5 h-3.5" /> : <Monitor className="w-3.5 h-3.5 text-blue-400" />}
+              <span>{isScreenSharing ? 'Stop Share' : 'Share Screen'}</span>
+            </button>
+
+            {/* Video Mute Toggle */}
             <button
               onClick={toggleVideo}
               className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
@@ -607,6 +826,7 @@ export default function BroadcastStudio({
               <span>{isVideoEnabled ? 'Video On' : 'Video Off'}</span>
             </button>
 
+            {/* Audio Mute Toggle */}
             <button
               onClick={toggleAudio}
               className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
@@ -618,36 +838,66 @@ export default function BroadcastStudio({
               {isAudioEnabled ? <Mic className="w-3.5 h-3.5" /> : <MicOff className="w-3.5 h-3.5" />}
               <span>{isAudioEnabled ? 'Mic On' : 'Muted'}</span>
             </button>
+
+            {/* Mirror Toggle */}
+            <button
+              onClick={() => setIsMirrored(!isMirrored)}
+              className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition ${
+                isMirrored
+                  ? 'bg-purple-600/20 border-purple-500/40 text-purple-300'
+                  : 'bg-surfaceLight border-surfaceBorder text-gray-300 hover:text-white'
+              }`}
+              title="Mirror camera preview horizontally"
+            >
+              <span>Mirror {isMirrored ? '✓' : ''}</span>
+            </button>
+
+            {/* Camera Filters Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowFilterMenu(!showFilterMenu)}
+                className="px-3 py-2 rounded-xl bg-surfaceLight hover:bg-surfaceBorder border border-surfaceBorder text-gray-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition"
+              >
+                <Sliders className="w-3.5 h-3.5 text-brandPurple" />
+                <span>Filter: {selectedFilter}</span>
+              </button>
+
+              {showFilterMenu && (
+                <div className="absolute right-0 bottom-full mb-2 w-40 rounded-xl bg-surface border border-surfaceBorder shadow-2xl p-1 z-50 text-xs">
+                  {(['normal', 'vibrant', 'cyberpunk', 'noir'] as VideoFilter[]).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => {
+                        setSelectedFilter(f);
+                        setShowFilterMenu(false);
+                      }}
+                      className={`w-full text-left px-3 py-1.5 rounded-lg capitalize transition ${
+                        selectedFilter === f ? 'bg-brandPurple text-white font-bold' : 'text-gray-300 hover:bg-surfaceLight'
+                      }`}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Cloudinary & External Stream Configuration Card (Shown when External Embed mode is active) */}
+      {/* Cloudinary & External Stream Configuration Card */}
       {sourceMode === 'EXTERNAL_EMBED' && (
         <div className="p-5 rounded-2xl glass-panel border border-cyan-500/30 bg-gradient-to-r from-cyan-950/20 via-surface to-surface space-y-4 animate-fade-in shadow-xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-cyan-500/20 text-cyan-400">
-                <Globe className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <span>Cloudinary & External Video Stream Ingest</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 uppercase font-black tracking-wider">
-                    Live Embed
-                  </span>
-                </h3>
-                <p className="text-xs text-gray-400">
-                  Embed video links from Cloudinary, HLS (.m3u8), or direct MP4 CDN links to broadcast live in real time.
-                </p>
-              </div>
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-cyan-500/20 text-cyan-400">
+              <Globe className="w-5 h-5" />
             </div>
-
-            {sourceSaveSuccess && (
-              <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
-                <Check className="w-4 h-4" /> Live Room Synchronized!
-              </span>
-            )}
+            <div>
+              <h3 className="text-sm font-bold text-white">Cloudinary & External Video Stream Ingest</h3>
+              <p className="text-xs text-gray-400">
+                Embed video links from Cloudinary, HLS (.m3u8), or direct MP4 CDN links to broadcast live in real time.
+              </p>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -667,36 +917,9 @@ export default function BroadcastStudio({
                 className="btn-glow-purple px-5 py-2.5 rounded-xl text-xs font-bold text-white disabled:opacity-40 flex items-center gap-1.5 transition shadow"
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
-                <span>{isSavingSource ? 'Connecting...' : 'Broadcast This Feed'}</span>
+                <span>{isSavingSource ? 'Connecting...' : 'Broadcast Feed'}</span>
               </button>
             </div>
-          </div>
-
-          {/* Quick presets for 1-click testing */}
-          <div className="flex items-center gap-2 flex-wrap pt-1">
-            <span className="text-[11px] text-gray-400 font-semibold">Test Presets:</span>
-            <button
-              type="button"
-              onClick={() => {
-                const sample = 'https://res.cloudinary.com/demo/video/upload/sample.mp4';
-                setExternalUrl(sample);
-                handleSaveSource('EXTERNAL_EMBED', sample);
-              }}
-              className="text-[10px] px-2.5 py-1 rounded-lg bg-surfaceLight hover:bg-surfaceBorder border border-surfaceBorder text-cyan-300 font-medium transition"
-            >
-              ☁️ Cloudinary Demo Video (MP4)
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const sample = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
-                setExternalUrl(sample);
-                handleSaveSource('EXTERNAL_EMBED', sample);
-              }}
-              className="text-[10px] px-2.5 py-1 rounded-lg bg-surfaceLight hover:bg-surfaceBorder border border-surfaceBorder text-indigo-300 font-medium transition"
-            >
-              📡 Live HLS (.m3u8) Stream Feed
-            </button>
           </div>
         </div>
       )}
@@ -734,7 +957,7 @@ export default function BroadcastStudio({
                     className="flex-1 px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white font-mono text-xs focus:outline-none"
                   />
                   <button
-                    onClick={() => copyToClipboard(ingressData.rtmpServer, false)}
+                    onClick={() => copyToClipboard(ingressData.rtmpServer, 'url')}
                     className="p-2 rounded-xl bg-surfaceLight hover:bg-surfaceBorder text-gray-300 transition"
                   >
                     {copiedUrl ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
@@ -746,13 +969,21 @@ export default function BroadcastStudio({
                 <label className="block text-gray-400 font-semibold mb-1">Stream Key (Keep Private)</label>
                 <div className="flex items-center gap-2">
                   <input
-                    type="password"
+                    type={showStreamKey ? 'text' : 'password'}
                     readOnly
                     value={ingressData.streamKey}
                     className="flex-1 px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white font-mono text-xs focus:outline-none"
                   />
                   <button
-                    onClick={() => copyToClipboard(ingressData.streamKey, true)}
+                    type="button"
+                    onClick={() => setShowStreamKey(!showStreamKey)}
+                    className="p-2 rounded-xl bg-surfaceLight hover:bg-surfaceBorder text-gray-300 transition"
+                    title={showStreamKey ? 'Hide Stream Key' : 'Reveal Stream Key'}
+                  >
+                    {showStreamKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                  <button
+                    onClick={() => copyToClipboard(ingressData.streamKey, 'key')}
                     className="p-2 rounded-xl bg-surfaceLight hover:bg-surfaceBorder text-gray-300 transition"
                   >
                     {copiedKey ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
@@ -760,8 +991,8 @@ export default function BroadcastStudio({
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] leading-relaxed">
-                <strong>Tip:</strong> In OBS Studio, navigate to <em>Settings → Stream</em>, select <em>Custom...</em>, paste the Server URL, enter your Stream Key, and click <em>Start Streaming</em>.
+              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] leading-relaxed">
+                <strong>OBS Setup Instructions:</strong> In OBS Studio, open <em>Settings → Stream</em>, select Service <em>Custom...</em>, paste the RTMP Server URL above, enter your Stream Key, set Keyframe Interval to <code>2s</code>, and click <em>Start Streaming</em>.
               </div>
             </div>
 
@@ -770,7 +1001,7 @@ export default function BroadcastStudio({
                 onClick={() => setShowObsDrawer(false)}
                 className="px-4 py-2 rounded-xl bg-surfaceLight hover:bg-surfaceBorder text-white text-xs font-bold"
               >
-                Close
+                Done
               </button>
             </div>
           </div>

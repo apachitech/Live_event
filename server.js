@@ -193,6 +193,14 @@ const io = new Server(server, {
       }
     });
 
+    // Pinned chat announcement from streamer
+    socket.on('pinned_announcement', (data) => {
+      const { streamId, announcement } = data;
+      if (streamId) {
+        io.to(`stream:${streamId}`).emit('pinned_announcement', announcement);
+      }
+    });
+
     // Private show coordination events
     socket.on('request_private_show', (requestData) => {
       const { streamId } = requestData;

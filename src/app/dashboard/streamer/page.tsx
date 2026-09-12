@@ -9,11 +9,8 @@ import {
   Radio,
   Users,
   Coins,
-  Settings,
-  Plus,
   Play,
   Square,
-  Lock,
   Target,
   Sparkles,
   PhoneCall,
@@ -22,6 +19,8 @@ import {
   ExternalLink,
   BarChart3,
   Trash2,
+  Pin,
+  AlertTriangle,
 } from 'lucide-react';
 import ChatContainer from '@/components/chat/ChatContainer';
 import PrivateShowMeterBanner from '@/components/stream/PrivateShowMeterBanner';
@@ -36,6 +35,13 @@ export default function StreamerStudioPage() {
   const [streamTitle, setStreamTitle] = useState('My Live Broadcast');
   const [category, setCategory] = useState('Gaming & Music');
   const [privateRate, setPrivateRate] = useState(60);
+
+  // Stop Stream Confirmation Modal
+  const [showEndModal, setShowEndModal] = useState(false);
+
+  // Pinned Announcement state
+  const [announcementInput, setAnnouncementInput] = useState('');
+  const [pinnedText, setPinnedText] = useState<string | null>(null);
 
   // Tip Goal form
   const [goalLabel, setGoalLabel] = useState('');
@@ -58,69 +64,17 @@ export default function StreamerStudioPage() {
   const [incomingPrivate, setIncomingPrivate] = useState<any | null>(null);
   const [isPrivateActive, setIsPrivateActive] = useState(false);
 
-  // Video preview canvas
-  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const socketRef = useRef<Socket | null>(null);
-
-  // Animated broadcast preview on canvas
-  useEffect(() => {
-    const canvas = previewCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let animId: number;
-    let t = 0;
-
-    const draw = () => {
-      t += 0.04;
-      const w = canvas.width;
-      const h = canvas.height;
-
-      ctx.fillStyle = '#0d0f18';
-      ctx.fillRect(0, 0, w, h);
-
-      // Studio light beams
-      const grad = ctx.createRadialGradient(w / 2, h / 2, 20, w / 2, h / 2, w / 2);
-      grad.addColorStop(0, isLive ? 'rgba(139, 92, 246, 0.25)' : 'rgba(255, 255, 255, 0.05)');
-      grad.addColorStop(1, 'transparent');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, w, h);
-
-      // Waves
-      ctx.strokeStyle = isLive ? '#a855f7' : '#4b5563';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      for (let x = 0; x < w; x += 10) {
-        const y = h / 2 + Math.sin(t + x * 0.02) * (isLive ? 35 : 8);
-        if (x === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-
-      // Studio status text
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 20px system-ui';
-      ctx.textAlign = 'center';
-      ctx.fillText(isLive ? '🔴 ON AIR - BROADCASTING' : 'CAMERA PREVIEW (OFFLINE)', w / 2, h / 2 + 60);
-
-      animId = requestAnimationFrame(draw);
-    };
-
-    draw();
-    return () => cancelAnimationFrame(animId);
-  }, [isLive]);
 
   // Load existing stream or setup socket listeners
   useEffect(() => {
     if (!user) return;
 
-    // Check existing live stream for this streamer
     fetch('/api/stream/list')
       .then((res) => res.json())
       .then((data) => {
         if (data.streams) {
-          const myStream = data.streams.find((s: any) => s.streamer.user.username === user.username);
+          const myStream = data.streams.find((s: any) => s.streamer?.user?.username === user.username);
           if (myStream) {
             setStream(myStream);
             setIsLive(myStream.status === 'LIVE' || myStream.status === 'PRIVATE');
@@ -134,13 +88,21 @@ export default function StreamerStudioPage() {
                 if (pData.poll) setActivePoll(pData.poll);
               })
               .catch(() => {});
+
+            // Fetch existing tip menu items
+            fetch(`/api/stream/${myStream.id}/tip-menu`)
+              .then((r) => r.json())
+              .then((m) => {
+                if (m.items) setTipMenuItems(m.items);
+              })
+              .catch(() => {});
           }
         }
       })
       .catch(() => {});
   }, [user]);
 
-  // Socket for private show and poll signals
+  // Socket connection for room coordination
   useEffect(() => {
     if (!stream) return;
 
@@ -169,10 +131,16 @@ export default function StreamerStudioPage() {
       setActivePoll(null);
     });
 
-    // Auto-trigger interactive toy vibration upon viewer tips
+    socket.on('viewer_count_update', ({ count }: { count: number }) => {
+      setStream((prev: any) => (prev ? { ...prev, viewerCount: count } : prev));
+    });
+
     socket.on('tip_alert', (tipData: any) => {
       if (tipData && tipData.tokenAmount) {
         HapticsManager.getInstance().handleTipReceived(tipData.tokenAmount);
+        setStream((prev: any) =>
+          prev ? { ...prev, totalTokensEarned: (prev.totalTokensEarned || 0) + tipData.tokenAmount } : prev
+        );
       }
     });
 
@@ -219,9 +187,32 @@ export default function StreamerStudioPage() {
       setIsLive(false);
       setIsPrivateActive(false);
       setStream(null);
+      setShowEndModal(false);
     } catch (e: any) {
       alert(e.message);
     }
+  };
+
+  const handlePinAnnouncement = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stream || !announcementInput.trim()) return;
+
+    socketRef.current?.emit('pinned_announcement', {
+      streamId: stream.id,
+      announcement: announcementInput.trim(),
+    });
+
+    setPinnedText(announcementInput.trim());
+    setAnnouncementInput('');
+  };
+
+  const handleClearAnnouncement = () => {
+    if (!stream) return;
+    socketRef.current?.emit('pinned_announcement', {
+      streamId: stream.id,
+      announcement: null,
+    });
+    setPinnedText(null);
   };
 
   const handleCreateGoal = async (e: React.FormEvent) => {
@@ -311,9 +302,10 @@ export default function StreamerStudioPage() {
   const handleCreatePoll = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!stream || !pollQuestion.trim()) return;
-    const cleanOptions = pollOptions.map((o) => o.trim()).filter(Boolean);
-    if (cleanOptions.length < 2) {
-      alert('Please provide at least 2 non-empty options for the poll.');
+
+    const filteredOptions = pollOptions.filter((o) => o.trim() !== '');
+    if (filteredOptions.length < 2) {
+      alert('Poll requires at least 2 non-empty options.');
       return;
     }
 
@@ -324,22 +316,20 @@ export default function StreamerStudioPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           question: pollQuestion.trim(),
-          options: cleanOptions,
-          tokenCost: Number(pollTokenCost) || 0,
+          options: filteredOptions,
+          tokenCost: pollTokenCost,
         }),
       });
+
       const data = await res.json();
-      if (res.ok && data.poll) {
+      if (res.ok) {
         setActivePoll(data.poll);
-        socketRef.current?.emit('poll_created', {
-          streamId: stream.id,
-          ...data.poll,
-        });
+        socketRef.current?.emit('poll_created', { streamId: stream.id, poll: data.poll });
         setPollQuestion('');
         setPollOptions(['', '']);
         setPollTokenCost(0);
       } else {
-        alert(data.error || 'Failed to launch poll');
+        alert(data.error || 'Failed to create poll');
       }
     } catch (err: any) {
       alert(err.message);
@@ -370,18 +360,38 @@ export default function StreamerStudioPage() {
         <div>
           <h1 className="text-2xl font-black text-white flex items-center gap-2">
             <Video className="w-6 h-6 text-brandPurple" />
-            <span>Broadcast Studio</span>
+            <span>Go Live Broadcast Studio</span>
           </h1>
-          <p className="text-xs text-gray-400 mt-0.5">Control live camera feeds, tip menus, interactive goals, and private show requests</p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Real-time camera management, interactive tip menus, screen sharing, and community goals
+          </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Live Viewers Counter */}
+          {stream && isLive && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surfaceLight border border-surfaceBorder text-xs text-white">
+              <Users className="w-3.5 h-3.5 text-brandPurple" />
+              <span className="font-bold">{stream.viewerCount || 0}</span>
+              <span className="text-gray-400 text-[11px]">Viewers</span>
+            </div>
+          )}
+
+          {/* Stream Session Earnings */}
+          {stream && isLive && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surfaceLight border border-surfaceBorder text-xs text-tokenGold">
+              <Coins className="w-3.5 h-3.5" />
+              <span className="font-bold">{stream.totalTokensEarned || 0}</span>
+              <span className="text-[11px] text-gray-400">Tokens Tipped</span>
+            </div>
+          )}
+
           <Link
             href="/dashboard/streamer/payouts"
             className="btn-glow-gold px-4 py-2 rounded-xl text-xs font-bold text-black flex items-center gap-1.5 shadow"
           >
             <Coins className="w-4 h-4" />
-            <span>Earnings & Payouts ({user?.wallet?.earnedBalance ?? 0}🪙)</span>
+            <span>Earnings ({user?.wallet?.earnedBalance ?? 0}🪙)</span>
           </Link>
 
           {stream && isLive && (
@@ -391,7 +401,7 @@ export default function StreamerStudioPage() {
               className="px-3.5 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder hover:border-gray-600 text-xs font-semibold text-gray-300 flex items-center gap-1.5 transition"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              <span>Preview Public Room</span>
+              <span>Public Room</span>
             </Link>
           )}
         </div>
@@ -448,22 +458,22 @@ export default function StreamerStudioPage() {
 
       {/* Main Studio Workspace Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left (8 cols): Camera Feed & Live Controls */}
+        {/* Left Column (8 cols): Camera Feed, Controls & Tooling */}
         <div className="lg:col-span-8 space-y-5">
-          {/* Hardware Device Manager & LiveKit Publisher Studio */}
+          {/* Hardware Device Manager & Publisher Studio (WebRTC, Screen Share, OBS) */}
           <BroadcastStudio streamId={stream?.id || null} isLive={isLive} />
 
-          {/* Broadcast Controls Bar */}
+          {/* Broadcast Launch & Parameters Bar */}
           <div className="p-5 rounded-2xl glass-panel border border-surfaceBorder space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-1">
+              <div className="space-y-1 flex-1">
                 <label className="text-xs font-bold text-gray-400">Stream Title</label>
                 <input
                   type="text"
                   disabled={isLive}
                   value={streamTitle}
                   onChange={(e) => setStreamTitle(e.target.value)}
-                  className="w-full sm:w-80 px-3.5 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-sm font-semibold focus:outline-none focus:border-brandPurple disabled:opacity-60"
+                  className="w-full px-3.5 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-sm font-semibold focus:outline-none focus:border-brandPurple disabled:opacity-60"
                 />
               </div>
 
@@ -473,7 +483,7 @@ export default function StreamerStudioPage() {
                   disabled={isLive}
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full sm:w-48 px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs font-medium focus:outline-none focus:border-brandPurple disabled:opacity-60"
+                  className="w-full sm:w-44 px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs font-medium focus:outline-none focus:border-brandPurple disabled:opacity-60"
                 >
                   <option value="Gaming & Music">Gaming & Music</option>
                   <option value="Creative Arts">Creative Arts</option>
@@ -504,16 +514,60 @@ export default function StreamerStudioPage() {
                   </button>
                 ) : (
                   <button
-                    onClick={handleEndStream}
+                    onClick={() => setShowEndModal(true)}
                     className="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-xs font-black text-white flex items-center gap-2 transition shadow-lg"
                   >
                     <Square className="w-4 h-4 fill-current" />
-                    <span>Stop Broadcast</span>
+                    <span>End Stream</span>
                   </button>
                 )}
               </div>
             </div>
           </div>
+
+          {/* Sticky Chat Announcement Tool */}
+          {isLive && (
+            <div className="p-4 rounded-2xl glass-panel border border-surfaceBorder">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <Pin className="w-4 h-4 text-tokenGold" />
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                    Sticky Room Announcement
+                  </h3>
+                </div>
+                {pinnedText && (
+                  <button
+                    onClick={handleClearAnnouncement}
+                    className="text-[11px] text-red-400 hover:underline font-bold"
+                  >
+                    Clear Pinned Message
+                  </button>
+                )}
+              </div>
+
+              <form onSubmit={handlePinAnnouncement} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  maxLength={160}
+                  value={announcementInput}
+                  onChange={(e) => setAnnouncementInput(e.target.value)}
+                  placeholder={
+                    pinnedText
+                      ? `Pinned: "${pinnedText}" (enter new message to replace)`
+                      : 'e.g. Welcome everyone! Hit the tip menu to request songs 🎵'
+                  }
+                  className="flex-1 px-3.5 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs focus:outline-none focus:border-brandPurple"
+                />
+                <button
+                  type="submit"
+                  disabled={!announcementInput.trim()}
+                  className="btn-glow-purple px-4 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-40"
+                >
+                  Pin in Chat
+                </button>
+              </form>
+            </div>
+          )}
 
           {/* Interactive Tooling: Tip Goal & Tip Menu Manager */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -521,7 +575,7 @@ export default function StreamerStudioPage() {
             <div className="p-5 rounded-2xl glass-panel border border-surfaceBorder">
               <div className="flex items-center gap-2 mb-3">
                 <Target className="w-4 h-4 text-tokenGold" />
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Set Community Tip Goal</h3>
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Community Tip Goal</h3>
               </div>
 
               <form onSubmit={handleCreateGoal} className="space-y-3">
@@ -559,14 +613,14 @@ export default function StreamerStudioPage() {
             <div className="p-5 rounded-2xl glass-panel border border-surfaceBorder">
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="w-4 h-4 text-brandPurple" />
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Add Priced Menu Action</h3>
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Add Tip Menu Action</h3>
               </div>
 
               <form onSubmit={handleAddMenuItem} className="space-y-3">
                 <div className="grid grid-cols-3 gap-2">
                   <input
                     type="text"
-                    placeholder="Action name (e.g. Song Request)"
+                    placeholder="Action (e.g. Song Request)"
                     value={menuLabel}
                     onChange={(e) => setMenuLabel(e.target.value)}
                     className="col-span-2 px-3.5 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs focus:outline-none focus:border-brandPurple"
@@ -586,7 +640,7 @@ export default function StreamerStudioPage() {
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
-                    placeholder="Short description (optional)"
+                    placeholder="Description (optional)"
                     value={menuDesc}
                     onChange={(e) => setMenuDesc(e.target.value)}
                     className="flex-1 px-3.5 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs focus:outline-none focus:border-brandPurple"
@@ -600,6 +654,21 @@ export default function StreamerStudioPage() {
                   </button>
                 </div>
               </form>
+
+              {/* Active Menu Items Quick List */}
+              {tipMenuItems.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-surfaceBorder/60 space-y-1.5 max-h-28 overflow-y-auto">
+                  {tipMenuItems.map((item, idx) => (
+                    <div
+                      key={item.id || idx}
+                      className="flex items-center justify-between text-xs p-1.5 rounded-lg bg-surfaceLight/50"
+                    >
+                      <span className="font-semibold text-white truncate max-w-[150px]">{item.label}</span>
+                      <span className="text-tokenGold font-bold">{item.tokenCost}🪙</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -641,7 +710,7 @@ export default function StreamerStudioPage() {
                   <input
                     type="text"
                     disabled={!isLive}
-                    placeholder="e.g. Which hero or costume should I play next?"
+                    placeholder="e.g. Which track or costume should I perform next?"
                     value={pollQuestion}
                     onChange={(e) => setPollQuestion(e.target.value)}
                     className="w-full px-3.5 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs focus:outline-none focus:border-brandPurple disabled:opacity-50"
@@ -679,8 +748,7 @@ export default function StreamerStudioPage() {
                       onClick={handleAddPollOption}
                       className="text-[11px] font-bold text-brandPurple hover:text-purple-300 flex items-center gap-1 mt-1 transition disabled:opacity-50"
                     >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Add Another Option</span>
+                      <span>+ Add Option</span>
                     </button>
                   )}
                 </div>
@@ -715,7 +783,7 @@ export default function StreamerStudioPage() {
           </div>
         </div>
 
-        {/* Right (4 cols): Studio Live Chat Monitor */}
+        {/* Right Column (4 cols): Live Chat Monitor */}
         <div className="lg:col-span-4 h-[600px] lg:h-[calc(100vh-8rem)] sticky top-24">
           {stream ? (
             <ChatContainer streamId={stream.id} />
@@ -728,6 +796,51 @@ export default function StreamerStudioPage() {
           )}
         </div>
       </div>
+
+      {/* Stop Stream Confirmation Modal */}
+      {showEndModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="w-full max-w-md rounded-2xl bg-surface border border-surfaceBorder p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-red-500/20 text-red-400">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">End Live Broadcast?</h3>
+                <p className="text-xs text-gray-400">
+                  This will disconnect all active viewers and conclude your stream session.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-surfaceLight border border-surfaceBorder text-xs text-gray-300 space-y-1">
+              <div className="flex justify-between">
+                <span>Viewers:</span>
+                <span className="font-bold text-white">{stream?.viewerCount || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Tokens Earned:</span>
+                <span className="font-bold text-tokenGold">{stream?.totalTokensEarned || 0}🪙</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setShowEndModal(false)}
+                className="px-4 py-2 rounded-xl bg-surfaceLight hover:bg-surfaceBorder text-gray-300 text-xs font-bold transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEndStream}
+                className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-black shadow-lg transition"
+              >
+                Yes, Stop Broadcast
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

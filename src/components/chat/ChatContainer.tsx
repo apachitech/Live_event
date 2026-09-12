@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/context/AuthContext';
 import { ChatMessagePayload } from '@/types';
-import { Send, Sparkles, AlertCircle, MessageSquare } from 'lucide-react';
+import { Send, Sparkles, AlertCircle, MessageSquare, Pin, X } from 'lucide-react';
 import BadgePill from '@/components/badges/BadgePill';
 
 interface ChatContainerProps {
@@ -15,23 +15,31 @@ interface ChatContainerProps {
 export default function ChatContainer({ streamId, initialMessages = [] }: ChatContainerProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessagePayload[]>(initialMessages);
+  const [pinnedAnnouncement, setPinnedAnnouncement] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
   const [rateLimitWarning, setRateLimitWarning] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
 
+  const isModerator = user?.role === 'STREAMER' || user?.role === 'ADMIN' || user?.role === 'MODERATOR';
+
   useEffect(() => {
-    // Initialize Socket.IO connection
     const socket = io();
     socketRef.current = socket;
 
     socket.emit('join_room', {
       streamId,
-      user: user ? { id: user.id, username: user.username, role: user.role } : { id: 'guest', username: 'Guest', role: 'VIEWER' },
+      user: user
+        ? { id: user.id, username: user.username, role: user.role }
+        : { id: 'guest', username: 'Guest', role: 'VIEWER' },
     });
 
     socket.on('new_chat_message', (msg: ChatMessagePayload) => {
       setMessages((prev) => [...prev.slice(-100), msg]);
+    });
+
+    socket.on('pinned_announcement', (announcement: string | null) => {
+      setPinnedAnnouncement(announcement);
     });
 
     socket.on('chat_error', ({ message }: { message: string }) => {
@@ -71,6 +79,13 @@ export default function ChatContainer({ streamId, initialMessages = [] }: ChatCo
     setInputText('');
   };
 
+  const handleUnpin = () => {
+    if (socketRef.current) {
+      socketRef.current.emit('pinned_announcement', { streamId, announcement: null });
+    }
+    setPinnedAnnouncement(null);
+  };
+
   return (
     <div className="flex flex-col h-full rounded-2xl bg-surface border border-surfaceBorder overflow-hidden shadow-xl">
       {/* Chat Room Header */}
@@ -79,8 +94,27 @@ export default function ChatContainer({ streamId, initialMessages = [] }: ChatCo
           <MessageSquare className="w-4 h-4 text-brandPurple" />
           <h3 className="text-xs font-bold text-white uppercase tracking-wider">Live Stream Chat</h3>
         </div>
-        <span className="text-[10px] text-gray-400 font-medium">Rate-Limited & Filtered</span>
+        <span className="text-[10px] text-gray-400 font-medium">Filtered & Rate-Limited</span>
       </div>
+
+      {/* Pinned Announcement Sticky Banner */}
+      {pinnedAnnouncement && (
+        <div className="px-3.5 py-2 bg-gradient-to-r from-purple-950/70 to-pink-950/60 border-b border-purple-500/30 flex items-start gap-2 text-xs text-purple-200 animate-fade-in">
+          <Pin className="w-3.5 h-3.5 text-tokenGold flex-shrink-0 mt-0.5" />
+          <div className="flex-1 font-semibold text-white leading-snug">
+            {pinnedAnnouncement}
+          </div>
+          {isModerator && (
+            <button
+              onClick={handleUnpin}
+              className="p-1 rounded text-gray-400 hover:text-white transition"
+              title="Remove Pinned Announcement"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Message Feed */}
       <div className="flex-1 p-3.5 overflow-y-auto space-y-2.5">
@@ -93,7 +127,8 @@ export default function ChatContainer({ streamId, initialMessages = [] }: ChatCo
           messages.map((m) => {
             const isStreamer = m.role === 'STREAMER';
             const isAdmin = m.role === 'ADMIN';
-            const badgeType = m.badge || (isAdmin ? 'ADMIN' : isStreamer ? 'STREAMER' : m.isSubscriber ? 'Subscriber' : null);
+            const badgeType =
+              m.badge || (isAdmin ? 'ADMIN' : isStreamer ? 'STREAMER' : m.isSubscriber ? 'Subscriber' : null);
 
             return (
               <div key={m.id} className="text-xs leading-relaxed flex items-start gap-1.5 break-words">
@@ -131,7 +166,10 @@ export default function ChatContainer({ streamId, initialMessages = [] }: ChatCo
       )}
 
       {/* Chat Input Bar */}
-      <form onSubmit={handleSendMessage} className="p-2.5 border-t border-surfaceBorder bg-surfaceLight/30 flex items-center gap-2">
+      <form
+        onSubmit={handleSendMessage}
+        className="p-2.5 border-t border-surfaceBorder bg-surfaceLight/30 flex items-center gap-2"
+      >
         <input
           type="text"
           maxLength={200}
