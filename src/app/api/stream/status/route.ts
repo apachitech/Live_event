@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   try {
     const session = await getSession();
@@ -31,6 +33,10 @@ export async function POST(req: Request) {
         endedAt: status === 'ENDED' || status === 'OFFLINE' ? new Date() : undefined,
       },
     });
+
+    if ((global as any).io) {
+      (global as any).io.emit('stream_status_changed', { streamId, status });
+    }
 
     return NextResponse.json({ success: true, stream: updated });
   } catch (err: any) {

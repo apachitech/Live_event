@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { ensureStarterLiveStreams } from '@/lib/starterStreams';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,18 +11,27 @@ export async function GET(req: Request) {
     const search = searchParams.get('search');
     const sort = searchParams.get('sort') || 'trending';
 
+    // Check if initial streams should be populated
+    const totalActive = await prisma.stream.count({
+      where: { status: { in: ['LIVE', 'PRIVATE', 'live', 'private'] } },
+    });
+
+    if (totalActive === 0) {
+      await ensureStarterLiveStreams();
+    }
+
     const whereClause: any = {
-      status: { in: ['LIVE', 'PRIVATE'] },
+      status: { in: ['LIVE', 'PRIVATE', 'live', 'private'] },
     };
 
     if (category && category !== 'All') {
-      whereClause.category = category;
+      whereClause.category = { contains: category, mode: 'insensitive' };
     }
 
     if (search) {
       whereClause.OR = [
-        { title: { contains: search } },
-        { streamer: { displayName: { contains: search } } },
+        { title: { contains: search, mode: 'insensitive' } },
+        { streamer: { displayName: { contains: search, mode: 'insensitive' } } },
       ];
     }
 
@@ -40,7 +50,7 @@ export async function GET(req: Request) {
         streamer: {
           include: {
             user: {
-              select: { avatarUrl: true, username: true },
+              select: { id: true, avatarUrl: true, username: true },
             },
           },
         },

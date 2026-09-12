@@ -4,14 +4,14 @@ import React, { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import LiveDirectoryView from '@/components/stream/LiveDirectoryView';
 
-function DirectoryContent() {
+function LivePageContent() {
   const searchParams = useSearchParams();
   const initialCategory = searchParams.get('category') || 'All';
 
   return <LiveDirectoryView initialCategory={initialCategory} />;
 }
 
-export default function HomePage() {
+export default function LiveDirectoryPage() {
   return (
     <Suspense
       fallback={
@@ -21,7 +21,7 @@ export default function HomePage() {
         </div>
       }
     >
-      <DirectoryContent />
+      <LivePageContent />
     </Suspense>
   );
 }
