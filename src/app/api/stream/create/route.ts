@@ -51,8 +51,8 @@ export async function POST(req: Request) {
       },
     });
 
-    const roomName = `room_${streamer.id}_${Date.now()}`;
-    const roomDetails = await videoProvider.createStreamRoom(streamer.id, title || `${streamer.displayName}'s Live Room`);
+    const uniqueRoomName = `room_${streamer.id}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    const roomDetails = await videoProvider.createStreamRoom(uniqueRoomName, title || `${streamer.displayName}'s Live Room`);
 
     const stream = await prisma.stream.create({
       data: {
@@ -61,8 +61,8 @@ export async function POST(req: Request) {
         category: category || 'Gaming & Music',
         status: 'LIVE',
         startedAt: new Date(),
-        roomName: roomDetails.roomName || roomName,
-        playbackUrl: roomDetails.playbackUrl,
+        roomName: roomDetails?.roomName || uniqueRoomName,
+        playbackUrl: roomDetails?.playbackUrl,
         privateRatePerMin: privateRatePerMin ? parseInt(privateRatePerMin, 10) : 60,
       },
     });

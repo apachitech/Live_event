@@ -4,7 +4,9 @@ export class MockVideoProvider implements LiveVideoProvider {
   name = 'MockVideoProvider';
 
   async createStreamRoom(streamId: string, _title: string): Promise<{ roomName: string; playbackUrl?: string }> {
-    const roomName = `mock_room_${streamId}_${Date.now()}`;
+    const roomName = streamId.startsWith('mock_room_') || streamId.startsWith('room_')
+      ? streamId
+      : `mock_room_${streamId}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     return {
       roomName,
       playbackUrl: `/api/stream/mock-playback/${streamId}`,

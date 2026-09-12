@@ -18,7 +18,9 @@ export class LiveKitVideoProvider implements LiveVideoProvider {
   }
 
   async createStreamRoom(streamId: string, _title: string): Promise<{ roomName: string; playbackUrl?: string }> {
-    const roomName = `room_${streamId}`;
+    const roomName = streamId.startsWith('room_')
+      ? streamId
+      : `room_${streamId}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     return { roomName, playbackUrl: `${this.wsUrl}/${roomName}` };
   }
 
