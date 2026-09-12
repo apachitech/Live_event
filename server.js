@@ -1,3 +1,30 @@
+const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
+
+// Auto-align Prisma schema datasource provider with DATABASE_URL
+const rawDbUrl = (process.env.DATABASE_URL || '').trim();
+const schemaPath = path.join(__dirname, 'prisma', 'schema.prisma');
+
+if (rawDbUrl && fs.existsSync(schemaPath)) {
+  try {
+    let schemaContent = fs.readFileSync(schemaPath, 'utf8');
+    const isPostgres = rawDbUrl.startsWith('postgres://') || rawDbUrl.startsWith('postgresql://');
+    const currentProvider = schemaContent.includes('provider = "postgresql"') ? 'postgresql' : 'sqlite';
+    const targetProvider = isPostgres ? 'postgresql' : 'sqlite';
+
+    if (currentProvider !== targetProvider) {
+      console.log(`> Aligning Prisma schema provider from ${currentProvider} to ${targetProvider}...`);
+      schemaContent = schemaContent.replace(/provider\s*=\s*"(postgresql|sqlite)"/, `provider = "${targetProvider}"`);
+      fs.writeFileSync(schemaPath, schemaContent, 'utf8');
+      execSync('npx prisma generate', { stdio: 'inherit' });
+      console.log(`> Prisma client successfully regenerated for ${targetProvider}`);
+    }
+  } catch (err) {
+    console.error('> Notice during Prisma provider alignment:', err.message);
+  }
+}
+
 const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
