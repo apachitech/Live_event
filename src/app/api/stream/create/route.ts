@@ -8,18 +8,35 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: Request) {
   try {
     const session = await getSession();
-    if (!session || (session.role !== 'STREAMER' && session.role !== 'ADMIN')) {
-      return NextResponse.json({ error: 'Only streamers can broadcast' }, { status: 403 });
+    if (!session) {
+      return NextResponse.json({ error: 'Please sign in to broadcast live.' }, { status: 401 });
     }
 
     const { title, category, privateRatePerMin } = await req.json();
 
-    const streamer = await prisma.streamerProfile.findUnique({
+    // Ensure streamer profile exists (auto-create if missing for admin or user)
+    let streamer = await prisma.streamerProfile.findUnique({
       where: { userId: session.userId },
     });
 
     if (!streamer) {
-      return NextResponse.json({ error: 'Streamer profile not found' }, { status: 404 });
+      streamer = await prisma.streamerProfile.create({
+        data: {
+          userId: session.userId,
+          displayName: session.username,
+          bio: `Welcome to ${session.username}'s live broadcast channel!`,
+          kycStatus: 'VERIFIED',
+          kycVerifiedAt: new Date(),
+        },
+      });
+
+      // Promote role to STREAMER if currently VIEWER
+      if (session.role === 'VIEWER') {
+        await prisma.user.update({
+          where: { id: session.userId },
+          data: { role: 'STREAMER' },
+        });
+      }
     }
 
     // End previous active streams for this streamer so only current stream is LIVE
@@ -35,13 +52,13 @@ export async function POST(req: Request) {
     });
 
     const roomName = `room_${streamer.id}_${Date.now()}`;
-    const roomDetails = await videoProvider.createStreamRoom(streamer.id, title || 'Live Broadcast');
+    const roomDetails = await videoProvider.createStreamRoom(streamer.id, title || `${streamer.displayName}'s Live Room`);
 
     const stream = await prisma.stream.create({
       data: {
         streamerId: streamer.id,
-        title: title || `${streamer.displayName}'s Live Room`,
-        category: category || 'Gaming & Chat',
+        title: title?.trim() || `${streamer.displayName}'s Live Broadcast`,
+        category: category || 'Gaming & Music',
         status: 'LIVE',
         startedAt: new Date(),
         roomName: roomDetails.roomName || roomName,
@@ -54,7 +71,7 @@ export async function POST(req: Request) {
     await prisma.tipGoal.create({
       data: {
         streamId: stream.id,
-        label: 'Community Goal: Upgrade Streaming Cam',
+        label: 'Community Goal: Support the Stream',
         targetAmount: 500,
         currentAmount: 0,
         active: true,

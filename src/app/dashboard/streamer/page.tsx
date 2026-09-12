@@ -64,6 +64,10 @@ export default function StreamerStudioPage() {
   const [incomingPrivate, setIncomingPrivate] = useState<any | null>(null);
   const [isPrivateActive, setIsPrivateActive] = useState(false);
 
+  // Broadcast action loading state
+  const [isStarting, setIsStarting] = useState(false);
+  const [isEnding, setIsEnding] = useState(false);
+
   const socketRef = useRef<Socket | null>(null);
 
   // Load existing stream or setup socket listeners
@@ -150,6 +154,8 @@ export default function StreamerStudioPage() {
   }, [stream, user]);
 
   const handleStartStream = async () => {
+    if (isStarting) return;
+    setIsStarting(true);
     try {
       const res = await fetch('/api/stream/create', {
         method: 'POST',
@@ -170,11 +176,14 @@ export default function StreamerStudioPage() {
       }
     } catch (e: any) {
       alert(e.message);
+    } finally {
+      setIsStarting(false);
     }
   };
 
   const handleEndStream = async () => {
-    if (!stream) return;
+    if (!stream || isEnding) return;
+    setIsEnding(true);
     try {
       await fetch('/api/stream/status', {
         method: 'POST',
@@ -190,6 +199,8 @@ export default function StreamerStudioPage() {
       setShowEndModal(false);
     } catch (e: any) {
       alert(e.message);
+    } finally {
+      setIsEnding(false);
     }
   };
 
@@ -461,7 +472,13 @@ export default function StreamerStudioPage() {
         {/* Left Column (8 cols): Camera Feed, Controls & Tooling */}
         <div className="lg:col-span-8 space-y-5">
           {/* Hardware Device Manager & Publisher Studio (WebRTC, Screen Share, OBS) */}
-          <BroadcastStudio streamId={stream?.id || null} isLive={isLive} />
+          <BroadcastStudio
+            streamId={stream?.id || null}
+            isLive={isLive}
+            isActionLoading={isStarting || isEnding}
+            onStartStream={handleStartStream}
+            onEndStream={() => setShowEndModal(true)}
+          />
 
           {/* Broadcast Launch & Parameters Bar */}
           <div className="p-5 rounded-2xl glass-panel border border-surfaceBorder space-y-4">
@@ -507,15 +524,21 @@ export default function StreamerStudioPage() {
                 {!isLive ? (
                   <button
                     onClick={handleStartStream}
-                    className="btn-glow-purple px-6 py-2.5 rounded-xl text-xs font-black text-white flex items-center gap-2 shadow-lg"
+                    disabled={isStarting}
+                    className="btn-glow-purple px-6 py-2.5 rounded-xl text-xs font-black text-white flex items-center gap-2 shadow-lg disabled:opacity-50"
                   >
-                    <Play className="w-4 h-4 fill-current" />
-                    <span>Go Live Now</span>
+                    {isStarting ? (
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <Play className="w-4 h-4 fill-current" />
+                    )}
+                    <span>{isStarting ? 'Starting...' : 'Go Live Now'}</span>
                   </button>
                 ) : (
                   <button
                     onClick={() => setShowEndModal(true)}
-                    className="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-xs font-black text-white flex items-center gap-2 transition shadow-lg"
+                    disabled={isEnding}
+                    className="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-xs font-black text-white flex items-center gap-2 transition shadow-lg disabled:opacity-50"
                   >
                     <Square className="w-4 h-4 fill-current" />
                     <span>End Stream</span>
@@ -833,9 +856,10 @@ export default function StreamerStudioPage() {
               </button>
               <button
                 onClick={handleEndStream}
-                className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-black shadow-lg transition"
+                disabled={isEnding}
+                className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-black shadow-lg transition disabled:opacity-50"
               >
-                Yes, Stop Broadcast
+                {isEnding ? 'Stopping...' : 'Yes, Stop Broadcast'}
               </button>
             </div>
           </div>
