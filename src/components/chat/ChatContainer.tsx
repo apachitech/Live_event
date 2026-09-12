@@ -18,7 +18,7 @@ export default function ChatContainer({ streamId, initialMessages = [] }: ChatCo
   const [pinnedAnnouncement, setPinnedAnnouncement] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
   const [rateLimitWarning, setRateLimitWarning] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatScrollContainerRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
 
   const isModerator = user?.role === 'STREAMER' || user?.role === 'ADMIN' || user?.role === 'MODERATOR';
@@ -99,7 +99,9 @@ export default function ChatContainer({ streamId, initialMessages = [] }: ChatCo
   }, [streamId, user]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatScrollContainerRef.current) {
+      chatScrollContainerRef.current.scrollTop = chatScrollContainerRef.current.scrollHeight;
+    }
   }, [messages]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -180,7 +182,7 @@ export default function ChatContainer({ streamId, initialMessages = [] }: ChatCo
       )}
 
       {/* Message Feed */}
-      <div className="flex-1 p-3.5 overflow-y-auto space-y-2.5">
+      <div ref={chatScrollContainerRef} className="flex-1 p-3.5 overflow-y-auto space-y-2.5">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center text-gray-500 py-8">
             <Sparkles className="w-6 h-6 mb-1 text-gray-600" />
@@ -217,7 +219,6 @@ export default function ChatContainer({ streamId, initialMessages = [] }: ChatCo
             );
           })
         )}
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Rate limit warning banner */}
