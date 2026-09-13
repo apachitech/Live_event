@@ -15,10 +15,9 @@ if (rawDbUrl && fs.existsSync(schemaPath)) {
 
     if (currentProvider !== targetProvider) {
       console.log(`> Aligning Prisma schema provider from ${currentProvider} to ${targetProvider}...`);
-      schemaContent = schemaContent.replace(/provider\s*=\s*"(postgresql|sqlite)"/, `provider = "${targetProvider}"`);
-      const prismaCmd = process.platform === 'win32' ? 'cmd.exe /c "npx prisma generate"' : 'npx prisma generate';
-      execSync(prismaCmd, { stdio: 'inherit' });
-      console.log(`> Prisma client successfully regenerated for ${targetProvider}`);
+      const ensureScript = path.join(__dirname, 'scripts', 'ensure-db.js');
+      execSync(`node "${ensureScript}"`, { stdio: 'inherit' });
+      console.log(`> Prisma client and schema successfully aligned for ${targetProvider}`);
     }
   } catch (err) {
     console.error('> Notice during Prisma provider alignment:', err.message);

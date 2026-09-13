@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "node server.js",
-    "build": "prisma generate && next build",
+    "build": "node scripts/ensure-db.js && next build",
     "start": "cross-env NODE_ENV=production node server.js",
     "worker": "tsx src/worker/bullWorker.ts",
-    "db:push": "prisma db push",
+    "db:push": "node scripts/ensure-db.js",
     "db:seed": "tsx src/lib/seed.ts"
   },
   "dependencies": {
