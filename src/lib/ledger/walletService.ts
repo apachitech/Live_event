@@ -146,6 +146,24 @@ export class WalletService {
         },
       });
 
+      // Hard copy change data into AuditLog
+      await tx.auditLog.create({
+        data: {
+          actorUserId: senderUserId,
+          action: 'STREAM_TIP',
+          entityType: 'TRANSACTION',
+          entityId: transaction.id,
+          payload: JSON.stringify({
+            streamerUserId,
+            streamId,
+            tokenAmount,
+            netTokens,
+            platformFeeTokens,
+            menuItemLabel,
+          }),
+        },
+      });
+
       return {
         transaction,
         senderBalance: updatedSenderWallet.balance,
@@ -203,6 +221,24 @@ export class WalletService {
           netTokens,
           platformFeeTokens: platformFee,
           memo: `Private Show - Minute #${minuteNumber}`,
+        },
+      });
+
+      // Hard copy change data into AuditLog
+      await tx.auditLog.create({
+        data: {
+          actorUserId: viewerUserId,
+          action: 'PRIVATE_SHOW_BILLING',
+          entityType: 'TRANSACTION',
+          entityId: transaction.id,
+          payload: JSON.stringify({
+            streamerUserId,
+            streamId,
+            ratePerMin,
+            minuteNumber,
+            netTokens,
+            platformFee,
+          }),
         },
       });
 

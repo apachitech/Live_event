@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { logChangeData } from '@/lib/audit';
 
 export async function POST(req: Request) {
   try {
@@ -80,6 +81,20 @@ export async function POST(req: Request) {
       });
 
       return p;
+    });
+
+    // Hard-copy change data for payout request
+    await logChangeData({
+      actorUserId: session.userId,
+      action: 'PAYOUT_REQUESTED',
+      entityType: 'PAYOUT',
+      entityId: payout.id,
+      payload: {
+        tokensDeducted: tokens,
+        payoutAmountCents,
+        payoutMethod: payoutMethod || streamer.payoutMethod,
+        status: payout.status,
+      },
     });
 
     return NextResponse.json({ success: true, payout });
