@@ -33,6 +33,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid email/username or password' }, { status: 401 });
     }
 
+    if (!user.passwordHash) {
+      return NextResponse.json({
+        error: 'This account was created with Google. Please click "Continue with Google" or use "Forgot password" to set a password.',
+      }, { status: 400 });
+    }
+
     const valid = await comparePassword(cleanPassword, user.passwordHash);
     if (!valid) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });

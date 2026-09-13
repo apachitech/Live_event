@@ -16,8 +16,8 @@ if (rawDbUrl && fs.existsSync(schemaPath)) {
     if (currentProvider !== targetProvider) {
       console.log(`> Aligning Prisma schema provider from ${currentProvider} to ${targetProvider}...`);
       schemaContent = schemaContent.replace(/provider\s*=\s*"(postgresql|sqlite)"/, `provider = "${targetProvider}"`);
-      fs.writeFileSync(schemaPath, schemaContent, 'utf8');
-      execSync('npx prisma generate', { stdio: 'inherit' });
+      const prismaCmd = process.platform === 'win32' ? 'cmd.exe /c "npx prisma generate"' : 'npx prisma generate';
+      execSync(prismaCmd, { stdio: 'inherit' });
       console.log(`> Prisma client successfully regenerated for ${targetProvider}`);
     }
   } catch (err) {
@@ -30,7 +30,7 @@ const { parse } = require('url');
 const next = require('next');
 const { Server } = require('socket.io');
 
-const dev = (process.env.NODE_ENV || '').trim().toLowerCase() === 'development';
+const dev = process.env.NODE_ENV !== 'production';
 const hostname = '0.0.0.0';
 const port = parseInt(process.env.PORT || '3000', 10);
 
