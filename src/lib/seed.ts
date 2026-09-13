@@ -100,6 +100,34 @@ async function seed() {
     update: {},
   });
 
+  // 5. Google OAuth Tester / Streamer
+  await prisma.user.upsert({
+    where: { email: 'google.tester@platform.live' },
+    create: {
+      email: 'google.tester@platform.live',
+      username: 'GoogleStreamer',
+      passwordHash: pwHash,
+      googleId: 'google_mock_10829384756',
+      role: 'STREAMER',
+      ageVerifiedAt: new Date('2021-01-01'),
+      dob: new Date('1998-04-12'),
+      avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+      wallet: { create: { balance: 500, earnedBalance: 250 } },
+      streamerProfile: {
+        create: {
+          displayName: 'GoogleStreamer Live',
+          bio: 'Official Google Streamer demo account! 🚀✨',
+          kycStatus: 'VERIFIED',
+          kycVerifiedAt: new Date(),
+        },
+      },
+    },
+    update: {
+      passwordHash: pwHash,
+      role: 'STREAMER',
+    },
+  });
+
   // 5. Active Live Streams
   if (streamer.streamerProfile) {
     const existingStream = await prisma.stream.findFirst({

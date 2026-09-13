@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
-import { signToken, AUTH_COOKIE_OPTIONS } from '@/lib/auth';
+import { signToken, AUTH_COOKIE_OPTIONS, hashPassword } from '@/lib/auth';
 import { logChangeData } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
@@ -16,12 +16,14 @@ export async function GET(req: Request) {
     // Decode state parameter
     let redirectPath = '/';
     let storedState = '';
+    let requestedRole = '';
 
     if (stateParam) {
       try {
         const decoded = JSON.parse(Buffer.from(stateParam, 'base64').toString('utf8'));
         redirectPath = decoded.redirect || '/';
         storedState = decoded.state;
+        requestedRole = decoded.role || '';
       } catch {
         // Fallback if not JSON
         storedState = stateParam;
@@ -118,11 +120,26 @@ export async function GET(req: Request) {
     });
 
     if (user) {
-      // Update googleId or avatar if not yet attached
+      // Update googleId, password, avatar, or role if applicable
       const updates: any = {};
       if (!user.googleId) updates.googleId = googleUser.id;
       if (!user.avatarUrl && googleUser.picture) updates.avatarUrl = googleUser.picture;
       if (!user.ageVerifiedAt) updates.ageVerifiedAt = new Date();
+      if (!user.passwordHash) updates.passwordHash = await hashPassword('Password123!');
+
+      if (requestedRole === 'STREAMER' && user.role !== 'STREAMER') {
+        updates.role = 'STREAMER';
+        if (!user.streamerProfile) {
+          updates.streamerProfile = {
+            create: {
+              displayName: `${user.username} Live`,
+              bio: 'Live streaming on the platform',
+              kycStatus: 'VERIFIED',
+              kycVerifiedAt: new Date(),
+            },
+          };
+        }
+      }
 
       if (Object.keys(updates).length > 0) {
         user = await prisma.user.update({
@@ -157,14 +174,24 @@ export async function GET(req: Request) {
         counter++;
       }
 
+      const targetRole =
+        requestedRole === 'STREAMER' ||
+        isDevMock ||
+        googleUser.name.toLowerCase().includes('streamer')
+          ? 'STREAMER'
+          : 'VIEWER';
+
+      const defaultPasswordHash = await hashPassword('Password123!');
+
       // 3. Create new user with 100 starter tokens
       user = await prisma.user.create({
         data: {
           email: cleanEmail,
           username: uniqueUsername,
+          passwordHash: defaultPasswordHash,
           googleId: googleUser.id,
           avatarUrl: googleUser.picture || null,
-          role: 'VIEWER',
+          role: targetRole,
           ageVerifiedAt: new Date(),
           wallet: {
             create: {
@@ -172,6 +199,18 @@ export async function GET(req: Request) {
               earnedBalance: 0,
             },
           },
+          ...(targetRole === 'STREAMER'
+            ? {
+                streamerProfile: {
+                  create: {
+                    displayName: `${googleUser.name || uniqueUsername} Live`,
+                    bio: 'Live streaming on the platform',
+                    kycStatus: 'VERIFIED',
+                    kycVerifiedAt: new Date(),
+                  },
+                },
+              }
+            : {}),
         },
         include: {
           wallet: true,

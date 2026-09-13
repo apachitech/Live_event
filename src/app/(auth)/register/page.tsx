@@ -78,7 +78,7 @@ export default function RegisterPage() {
 
         {/* Google OAuth Signup Button */}
         <a
-          href="/api/auth/google"
+          href={`/api/auth/google?role=${role}`}
           className="w-full py-3 px-4 rounded-xl bg-surfaceLight hover:bg-white/10 border border-surfaceBorder hover:border-brandPurple/40 text-white text-sm font-semibold flex items-center justify-center gap-3 transition shadow-sm hover:shadow-lg hover:shadow-purple-500/10 group mb-5"
         >
           <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24">

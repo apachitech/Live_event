@@ -8,6 +8,8 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const redirectParam = searchParams.get('redirect') || '/';
 
+    const roleParam = searchParams.get('role');
+
     const host = req.headers.get('host') || 'localhost:3000';
     const proto = req.headers.get('x-forwarded-proto') || 'http';
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host}`;
@@ -17,7 +19,7 @@ export async function GET(req: Request) {
 
     // Generate secure anti-CSRF state token
     const state = crypto.randomBytes(16).toString('hex');
-    const statePayload = Buffer.from(JSON.stringify({ state, redirect: redirectParam })).toString('base64');
+    const statePayload = Buffer.from(JSON.stringify({ state, redirect: redirectParam, role: roleParam })).toString('base64');
 
     // If Google credentials are not configured in environment, provide seamless dev mock flow
     if (!clientId) {
