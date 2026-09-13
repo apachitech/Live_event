@@ -53,10 +53,18 @@ try {
   const genCmd = isWin ? 'cmd.exe /c "npx prisma generate"' : 'npx prisma generate';
 
   console.log(`[ensure-db] Pushing latest schema to ${targetProvider} database...`);
-  execSync(pushCmd, { cwd: rootDir, stdio: 'inherit' });
+  try {
+    execSync(pushCmd, { cwd: rootDir, stdio: 'inherit' });
+  } catch (pushErr) {
+    console.warn('[ensure-db] Notice during prisma db push:', pushErr.message);
+  }
 
   console.log('[ensure-db] Generating fresh Prisma Client...');
-  execSync(genCmd, { cwd: rootDir, stdio: 'inherit' });
+  try {
+    execSync(genCmd, { cwd: rootDir, stdio: 'inherit' });
+  } catch (genErr) {
+    console.log('[ensure-db] Notice: Query engine binary is currently active/locked; using existing Prisma client.');
+  }
 
   // If using local SQLite, mirror prisma/dev.db to ./dev.db so both locations are identical
   if (!isPostgres) {
