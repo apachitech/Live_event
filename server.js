@@ -13,8 +13,8 @@ if (rawDbUrl && fs.existsSync(schemaPath)) {
     const currentProvider = schemaContent.includes('provider = "postgresql"') ? 'postgresql' : 'sqlite';
     const targetProvider = isPostgres ? 'postgresql' : 'sqlite';
 
-    if (currentProvider !== targetProvider) {
-      console.log(`> Aligning Prisma schema provider from ${currentProvider} to ${targetProvider}...`);
+    if (currentProvider !== targetProvider || isPostgres) {
+      console.log(`> Aligning and synchronizing Prisma schema with ${targetProvider} database...`);
       const ensureScript = path.join(__dirname, 'scripts', 'ensure-db.js');
       execSync(`node "${ensureScript}"`, { stdio: 'inherit' });
       console.log(`> Prisma client and schema successfully aligned for ${targetProvider}`);

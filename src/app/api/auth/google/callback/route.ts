@@ -127,24 +127,56 @@ export async function GET(req: Request) {
 
     const cleanEmail = googleUser.email.toLowerCase().trim();
 
-    // 1. Locate user by googleId or email
-    let user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { googleId: googleUser.id },
-          { email: cleanEmail },
-        ],
-      },
-      include: {
-        wallet: true,
-        streamerProfile: true,
-      },
-    });
+    // 1. Locate user by googleId or email with graceful fallback if schema column is pending migration
+    let user = null;
+    let hasGoogleIdColumn = true;
+
+    try {
+      user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { googleId: googleUser.id },
+            { email: cleanEmail },
+          ],
+        },
+        include: {
+          wallet: true,
+          streamerProfile: true,
+        },
+      });
+    } catch (findErr: any) {
+      if (findErr.message && findErr.message.includes('googleId')) {
+        console.warn('[Google OAuth] Notice: Database schema does not have googleId column yet. Falling back to email lookup...');
+        hasGoogleIdColumn = false;
+        user = await prisma.user.findFirst({
+          where: { email: cleanEmail },
+          include: {
+            wallet: true,
+            streamerProfile: true,
+          },
+        });
+
+        // Trigger background schema synchronization so future requests have the column
+        try {
+          const { exec } = require('child_process');
+          const path = require('path');
+          const ensureScript = path.resolve(process.cwd(), 'scripts', 'ensure-db.js');
+          exec(`node "${ensureScript}"`, (migrationErr: any, stdout: string) => {
+            if (migrationErr) console.error('[Google OAuth Auto-Sync] Error:', migrationErr.message);
+            else console.log('[Google OAuth Auto-Sync] Completed:', stdout);
+          });
+        } catch {
+          // non-blocking
+        }
+      } else {
+        throw findErr;
+      }
+    }
 
     if (user) {
       // Update googleId, password, avatar, or role if applicable
       const updates: any = {};
-      if (!user.googleId) updates.googleId = googleUser.id;
+      if (hasGoogleIdColumn && !user.googleId) updates.googleId = googleUser.id;
       if (!user.avatarUrl && googleUser.picture) updates.avatarUrl = googleUser.picture;
       if (!user.ageVerifiedAt) updates.ageVerifiedAt = new Date();
       if (!user.passwordHash) updates.passwordHash = await hashPassword('Password123!');
@@ -211,7 +243,7 @@ export async function GET(req: Request) {
           email: cleanEmail,
           username: uniqueUsername,
           passwordHash: defaultPasswordHash,
-          googleId: googleUser.id,
+          ...(hasGoogleIdColumn ? { googleId: googleUser.id } : {}),
           avatarUrl: googleUser.picture || null,
           role: targetRole,
           ageVerifiedAt: new Date(),

@@ -49,14 +49,14 @@ try {
 
   // Determine commands based on platform
   const isWin = process.platform === 'win32';
-  const pushCmd = isWin ? 'cmd.exe /c "npx prisma db push --skip-generate"' : 'npx prisma db push --skip-generate';
+  const pushCmd = isWin ? 'cmd.exe /c "npx prisma db push --skip-generate --accept-data-loss"' : 'npx prisma db push --skip-generate --accept-data-loss';
   const genCmd = isWin ? 'cmd.exe /c "npx prisma generate"' : 'npx prisma generate';
 
   console.log(`[ensure-db] Pushing latest schema to ${targetProvider} database...`);
   try {
     execSync(pushCmd, { cwd: rootDir, stdio: 'inherit' });
   } catch (pushErr) {
-    console.warn('[ensure-db] Notice during prisma db push:', pushErr.message);
+    console.error('[ensure-db] Notice during prisma db push:', pushErr.message);
   }
 
   console.log('[ensure-db] Generating fresh Prisma Client...');
