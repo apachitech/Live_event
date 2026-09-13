@@ -10,9 +10,13 @@ export async function GET(req: Request) {
 
     const roleParam = searchParams.get('role');
 
-    const host = req.headers.get('host') || 'localhost:3000';
+    let host = req.headers.get('host') || 'localhost:3000';
+    if (host.startsWith('0.0.0.0')) {
+      host = host.replace('0.0.0.0', 'localhost');
+    }
     const proto = req.headers.get('x-forwarded-proto') || 'http';
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host}`;
+    const rawBaseUrl = process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host}`;
+    const baseUrl = rawBaseUrl.replace(/\/+$/, '');
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const redirectUri = `${baseUrl}/api/auth/google/callback`;
