@@ -2,11 +2,13 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPassword, signToken, AUTH_COOKIE_OPTIONS } from '@/lib/auth';
 import { defaultKYCProvider } from '@/lib/kyc/selfAttestation';
+import { ensureUserSchema } from '@/lib/ensureSchema';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
+    await ensureUserSchema();
     const { email, username, password, role, birthDate, agreeAgeVerification } = await req.json();
 
     if (!email || !username || !password) {

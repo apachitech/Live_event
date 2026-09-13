@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { signToken, AUTH_COOKIE_OPTIONS, hashPassword } from '@/lib/auth';
 import { logChangeData } from '@/lib/audit';
+import { ensureUserSchema } from '@/lib/ensureSchema';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +25,9 @@ function getBaseUrl(req: Request): string {
 
 export async function GET(req: Request) {
   try {
+    // Ensure database schema has all needed columns before handling OAuth callback
+    await ensureUserSchema();
+
     const { searchParams } = new URL(req.url);
     const code = searchParams.get('code');
     const stateParam = searchParams.get('state');

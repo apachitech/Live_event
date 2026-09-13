@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { comparePassword, signToken, AUTH_COOKIE_OPTIONS } from '@/lib/auth';
+import { ensureUserSchema } from '@/lib/ensureSchema';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
+    await ensureUserSchema();
     const { emailOrUsername, password } = await req.json();
 
     if (!emailOrUsername || !password) {
