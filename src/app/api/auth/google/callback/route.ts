@@ -198,7 +198,11 @@ export async function GET(req: Request) {
     });
 
     // Create redirect response with cookie
-    const targetUrl = new URL(redirectPath, req.url);
+    const host = req.headers.get('host') || 'localhost:3000';
+    const proto = req.headers.get('x-forwarded-proto') || 'http';
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host}`;
+
+    const targetUrl = new URL(redirectPath, baseUrl);
     const response = NextResponse.redirect(targetUrl.toString());
     response.cookies.set(AUTH_COOKIE_OPTIONS.name, token, AUTH_COOKIE_OPTIONS.options);
     response.cookies.delete('oauth_state');
@@ -206,6 +210,9 @@ export async function GET(req: Request) {
     return response;
   } catch (err: any) {
     console.error('Error handling Google OAuth callback:', err);
-    return NextResponse.redirect(new URL('/login?error=oauth_callback_error', req.url));
+    const host = req.headers.get('host') || 'localhost:3000';
+    const proto = req.headers.get('x-forwarded-proto') || 'http';
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host}`;
+    return NextResponse.redirect(new URL('/login?error=oauth_callback_error', baseUrl));
   }
 }
