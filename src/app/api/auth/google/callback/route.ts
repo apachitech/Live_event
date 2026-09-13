@@ -6,12 +6,37 @@ import { logChangeData } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
+function getBaseUrl(req: Request): string {
+  let envUrl = (process.env.NEXT_PUBLIC_APP_URL || '').trim();
+  if (envUrl) {
+    if (!envUrl.startsWith('http://') && !envUrl.startsWith('https://')) {
+      envUrl = `https://${envUrl}`;
+    }
+    return envUrl.replace(/\/+$/, '');
+  }
+  let host = req.headers.get('host') || 'localhost:3000';
+  if (host.startsWith('0.0.0.0')) {
+    host = host.replace('0.0.0.0', 'localhost');
+  }
+  const proto = req.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
+  return `${proto}://${host}`.replace(/\/+$/, '');
+}
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const code = searchParams.get('code');
     const stateParam = searchParams.get('state');
+    const googleError = searchParams.get('error');
     const isDevMock = searchParams.get('dev_mock') === 'true';
+
+    const baseUrl = getBaseUrl(req);
+
+    // If Google returned an OAuth error (e.g. user denied permissions)
+    if (googleError) {
+      console.warn('[Google OAuth] Google returned error:', googleError, searchParams.get('error_description'));
+      return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(googleError)}`, baseUrl));
+    }
 
     // Decode state parameter
     let redirectPath = '/';
@@ -50,23 +75,15 @@ export async function GET(req: Request) {
       };
     } else {
       if (!code) {
-        return NextResponse.redirect(new URL('/login?error=missing_code', req.url));
+        return NextResponse.redirect(new URL('/login?error=missing_code', baseUrl));
       }
 
-      let host = req.headers.get('host') || 'localhost:3000';
-      if (host.startsWith('0.0.0.0')) {
-        host = host.replace('0.0.0.0', 'localhost');
-      }
-      const proto = req.headers.get('x-forwarded-proto') || 'http';
-      const rawBaseUrl = process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host}`;
-      const baseUrl = rawBaseUrl.replace(/\/+$/, '');
       const redirectUri = `${baseUrl}/api/auth/google/callback`;
-
       const clientId = process.env.GOOGLE_CLIENT_ID;
       const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
       if (!clientId || !clientSecret) {
-        return NextResponse.redirect(new URL('/login?error=google_credentials_missing', req.url));
+        return NextResponse.redirect(new URL('/login?error=google_credentials_missing', baseUrl));
       }
 
       // Exchange code for Google tokens
@@ -85,7 +102,8 @@ export async function GET(req: Request) {
       const tokenData = await tokenRes.json();
       if (!tokenRes.ok || !tokenData.access_token) {
         console.error('[Google OAuth] Token exchange failure:', tokenData);
-        return NextResponse.redirect(new URL('/login?error=token_exchange_failed', req.url));
+        const detail = tokenData.error_description || tokenData.error || 'token_exchange_failed';
+        return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(detail)}`, baseUrl));
       }
 
       // Fetch user profile from Google UserInfo endpoint
@@ -96,7 +114,7 @@ export async function GET(req: Request) {
       const profileData = await userRes.json();
       if (!userRes.ok || !profileData.email) {
         console.error('[Google OAuth] UserInfo fetch failure:', profileData);
-        return NextResponse.redirect(new URL('/login?error=userinfo_failed', req.url));
+        return NextResponse.redirect(new URL('/login?error=userinfo_failed', baseUrl));
       }
 
       googleUser = {
@@ -241,10 +259,6 @@ export async function GET(req: Request) {
     });
 
     // Create redirect response with cookie
-    const host = req.headers.get('host') || 'localhost:3000';
-    const proto = req.headers.get('x-forwarded-proto') || 'http';
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host}`;
-
     const targetUrl = new URL(redirectPath, baseUrl);
     const response = NextResponse.redirect(targetUrl.toString());
     response.cookies.set(AUTH_COOKIE_OPTIONS.name, token, AUTH_COOKIE_OPTIONS.options);
@@ -253,9 +267,8 @@ export async function GET(req: Request) {
     return response;
   } catch (err: any) {
     console.error('Error handling Google OAuth callback:', err);
-    const host = req.headers.get('host') || 'localhost:3000';
-    const proto = req.headers.get('x-forwarded-proto') || 'http';
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host}`;
-    return NextResponse.redirect(new URL('/login?error=oauth_callback_error', baseUrl));
+    const baseUrl = getBaseUrl(req);
+    const errorDetail = encodeURIComponent(`Google authentication error: ${err.message || 'oauth_callback_error'}`);
+    return NextResponse.redirect(new URL(`/login?error=${errorDetail}`, baseUrl));
   }
 }

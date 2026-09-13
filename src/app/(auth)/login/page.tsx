@@ -6,6 +6,27 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { Radio, Lock, Mail, AlertCircle, CheckCircle2, ArrowRight, Eye, EyeOff } from 'lucide-react';
 
+function formatAuthError(err: string | null): string {
+  if (!err) return '';
+  const decoded = decodeURIComponent(err);
+  if (decoded === 'oauth_callback_error') {
+    return 'Google Sign-In could not be completed during callback. Please verify that GOOGLE_CLIENT_SECRET is set correctly in your environment and that the redirect URI matches Google Cloud Console.';
+  }
+  if (decoded === 'token_exchange_failed') {
+    return 'Failed to exchange authorization token with Google. Please verify that your GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are valid and not expired.';
+  }
+  if (decoded === 'google_credentials_missing') {
+    return 'Google OAuth credentials (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET) are missing in the environment.';
+  }
+  if (decoded === 'access_denied') {
+    return 'Google Sign-In was cancelled or access was denied.';
+  }
+  if (decoded === 'missing_code') {
+    return 'Google authorization code was missing from callback.';
+  }
+  return decoded;
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -17,7 +38,7 @@ function LoginForm() {
   const [emailOrUsername, setEmailOrUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState(urlError ? decodeURIComponent(urlError) : '');
+  const [error, setError] = useState(formatAuthError(urlError));
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {

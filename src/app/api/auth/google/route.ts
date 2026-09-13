@@ -3,6 +3,22 @@ import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
+function getBaseUrl(req: Request): string {
+  let envUrl = (process.env.NEXT_PUBLIC_APP_URL || '').trim();
+  if (envUrl) {
+    if (!envUrl.startsWith('http://') && !envUrl.startsWith('https://')) {
+      envUrl = `https://${envUrl}`;
+    }
+    return envUrl.replace(/\/+$/, '');
+  }
+  let host = req.headers.get('host') || 'localhost:3000';
+  if (host.startsWith('0.0.0.0')) {
+    host = host.replace('0.0.0.0', 'localhost');
+  }
+  const proto = req.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
+  return `${proto}://${host}`.replace(/\/+$/, '');
+}
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -10,14 +26,7 @@ export async function GET(req: Request) {
 
     const roleParam = searchParams.get('role');
 
-    let host = req.headers.get('host') || 'localhost:3000';
-    if (host.startsWith('0.0.0.0')) {
-      host = host.replace('0.0.0.0', 'localhost');
-    }
-    const proto = req.headers.get('x-forwarded-proto') || 'http';
-    const rawBaseUrl = process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host}`;
-    const baseUrl = rawBaseUrl.replace(/\/+$/, '');
-
+    const baseUrl = getBaseUrl(req);
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const redirectUri = `${baseUrl}/api/auth/google/callback`;
 
