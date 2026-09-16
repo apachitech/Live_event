@@ -34,6 +34,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Insufficient earned tokens for this payout amount' }, { status: 400 });
     }
 
+    // Validate crypto wallet address if crypto payout is selected
+    if (payoutMethod?.startsWith('CRYPTO')) {
+      const address = payoutDetails?.walletAddress || payoutDetails?.accountEmail;
+      const network = payoutMethod.replace('CRYPTO_', '');
+      const { getPaymentProcessor } = await import('@/lib/payment');
+      const processor = getPaymentProcessor('CRYPTO') as any;
+      if (processor && typeof processor.validateAddress === 'function') {
+        const validation = processor.validateAddress(address, network);
+        if (!validation.valid) {
+          return NextResponse.json({ error: validation.message || 'Invalid cryptocurrency address' }, { status: 400 });
+        }
+      }
+    }
+
     // Cashout rate: 1 earned token = $0.05 USD = 5 cents
     const payoutAmountCents = tokens * 5;
 

@@ -11,9 +11,11 @@ export async function POST(req: Request) {
       headersObj[key.toLowerCase()] = val;
     });
 
-    // Detect payment provider from webhook headers
+    // Detect payment provider from webhook headers or payload attributes
     let providerMethod: SupportedPaymentMethod = 'STRIPE';
-    if (headersObj['x-signature']) {
+    if (headersObj['x-nowpayments-sig'] || (rawBody.includes('payment_status') && rawBody.includes('pay_amount')) || rawBody.includes('crypto_')) {
+      providerMethod = 'CRYPTO';
+    } else if (headersObj['x-signature']) {
       providerMethod = 'LEMON_SQUEEZY';
     } else if (headersObj['verif-hash']) {
       providerMethod = 'MOBILE_MONEY';

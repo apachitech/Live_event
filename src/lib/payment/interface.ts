@@ -1,6 +1,6 @@
 import { TokenPackage } from '@/types';
 
-export type SupportedPaymentMethod = 'STRIPE' | 'CCBILL' | 'MOBILE_MONEY' | 'LEMON_SQUEEZY' | 'MOCK';
+export type SupportedPaymentMethod = 'STRIPE' | 'CCBILL' | 'MOBILE_MONEY' | 'LEMON_SQUEEZY' | 'CRYPTO' | 'MOCK';
 
 export interface MobileMoneyOptions {
   country: string; // 'KE' | 'NG' | 'GH' | 'CI' | 'SN' | 'UG' | 'CM' | 'ZA' | 'RW'
@@ -9,11 +9,24 @@ export interface MobileMoneyOptions {
   currency?: string;
 }
 
+export interface CryptoPaymentOptions {
+  payCurrency: 'btc' | 'eth' | 'usdttrc20' | 'usdterc20' | 'sol' | 'usdc' | string;
+  network?: string;
+  payAddress?: string;
+}
+
 export interface CheckoutSessionResult {
   sessionId: string;
   checkoutUrl: string;
   provider: string;
   mobileMoneyDetails?: MobileMoneyOptions;
+  cryptoDetails?: {
+    payAddress?: string;
+    payAmount?: number;
+    payCurrency?: string;
+    network?: string;
+    qrCodeUrl?: string;
+  };
 }
 
 export interface PayoutExecutionResult {
@@ -29,7 +42,8 @@ export interface PaymentProcessor {
     pkg: TokenPackage,
     successUrl: string,
     cancelUrl: string,
-    mobileMoneyOptions?: MobileMoneyOptions
+    mobileMoneyOptions?: MobileMoneyOptions,
+    cryptoOptions?: CryptoPaymentOptions
   ): Promise<CheckoutSessionResult>;
   verifyWebhookEvent(body: string, headers: Record<string, string | string[] | undefined>): Promise<{
     verified: boolean;

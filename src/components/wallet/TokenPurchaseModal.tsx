@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { TOKEN_PACKAGES, TokenPackage } from '@/types';
 import { SupportedPaymentMethod, AFRICAN_MOBILE_MONEY_NETWORKS } from '@/lib/payment';
+import { SUPPORTED_CRYPTO_CURRENCIES } from '@/lib/payment/cryptoAdapter';
 import {
   Coins,
   X,
@@ -14,6 +15,7 @@ import {
   Smartphone,
   Shield,
   Zap,
+  Bitcoin,
 } from 'lucide-react';
 
 export default function TokenPurchaseModal() {
@@ -25,6 +27,9 @@ export default function TokenPurchaseModal() {
   const [selectedCountryCode, setSelectedCountryCode] = useState('KE');
   const [selectedNetwork, setSelectedNetwork] = useState('M-Pesa (Safaricom)');
   const [phoneNumber, setPhoneNumber] = useState('');
+
+  // Cryptocurrency state
+  const [selectedCrypto, setSelectedCrypto] = useState('usdttrc20');
 
   const [loading, setLoading] = useState(false);
 
@@ -58,6 +63,12 @@ export default function TokenPurchaseModal() {
                   network: selectedNetwork,
                   phoneNumber,
                   currency: currentCountry.currency,
+                }
+              : undefined,
+          cryptoOptions:
+            paymentMethod === 'CRYPTO'
+              ? {
+                  payCurrency: selectedCrypto,
                 }
               : undefined,
         }),
@@ -153,7 +164,20 @@ export default function TokenPurchaseModal() {
           <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">
             Select Payment Method:
           </label>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+            <button
+              type="button"
+              onClick={() => setPaymentMethod('CRYPTO')}
+              className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1 transition ${
+                paymentMethod === 'CRYPTO'
+                  ? 'border-amber-500 bg-amber-500/20 text-white font-bold shadow-sm shadow-amber-500/20 ring-1 ring-amber-500/50'
+                  : 'border-surfaceBorder bg-surfaceLight/50 text-gray-400 hover:border-gray-600'
+              }`}
+            >
+              <Bitcoin className="w-4 h-4 text-amber-400" />
+              <span className="text-[11px]">Crypto</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setPaymentMethod('LEMON_SQUEEZY')}
@@ -220,6 +244,52 @@ export default function TokenPurchaseModal() {
             </button>
           </div>
         </div>
+
+        {/* 2.5 Crypto Currency Selection Panel */}
+        {paymentMethod === 'CRYPTO' && (
+          <div className="p-4 rounded-xl bg-amber-950/20 border border-amber-500/30 mb-4 space-y-3 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-bold text-amber-400">
+                <Bitcoin className="w-4 h-4" />
+                <span>Select Cryptocurrency & Network</span>
+              </div>
+              <span className="text-[10px] text-amber-300 font-mono">BTC • ETH • USDT • SOL</span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {SUPPORTED_CRYPTO_CURRENCIES.map((coin) => {
+                const isSelected = selectedCrypto === coin.code;
+                return (
+                  <div
+                    key={coin.code}
+                    onClick={() => setSelectedCrypto(coin.code)}
+                    className={`cursor-pointer p-2.5 rounded-xl border transition flex flex-col justify-between ${
+                      isSelected
+                        ? 'border-amber-500 bg-amber-500/20 text-white shadow-sm shadow-amber-500/10'
+                        : 'border-surfaceBorder bg-surfaceLight/60 text-gray-300 hover:border-gray-600'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-base font-bold">{coin.icon}</span>
+                      {coin.recommended && (
+                        <span className="text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-1 py-0.5 rounded font-bold uppercase">
+                          Low Fee
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-white">{coin.name}</div>
+                      <div className="text-[10px] text-gray-400 font-mono truncate">{coin.network}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-gray-400">
+              ⚡ Instant blockchain confirmations. Scan QR code or copy deposit address on next screen.
+            </p>
+          </div>
+        )}
 
         {/* 3. African Mobile Money Configuration Panel */}
         {paymentMethod === 'MOBILE_MONEY' && (
@@ -305,7 +375,9 @@ export default function TokenPurchaseModal() {
                 <Coins className="w-4 h-4 text-black" />
                 <span>
                   Buy {selectedPackage.tokens} Tokens with{' '}
-                  {paymentMethod === 'LEMON_SQUEEZY'
+                  {paymentMethod === 'CRYPTO'
+                    ? `Crypto (${selectedCrypto.toUpperCase().replace('TRC20', ' TRC-20').replace('ERC20', ' ERC-20')})`
+                    : paymentMethod === 'LEMON_SQUEEZY'
                     ? 'Lemon Squeezy'
                     : paymentMethod === 'MOBILE_MONEY'
                     ? `${selectedNetwork}`

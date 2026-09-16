@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { TOKEN_PACKAGES } from '@/types';
-import { getPaymentProcessor, SupportedPaymentMethod, MobileMoneyOptions } from '@/lib/payment';
+import { getPaymentProcessor, SupportedPaymentMethod, MobileMoneyOptions, CryptoPaymentOptions } from '@/lib/payment';
 
 export async function POST(req: Request) {
   try {
@@ -15,11 +15,13 @@ export async function POST(req: Request) {
       returnUrl,
       paymentMethod = 'STRIPE',
       mobileMoneyOptions,
+      cryptoOptions,
     }: {
       packageId: string;
       returnUrl?: string;
       paymentMethod?: SupportedPaymentMethod;
       mobileMoneyOptions?: MobileMoneyOptions;
+      cryptoOptions?: CryptoPaymentOptions;
     } = await req.json();
 
     const pkg = TOKEN_PACKAGES.find((p) => p.id === packageId);
@@ -38,7 +40,8 @@ export async function POST(req: Request) {
       pkg,
       returnUrl || defaultReturn,
       returnUrl || defaultReturn,
-      mobileMoneyOptions
+      mobileMoneyOptions,
+      cryptoOptions
     );
 
     return NextResponse.json({ success: true, checkout });

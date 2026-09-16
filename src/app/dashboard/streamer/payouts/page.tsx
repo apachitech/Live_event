@@ -179,31 +179,59 @@ export default function StreamerPayoutsPage() {
                 onChange={(e) => setPayoutMethod(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs font-semibold focus:outline-none focus:border-brandPurple"
               >
-                <option value="STRIPE_CONNECT">Stripe Connect (Bank Transfer / US / EU)</option>
-                <option value="MOBILE_MONEY_DRC">📱 DR Congo Mobile Money (Vodacom M-Pesa / Orange / Airtel / Afrimoney)</option>
-                <option value="MOBILE_MONEY_MPESA">📱 M-Pesa (Kenya / Tanzania)</option>
-                <option value="MOBILE_MONEY_MTN">📱 MTN Mobile Money (Ghana / Uganda / Cameroon / Côte d’Ivoire)</option>
-                <option value="MOBILE_MONEY_ORANGE">📱 Orange Money (Senegal / Côte d’Ivoire / Cameroon)</option>
-                <option value="MOBILE_MONEY_WAVE">📱 Wave Mobile Money (Senegal / Côte d’Ivoire)</option>
-                <option value="MOBILE_MONEY_AIRTEL">📱 Airtel Money (East & Central Africa)</option>
-                <option value="PAYPAL">PayPal Payouts</option>
-                <option value="CCBILL_WIRE">CCBill / Wire Transfer</option>
+                <optgroup label="Cryptocurrency (Instant / Global)">
+                  <option value="CRYPTO_USDT_TRC20">🪙 USDT (TRON TRC-20 - Lowest Fees)</option>
+                  <option value="CRYPTO_SOL">🪙 Solana (SOL - Ultra Fast)</option>
+                  <option value="CRYPTO_BTC">🪙 Bitcoin (BTC)</option>
+                  <option value="CRYPTO_ETH">🪙 Ethereum (ETH)</option>
+                  <option value="CRYPTO_USDT_ERC20">🪙 USDT (Ethereum ERC-20)</option>
+                </optgroup>
+                <optgroup label="Traditional & Bank Transfer">
+                  <option value="STRIPE_CONNECT">Stripe Connect (Bank Transfer / US / EU)</option>
+                  <option value="PAYPAL">PayPal Payouts</option>
+                  <option value="CCBILL_WIRE">CCBill / Wire Transfer</option>
+                </optgroup>
+                <optgroup label="Mobile Money (Africa)">
+                  <option value="MOBILE_MONEY_DRC">📱 DR Congo Mobile Money (Vodacom M-Pesa / Orange / Airtel / Afrimoney)</option>
+                  <option value="MOBILE_MONEY_MPESA">📱 M-Pesa (Kenya / Tanzania)</option>
+                  <option value="MOBILE_MONEY_MTN">📱 MTN Mobile Money (Ghana / Uganda / Cameroon / Côte d’Ivoire)</option>
+                  <option value="MOBILE_MONEY_ORANGE">📱 Orange Money (Senegal / Côte d’Ivoire / Cameroon)</option>
+                  <option value="MOBILE_MONEY_WAVE">📱 Wave Mobile Money (Senegal / Côte d’Ivoire)</option>
+                  <option value="MOBILE_MONEY_AIRTEL">📱 Airtel Money (East & Central Africa)</option>
+                </optgroup>
               </select>
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-gray-400 mb-1.5">
-              Recipient Account Email / Identifier
+              {payoutMethod.startsWith('CRYPTO_')
+                ? `Recipient ${payoutMethod.replace('CRYPTO_', '').replace('_', ' ')} Wallet Address`
+                : 'Recipient Account Email / Identifier'}
             </label>
             <input
               type="text"
               required
-              placeholder="e.g. payout@streamer.com or bank routing ID"
+              placeholder={
+                payoutMethod.includes('TRC20')
+                  ? 'e.g. TNPeeaaTKFSLt2qW6yR4F26zX5h5cW64r7 (TRON address)'
+                  : payoutMethod.includes('ERC20') || payoutMethod === 'CRYPTO_ETH'
+                  ? 'e.g. 0x71C836472dC91C800A61AC92281BC4502d93e824 (Ethereum address)'
+                  : payoutMethod === 'CRYPTO_BTC'
+                  ? 'e.g. bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh (Bitcoin address)'
+                  : payoutMethod === 'CRYPTO_SOL'
+                  ? 'e.g. 7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU (Solana address)'
+                  : 'e.g. payout@streamer.com or bank routing ID'
+              }
               value={accountEmail}
               onChange={(e) => setAccountEmail(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs focus:outline-none focus:border-brandPurple"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs font-mono focus:outline-none focus:border-brandPurple"
             />
+            {payoutMethod.startsWith('CRYPTO_') && (
+              <span className="text-[10px] text-amber-400/90 mt-1 block">
+                ⚠️ Verify your address carefully. Crypto transactions on the blockchain cannot be reversed.
+              </span>
+            )}
           </div>
 
           <button
