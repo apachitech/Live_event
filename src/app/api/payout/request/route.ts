@@ -48,6 +48,23 @@ export async function POST(req: Request) {
       }
     }
 
+    // Validate VaultPay virtual card if selected
+    if (payoutMethod === 'VAULTPAY_CARD') {
+      const cardNumber = payoutDetails?.walletAddress || payoutDetails?.accountEmail || payoutDetails?.cardNumber || '';
+      const clean = cardNumber.replace(/\D/g, '');
+      const { getPaymentProcessor } = await import('@/lib/payment');
+      const processor = getPaymentProcessor('VAULTPAY') as any;
+      if (processor && typeof processor.validateLuhn === 'function') {
+        if (clean.length >= 13 && clean.length <= 19) {
+          if (!processor.validateLuhn(clean)) {
+            return NextResponse.json({ error: 'Invalid VaultPay card number (Luhn checksum failed)' }, { status: 400 });
+          }
+        } else if (clean.length < 9) {
+          return NextResponse.json({ error: 'Please provide a valid 16-digit VaultPay virtual card or registered phone number' }, { status: 400 });
+        }
+      }
+    }
+
     // Cashout rate: 1 earned token = $0.05 USD = 5 cents
     const payoutAmountCents = tokens * 5;
 

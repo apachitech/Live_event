@@ -179,6 +179,9 @@ export default function StreamerPayoutsPage() {
                 onChange={(e) => setPayoutMethod(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs font-semibold focus:outline-none focus:border-brandPurple"
               >
+                <optgroup label="Virtual Card & Digital Banking">
+                  <option value="VAULTPAY_CARD">💳 VaultPay Virtual Visa Card (Direct Disbursement)</option>
+                </optgroup>
                 <optgroup label="Cryptocurrency (Instant / Global)">
                   <option value="CRYPTO_USDT_TRC20">🪙 USDT (TRON TRC-20 - Lowest Fees)</option>
                   <option value="CRYPTO_SOL">🪙 Solana (SOL - Ultra Fast)</option>
@@ -207,13 +210,17 @@ export default function StreamerPayoutsPage() {
             <label className="block text-xs font-semibold text-gray-400 mb-1.5">
               {payoutMethod.startsWith('CRYPTO_')
                 ? `Recipient ${payoutMethod.replace('CRYPTO_', '').replace('_', ' ')} Wallet Address`
+                : payoutMethod === 'VAULTPAY_CARD'
+                ? 'Recipient VaultPay Virtual Card Number (16 digits) or Phone'
                 : 'Recipient Account Email / Identifier'}
             </label>
             <input
               type="text"
               required
               placeholder={
-                payoutMethod.includes('TRC20')
+                payoutMethod === 'VAULTPAY_CARD'
+                  ? 'e.g. 4111 2222 3333 4444 or registered VaultPay phone'
+                  : payoutMethod.includes('TRC20')
                   ? 'e.g. TNPeeaaTKFSLt2qW6yR4F26zX5h5cW64r7 (TRON address)'
                   : payoutMethod.includes('ERC20') || payoutMethod === 'CRYPTO_ETH'
                   ? 'e.g. 0x71C836472dC91C800A61AC92281BC4502d93e824 (Ethereum address)'
@@ -227,6 +234,11 @@ export default function StreamerPayoutsPage() {
               onChange={(e) => setAccountEmail(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs font-mono focus:outline-none focus:border-brandPurple"
             />
+            {payoutMethod === 'VAULTPAY_CARD' && (
+              <span className="text-[10px] text-cyan-400 mt-1 block">
+                💳 Funds are disbursed directly to your VaultPay Virtual Visa card balance for immediate spending.
+              </span>
+            )}
             {payoutMethod.startsWith('CRYPTO_') && (
               <span className="text-[10px] text-amber-400/90 mt-1 block">
                 ⚠️ Verify your address carefully. Crypto transactions on the blockchain cannot be reversed.

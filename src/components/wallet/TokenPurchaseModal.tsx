@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { TOKEN_PACKAGES, TokenPackage } from '@/types';
 import { SupportedPaymentMethod, AFRICAN_MOBILE_MONEY_NETWORKS } from '@/lib/payment';
 import { SUPPORTED_CRYPTO_CURRENCIES } from '@/lib/payment/cryptoAdapter';
+import { SAMPLE_VAULTPAY_CARDS } from '@/lib/payment/vaultPayAdapter';
 import {
   Coins,
   X,
@@ -30,6 +31,12 @@ export default function TokenPurchaseModal() {
 
   // Cryptocurrency state
   const [selectedCrypto, setSelectedCrypto] = useState('usdttrc20');
+
+  // VaultPay Virtual Card state
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [cardholderName, setCardholderName] = useState('');
 
   const [loading, setLoading] = useState(false);
 
@@ -69,6 +76,16 @@ export default function TokenPurchaseModal() {
             paymentMethod === 'CRYPTO'
               ? {
                   payCurrency: selectedCrypto,
+                }
+              : undefined,
+          vaultPayOptions:
+            paymentMethod === 'VAULTPAY'
+              ? {
+                  cardNumber,
+                  cardExpiry,
+                  cardCvv,
+                  cardholderName,
+                  isVirtualCard: true,
                 }
               : undefined,
         }),
@@ -219,6 +236,19 @@ export default function TokenPurchaseModal() {
 
             <button
               type="button"
+              onClick={() => setPaymentMethod('VAULTPAY')}
+              className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1 transition ${
+                paymentMethod === 'VAULTPAY'
+                  ? 'border-cyan-400 bg-cyan-500/20 text-white font-bold shadow-sm shadow-cyan-500/20 ring-1 ring-cyan-400/50'
+                  : 'border-surfaceBorder bg-surfaceLight/50 text-gray-400 hover:border-gray-600'
+              }`}
+            >
+              <CreditCard className="w-4 h-4 text-cyan-400" />
+              <span className="text-[11px]">VaultPay</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setPaymentMethod('CCBILL')}
               className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1 transition ${
                 paymentMethod === 'CCBILL'
@@ -244,6 +274,105 @@ export default function TokenPurchaseModal() {
             </button>
           </div>
         </div>
+
+        {/* 2.4 VaultPay Virtual Card Input Panel */}
+        {paymentMethod === 'VAULTPAY' && (
+          <div className="p-4 rounded-xl bg-cyan-950/20 border border-cyan-500/30 mb-4 space-y-3 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-bold text-cyan-400">
+                <CreditCard className="w-4 h-4" />
+                <span>VaultPay Virtual Visa & Mastercard</span>
+              </div>
+              <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded font-mono font-bold">
+                Virtual Visa Accepted
+              </span>
+            </div>
+
+            <div className="space-y-2.5">
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-300 mb-1">Cardholder Full Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Jean Kabamba"
+                  value={cardholderName}
+                  onChange={(e) => setCardholderName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs focus:outline-none focus:border-cyan-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-300 mb-1">Card Number (16 digits)</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    maxLength={19}
+                    placeholder="4111 2222 3333 4444"
+                    value={cardNumber}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/\D/g, '').slice(0, 16);
+                      const formatted = v.match(/.{1,4}/g)?.join(' ') || v;
+                      setCardNumber(formatted);
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs font-mono tracking-wider focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Expiry Date</label>
+                  <input
+                    type="text"
+                    maxLength={5}
+                    placeholder="MM/YY"
+                    value={cardExpiry}
+                    onChange={(e) => {
+                      let v = e.target.value.replace(/\D/g, '').slice(0, 4);
+                      if (v.length > 2) v = v.slice(0, 2) + '/' + v.slice(2);
+                      setCardExpiry(v);
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs font-mono text-center focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Security Code (CVV)</label>
+                  <input
+                    type="password"
+                    maxLength={4}
+                    placeholder="CVC"
+                    value={cardCvv}
+                    onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    className="w-full px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs font-mono text-center focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
+              </div>
+
+              {/* Sample Virtual Card Fast-Fill */}
+              <div className="pt-2 border-t border-cyan-500/20">
+                <span className="text-[10px] text-gray-400 block mb-1.5 font-medium">Quick Fill Sample VaultPay Cards (Test Mode):</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {SAMPLE_VAULTPAY_CARDS.map((sample, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setCardNumber(sample.number);
+                        setCardExpiry(sample.expiry);
+                        setCardCvv(sample.cvv);
+                        setCardholderName('VaultPay Tester');
+                      }}
+                      className="text-[10px] px-2 py-1 rounded-lg bg-surfaceLight hover:bg-cyan-500/20 text-cyan-300 border border-surfaceBorder hover:border-cyan-500/40 transition flex items-center gap-1 font-mono"
+                    >
+                      <span>💳</span>
+                      <span>{sample.number.slice(0, 4)}...{sample.number.slice(-4)} ({sample.label.split(' ')[0]})</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 2.5 Crypto Currency Selection Panel */}
         {paymentMethod === 'CRYPTO' && (
@@ -375,7 +504,9 @@ export default function TokenPurchaseModal() {
                 <Coins className="w-4 h-4 text-black" />
                 <span>
                   Buy {selectedPackage.tokens} Tokens with{' '}
-                  {paymentMethod === 'CRYPTO'
+                  {paymentMethod === 'VAULTPAY'
+                    ? 'VaultPay Virtual Card'
+                    : paymentMethod === 'CRYPTO'
                     ? `Crypto (${selectedCrypto.toUpperCase().replace('TRC20', ' TRC-20').replace('ERC20', ' ERC-20')})`
                     : paymentMethod === 'LEMON_SQUEEZY'
                     ? 'Lemon Squeezy'

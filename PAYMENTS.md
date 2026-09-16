@@ -39,6 +39,7 @@ This document provides a comprehensive operational guide for the payment process
 
 | Method | Provider | Target Audience | Supported Assets / Currencies |
 | :--- | :--- | :--- | :--- |
+| **`VAULTPAY`** | VaultPay / Sandbox | Global, DR Congo, Africa | **VaultPay Virtual Visa Cards**, Mastercard, Local Virtual Cards |
 | **`CRYPTO`** | NOWPayments / Sandbox | Global, Web3, Low Fees | **USDT (TRC-20)**, **USDT (ERC-20)**, **Solana (SOL)**, **Bitcoin (BTC)**, **Ethereum (ETH)**, **USDC** |
 | **`LEMON_SQUEEZY`**| Lemon Squeezy | Global Credit Cards, Apple Pay | USD, EUR, GBP (Merchant of Record) |
 | **`STRIPE`** | Stripe Hosted / Elements | US, EU, International Cards | USD, EUR, etc. |
@@ -86,18 +87,41 @@ Streamers can cash out their earned stream tokens directly to their personal cry
 
 ---
 
+## 4. VaultPay (Virtual Cards & Card Gateway)
+
+VaultPay enables users (especially across Central/West Africa and globally) to pay using **Virtual Visa Cards** and standard credit/debit cards:
+
+### 4.1 Ingest Flow
+1. **User Selection**: User selects **VaultPay** in `TokenPurchaseModal.tsx`.
+2. **Card Input**: User inputs their 16-digit VaultPay virtual card number, expiration (`MM/YY`), CVV, and name.
+   - Built-in Luhn algorithm checks prevent mistyped card numbers.
+   - Quick-fill sample cards (`4111 2222 3333 4444`) allow instant sandbox testing.
+3. **Processing**:
+   - In production (with `VAULTPAY_API_KEY` and `VAULTPAY_MERCHANT_ID`), charges the virtual card via VaultPay's Gateway API.
+   - In sandbox mode, simulates 3D Secure / OTP authorization and credits tokens immediately.
+
+### 4.2 Streamer Payouts (Direct to Virtual Card)
+- Streamers can request payouts directly to their **VaultPay Virtual Visa Card** or registered phone number.
+- Luhn checksum verification ensures payout card numbers are valid before tokens are debited.
+
+---
+
 ## 5. Environment Configuration
 
-Add the following to your `.env` file for production crypto processing:
+Add the following to your `.env` file for production processing:
 
 ```env
 # NOWPayments Cryptocurrency Gateway
 NOWPAYMENTS_API_KEY="your_nowpayments_api_key"
 NOWPAYMENTS_IPN_SECRET="your_nowpayments_ipn_secret"
-
-# Set to 'true' to use the NOWPayments Sandbox API (api-sandbox.nowpayments.io)
 NOWPAYMENTS_SANDBOX="false"
+
+# VaultPay (Virtual Visa/Mastercard & Card Gateway)
+VAULTPAY_API_KEY="your_vaultpay_api_key"
+VAULTPAY_MERCHANT_ID="your_vaultpay_merchant_id"
+VAULTPAY_SECRET_KEY="your_vaultpay_webhook_secret"
+VAULTPAY_SANDBOX="true"
 ```
 
 > [!NOTE]
-> If `NOWPAYMENTS_API_KEY` is not provided, the platform automatically runs in interactive developer sandbox mode, enabling full testing without requiring live crypto funds or merchant approvals.
+> When external gateway keys are omitted, the platform runs in interactive developer sandbox mode, enabling full testing without live accounts or card fees.
