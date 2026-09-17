@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     });
 
     // Detect payment provider from webhook headers or payload attributes
-    let providerMethod: SupportedPaymentMethod = 'STRIPE';
+    let providerMethod: SupportedPaymentMethod = 'CRYPTO';
     if (headersObj['x-vaultpay-signature'] || rawBody.includes('vaultpay_') || rawBody.includes('vcard_')) {
       providerMethod = 'VAULTPAY';
     } else if (headersObj['x-nowpayments-sig'] || (rawBody.includes('payment_status') && rawBody.includes('pay_amount')) || rawBody.includes('crypto_')) {

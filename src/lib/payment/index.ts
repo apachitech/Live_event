@@ -16,28 +16,20 @@ const vaultPayProcessor = new VaultPayProcessor();
 
 export function getPaymentProcessor(method?: SupportedPaymentMethod): PaymentProcessor {
   switch (method) {
-    case 'VAULTPAY':
-      return vaultPayProcessor;
     case 'CRYPTO':
       return cryptoProcessor;
-    case 'LEMON_SQUEEZY':
-      return lemonSqueezyProcessor;
-    case 'MOBILE_MONEY':
-      return mobileMoneyProcessor;
-    case 'STRIPE':
-      return stripeProcessor.isConfigured() ? stripeProcessor : mockProcessor;
-    case 'CCBILL':
-      return ccbillProcessor.isConfigured() ? ccbillProcessor : mockProcessor;
+    case 'VAULTPAY':
+      return vaultPayProcessor;
     case 'MOCK':
       return mockProcessor;
+    case 'LEMON_SQUEEZY':
+    case 'MOBILE_MONEY':
+    case 'STRIPE':
+    case 'CCBILL':
     default:
-      // Default prioritization
-      if (vaultPayProcessor.isConfigured()) return vaultPayProcessor;
-      if (lemonSqueezyProcessor.isConfigured()) return lemonSqueezyProcessor;
+      // Primary supported rails: Crypto and VaultPay
       if (cryptoProcessor.isConfigured()) return cryptoProcessor;
-      if (stripeProcessor.isConfigured()) return stripeProcessor;
-      if (mobileMoneyProcessor.isConfigured()) return mobileMoneyProcessor;
-      if (ccbillProcessor.isConfigured()) return ccbillProcessor;
+      if (vaultPayProcessor.isConfigured()) return vaultPayProcessor;
       return mockProcessor;
   }
 }

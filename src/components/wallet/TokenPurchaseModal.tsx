@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { TOKEN_PACKAGES, TokenPackage } from '@/types';
-import { SupportedPaymentMethod, AFRICAN_MOBILE_MONEY_NETWORKS } from '@/lib/payment';
+import { SupportedPaymentMethod } from '@/lib/payment';
 import { SUPPORTED_CRYPTO_CURRENCIES } from '@/lib/payment/cryptoAdapter';
 import { SAMPLE_VAULTPAY_CARDS } from '@/lib/payment/vaultPayAdapter';
 import {
@@ -13,21 +13,14 @@ import {
   ShieldCheck,
   Sparkles,
   CreditCard,
-  Smartphone,
-  Shield,
   Zap,
   Bitcoin,
 } from 'lucide-react';
 
 export default function TokenPurchaseModal() {
-  const { isPurchaseModalOpen, closePurchaseModal, refreshUser } = useAuth();
+  const { isPurchaseModalOpen, closePurchaseModal } = useAuth();
   const [selectedPackage, setSelectedPackage] = useState<TokenPackage>(TOKEN_PACKAGES[1]);
-  const [paymentMethod, setPaymentMethod] = useState<SupportedPaymentMethod>('LEMON_SQUEEZY');
-
-  // African Mobile Money state
-  const [selectedCountryCode, setSelectedCountryCode] = useState('KE');
-  const [selectedNetwork, setSelectedNetwork] = useState('M-Pesa (Safaricom)');
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<SupportedPaymentMethod>('CRYPTO');
 
   // Cryptocurrency state
   const [selectedCrypto, setSelectedCrypto] = useState('usdttrc20');
@@ -42,18 +35,6 @@ export default function TokenPurchaseModal() {
 
   if (!isPurchaseModalOpen) return null;
 
-  const currentCountry =
-    AFRICAN_MOBILE_MONEY_NETWORKS.find((c) => c.code === selectedCountryCode) ||
-    AFRICAN_MOBILE_MONEY_NETWORKS[0];
-
-  const handleCountryChange = (countryCode: string) => {
-    setSelectedCountryCode(countryCode);
-    const countryObj = AFRICAN_MOBILE_MONEY_NETWORKS.find((c) => c.code === countryCode);
-    if (countryObj && countryObj.networks.length > 0) {
-      setSelectedNetwork(countryObj.networks[0]);
-    }
-  };
-
   const handleCheckout = async () => {
     setLoading(true);
     try {
@@ -63,15 +44,6 @@ export default function TokenPurchaseModal() {
         body: JSON.stringify({
           packageId: selectedPackage.id,
           paymentMethod,
-          mobileMoneyOptions:
-            paymentMethod === 'MOBILE_MONEY'
-              ? {
-                  country: selectedCountryCode,
-                  network: selectedNetwork,
-                  phoneNumber,
-                  currency: currentCountry.currency,
-                }
-              : undefined,
           cryptoOptions:
             paymentMethod === 'CRYPTO'
               ? {
@@ -181,297 +153,197 @@ export default function TokenPurchaseModal() {
           <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-2">
             Select Payment Method:
           </label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
               onClick={() => setPaymentMethod('CRYPTO')}
-              className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1 transition ${
+              className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition ${
                 paymentMethod === 'CRYPTO'
                   ? 'border-amber-500 bg-amber-500/20 text-white font-bold shadow-sm shadow-amber-500/20 ring-1 ring-amber-500/50'
                   : 'border-surfaceBorder bg-surfaceLight/50 text-gray-400 hover:border-gray-600'
               }`}
             >
-              <Bitcoin className="w-4 h-4 text-amber-400" />
-              <span className="text-[11px]">Crypto</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setPaymentMethod('LEMON_SQUEEZY')}
-              className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1 transition ${
-                paymentMethod === 'LEMON_SQUEEZY'
-                  ? 'border-yellow-400 bg-yellow-400/20 text-white font-bold shadow-sm shadow-yellow-500/20'
-                  : 'border-surfaceBorder bg-surfaceLight/50 text-gray-400 hover:border-gray-600'
-              }`}
-            >
-              <span className="text-sm leading-none">🍋</span>
-              <span className="text-[11px]">Lemon Squeezy</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setPaymentMethod('STRIPE')}
-              className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1 transition ${
-                paymentMethod === 'STRIPE'
-                  ? 'border-brandPurple bg-purple-600/20 text-white font-bold'
-                  : 'border-surfaceBorder bg-surfaceLight/50 text-gray-400 hover:border-gray-600'
-              }`}
-            >
-              <CreditCard className="w-4 h-4 text-brandPurple" />
-              <span className="text-[11px]">Card / Stripe</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setPaymentMethod('MOBILE_MONEY')}
-              className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1 transition ${
-                paymentMethod === 'MOBILE_MONEY'
-                  ? 'border-emerald-500 bg-emerald-500/20 text-white font-bold'
-                  : 'border-surfaceBorder bg-surfaceLight/50 text-gray-400 hover:border-gray-600'
-              }`}
-            >
-              <Smartphone className="w-4 h-4 text-emerald-400" />
-              <span className="text-[11px]">Mobile Money</span>
+              <Bitcoin className="w-5 h-5 text-amber-400" />
+              <span className="text-xs font-semibold">Crypto (USDT/BTC)</span>
             </button>
 
             <button
               type="button"
               onClick={() => setPaymentMethod('VAULTPAY')}
-              className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1 transition ${
+              className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition ${
                 paymentMethod === 'VAULTPAY'
                   ? 'border-cyan-400 bg-cyan-500/20 text-white font-bold shadow-sm shadow-cyan-500/20 ring-1 ring-cyan-400/50'
                   : 'border-surfaceBorder bg-surfaceLight/50 text-gray-400 hover:border-gray-600'
               }`}
             >
-              <CreditCard className="w-4 h-4 text-cyan-400" />
-              <span className="text-[11px]">VaultPay</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setPaymentMethod('CCBILL')}
-              className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1 transition ${
-                paymentMethod === 'CCBILL'
-                  ? 'border-pink-500 bg-pink-500/20 text-white font-bold'
-                  : 'border-surfaceBorder bg-surfaceLight/50 text-gray-400 hover:border-gray-600'
-              }`}
-            >
-              <Shield className="w-4 h-4 text-pink-400" />
-              <span className="text-[11px]">CCBill</span>
+              <CreditCard className="w-5 h-5 text-cyan-400" />
+              <span className="text-xs font-semibold">VaultPay Card</span>
             </button>
 
             <button
               type="button"
               onClick={() => setPaymentMethod('MOCK')}
-              className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1 transition ${
+              className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition ${
                 paymentMethod === 'MOCK'
-                  ? 'border-amber-500 bg-amber-500/20 text-white font-bold'
+                  ? 'border-purple-500 bg-purple-500/20 text-white font-bold'
                   : 'border-surfaceBorder bg-surfaceLight/50 text-gray-400 hover:border-gray-600'
               }`}
             >
-              <Zap className="w-4 h-4 text-tokenGold" />
-              <span className="text-[11px]">Instant Sandbox</span>
+              <Zap className="w-5 h-5 text-tokenGold" />
+              <span className="text-xs font-semibold">Instant Sandbox</span>
             </button>
           </div>
         </div>
 
-        {/* 2.4 VaultPay Virtual Card Input Panel */}
+        {/* 2.1 VaultPay Virtual Card Input Panel */}
         {paymentMethod === 'VAULTPAY' && (
           <div className="p-4 rounded-xl bg-cyan-950/20 border border-cyan-500/30 mb-4 space-y-3 animate-fade-in">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs font-bold text-cyan-400">
                 <CreditCard className="w-4 h-4" />
-                <span>VaultPay Virtual Visa & Mastercard</span>
+                <span>VaultPay Virtual Visa Card Ingest</span>
               </div>
-              <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded font-mono font-bold">
-                Virtual Visa Accepted
+              <span className="text-[10px] text-cyan-300/70 uppercase tracking-widest font-semibold">
+                Luhn-Verified • High-Risk Enabled
               </span>
             </div>
 
-            <div className="space-y-2.5">
+            <div className="grid grid-cols-1 gap-2.5">
               <div>
-                <label className="block text-[11px] font-semibold text-gray-300 mb-1">Cardholder Full Name</label>
+                <label className="block text-[11px] font-semibold text-gray-300 mb-1">
+                  Cardholder Full Name
+                </label>
                 <input
                   type="text"
-                  placeholder="e.g. Jean Kabamba"
+                  placeholder="e.g. John Doe / Streamer VIP"
                   value={cardholderName}
                   onChange={(e) => setCardholderName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs focus:outline-none focus:border-cyan-400"
+                  className="w-full px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs focus:outline-none focus:border-cyan-400 placeholder:text-gray-500"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-gray-300 mb-1">Card Number (16 digits)</label>
-                <div className="flex items-center gap-2">
+                <label className="block text-[11px] font-semibold text-gray-300 mb-1">
+                  VaultPay Virtual Card Number (16 digits)
+                </label>
+                <div className="relative">
                   <input
                     type="text"
                     maxLength={19}
-                    placeholder="4111 2222 3333 4444"
+                    placeholder="4000 1234 5678 9010"
                     value={cardNumber}
                     onChange={(e) => {
-                      const v = e.target.value.replace(/\D/g, '').slice(0, 16);
+                      const v = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
                       const formatted = v.match(/.{1,4}/g)?.join(' ') || v;
                       setCardNumber(formatted);
                     }}
-                    className="w-full px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs font-mono tracking-wider focus:outline-none focus:border-cyan-400"
+                    className="w-full px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs tracking-wider font-mono focus:outline-none focus:border-cyan-400 placeholder:text-gray-500"
                   />
+                  <span className="absolute right-3 top-2 text-[10px] font-bold text-cyan-400">
+                    VISA
+                  </span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Expiry Date</label>
+                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">
+                    Expiration (MM/YY)
+                  </label>
                   <input
                     type="text"
                     maxLength={5}
-                    placeholder="MM/YY"
+                    placeholder="12/28"
                     value={cardExpiry}
                     onChange={(e) => {
-                      let v = e.target.value.replace(/\D/g, '').slice(0, 4);
-                      if (v.length > 2) v = v.slice(0, 2) + '/' + v.slice(2);
-                      setCardExpiry(v);
+                      let val = e.target.value.replace(/[^0-9]/g, '');
+                      if (val.length >= 2) {
+                        val = val.substring(0, 2) + '/' + val.substring(2, 4);
+                      }
+                      setCardExpiry(val);
                     }}
-                    className="w-full px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs font-mono text-center focus:outline-none focus:border-cyan-400"
+                    className="w-full px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs font-mono focus:outline-none focus:border-cyan-400 placeholder:text-gray-500"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Security Code (CVV)</label>
+                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">
+                    CVV (3 digits)
+                  </label>
                   <input
                     type="password"
-                    maxLength={4}
-                    placeholder="CVC"
+                    maxLength={3}
+                    placeholder="888"
                     value={cardCvv}
-                    onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                    className="w-full px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs font-mono text-center focus:outline-none focus:border-cyan-400"
+                    onChange={(e) => setCardCvv(e.target.value.replace(/[^0-9]/g, ''))}
+                    className="w-full px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs font-mono focus:outline-none focus:border-cyan-400 placeholder:text-gray-500"
                   />
                 </div>
               </div>
+            </div>
 
-              {/* Sample Virtual Card Fast-Fill */}
-              <div className="pt-2 border-t border-cyan-500/20">
-                <span className="text-[10px] text-gray-400 block mb-1.5 font-medium">Quick Fill Sample VaultPay Cards (Test Mode):</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {SAMPLE_VAULTPAY_CARDS.map((sample, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => {
-                        setCardNumber(sample.number);
-                        setCardExpiry(sample.expiry);
-                        setCardCvv(sample.cvv);
-                        setCardholderName('VaultPay Tester');
-                      }}
-                      className="text-[10px] px-2 py-1 rounded-lg bg-surfaceLight hover:bg-cyan-500/20 text-cyan-300 border border-surfaceBorder hover:border-cyan-500/40 transition flex items-center gap-1 font-mono"
-                    >
-                      <span>💳</span>
-                      <span>{sample.number.slice(0, 4)}...{sample.number.slice(-4)} ({sample.label.split(' ')[0]})</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+            {/* Quick Test Card Helper */}
+            <div className="pt-2 border-t border-cyan-500/20 flex items-center justify-between">
+              <span className="text-[10px] text-gray-400">Sample Test Card:</span>
+              <button
+                type="button"
+                onClick={() => {
+                  const sample = SAMPLE_VAULTPAY_CARDS[0];
+                  setCardNumber(sample.number);
+                  setCardExpiry(sample.expiry);
+                  setCardCvv(sample.cvv);
+                  setCardholderName('VIP Supporter');
+                }}
+                className="text-[10px] text-cyan-400 hover:text-cyan-300 underline font-medium"
+              >
+                Auto-fill Sandbox Card
+              </button>
             </div>
           </div>
         )}
 
-        {/* 2.5 Crypto Currency Selection Panel */}
+        {/* 2.2 Cryptocurrency Selection Panel */}
         {paymentMethod === 'CRYPTO' && (
           <div className="p-4 rounded-xl bg-amber-950/20 border border-amber-500/30 mb-4 space-y-3 animate-fade-in">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs font-bold text-amber-400">
                 <Bitcoin className="w-4 h-4" />
-                <span>Select Cryptocurrency & Network</span>
+                <span>Pay with Crypto (Zero KYC / Instant Token Credit)</span>
               </div>
-              <span className="text-[10px] text-amber-300 font-mono">BTC • ETH • USDT • SOL</span>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {SUPPORTED_CRYPTO_CURRENCIES.map((coin) => {
-                const isSelected = selectedCrypto === coin.code;
-                return (
-                  <div
-                    key={coin.code}
-                    onClick={() => setSelectedCrypto(coin.code)}
-                    className={`cursor-pointer p-2.5 rounded-xl border transition flex flex-col justify-between ${
-                      isSelected
-                        ? 'border-amber-500 bg-amber-500/20 text-white shadow-sm shadow-amber-500/10'
-                        : 'border-surfaceBorder bg-surfaceLight/60 text-gray-300 hover:border-gray-600'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-base font-bold">{coin.icon}</span>
-                      {coin.recommended && (
-                        <span className="text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-1 py-0.5 rounded font-bold uppercase">
-                          Low Fee
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-white">{coin.name}</div>
-                      <div className="text-[10px] text-gray-400 font-mono truncate">{coin.network}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <p className="text-[11px] text-gray-400">
-              ⚡ Instant blockchain confirmations. Scan QR code or copy deposit address on next screen.
-            </p>
-          </div>
-        )}
-
-        {/* 3. African Mobile Money Configuration Panel */}
-        {paymentMethod === 'MOBILE_MONEY' && (
-          <div className="p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 mb-4 space-y-3 animate-fade-in">
-            <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
-              <Smartphone className="w-4 h-4" />
-              <span>African Mobile Money Ingest (M-Pesa, MTN, Orange, Wave)</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[11px] font-semibold text-gray-300 mb-1">Country</label>
-                <select
-                  value={selectedCountryCode}
-                  onChange={(e) => handleCountryChange(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs focus:outline-none focus:border-emerald-500"
-                >
-                  {AFRICAN_MOBILE_MONEY_NETWORKS.map((c) => (
-                    <option key={c.code} value={c.code}>
-                      {c.country} ({c.currency})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold text-gray-300 mb-1">Mobile Network</label>
-                <select
-                  value={selectedNetwork}
-                  onChange={(e) => setSelectedNetwork(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs focus:outline-none focus:border-emerald-500"
-                >
-                  {currentCountry.networks.map((net) => (
-                    <option key={net} value={net}>
-                      {net}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <span className="text-[10px] text-amber-300/70 uppercase tracking-wider font-semibold">
+                NOWPayments Rail
+              </span>
             </div>
 
             <div>
-              <label className="block text-[11px] font-semibold text-gray-300 mb-1">
-                Mobile Money Phone Number (for USSD / Push notification)
+              <label className="block text-[11px] font-semibold text-gray-300 mb-1.5">
+                Choose Cryptocurrency:
               </label>
-              <input
-                type="tel"
-                placeholder="e.g. +254 712 345 678 or 0712345678"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs focus:outline-none focus:border-emerald-500"
-              />
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {SUPPORTED_CRYPTO_CURRENCIES.map((coin) => {
+                  const isCoinSelected = selectedCrypto === coin.code;
+                  return (
+                    <button
+                      key={coin.code}
+                      type="button"
+                      onClick={() => setSelectedCrypto(coin.code)}
+                      className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1 transition ${
+                        isCoinSelected
+                          ? 'border-amber-400 bg-amber-500/20 text-white shadow-sm ring-1 ring-amber-400/50'
+                          : 'border-surfaceBorder bg-surfaceLight text-gray-400 hover:border-gray-600'
+                      }`}
+                    >
+                      <span className="text-base">{coin.icon}</span>
+                      <span className="text-xs font-bold">{coin.name}</span>
+                      <span className="text-[9px] text-gray-400 truncate max-w-full">{coin.network}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+
+            <p className="text-[11px] text-gray-400 leading-relaxed pt-1">
+              You will receive an exact deposit address and QR code. Your tokens are automatically added to your wallet within seconds of blockchain confirmation.
+            </p>
           </div>
         )}
 
@@ -508,15 +380,7 @@ export default function TokenPurchaseModal() {
                     ? 'VaultPay Virtual Card'
                     : paymentMethod === 'CRYPTO'
                     ? `Crypto (${selectedCrypto.toUpperCase().replace('TRC20', ' TRC-20').replace('ERC20', ' ERC-20')})`
-                    : paymentMethod === 'LEMON_SQUEEZY'
-                    ? 'Lemon Squeezy'
-                    : paymentMethod === 'MOBILE_MONEY'
-                    ? `${selectedNetwork}`
-                    : paymentMethod === 'CCBILL'
-                    ? 'CCBill'
-                    : paymentMethod === 'MOCK'
-                    ? 'Sandbox'
-                    : 'Card'}
+                    : 'Sandbox'}
                 </span>
               </>
             )}

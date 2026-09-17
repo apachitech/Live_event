@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     const {
       packageId,
       returnUrl,
-      paymentMethod = 'STRIPE',
+      paymentMethod = 'CRYPTO',
       mobileMoneyOptions,
       cryptoOptions,
       vaultPayOptions,
