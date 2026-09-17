@@ -275,4 +275,291 @@ export class PawaPayMobileMoneyProcessor implements PaymentProcessor {
    # Or CinetPay Configuration
    CINETPAY_API_KEY="your_cinetpay_api_key"
    CINETPAY_SITE_ID="your_site_id"
+   CINETPAY_SECRET_KEY="your_cinetpay_secret_key"
    ```
+
+---
+
+## 8. Detailed Access & Configuration Guide for Each Aggregator
+
+This section gives you the exact sign-up URLs, merchant dashboard steps, API key generation procedures, and webhook settings for each provider.
+
+---
+
+### 8.1 PawaPay (`pawapay.cloud`) — Setup & Configuration
+
+#### Step 1: Sign Up & Access the Merchant Portal
+1. **Sandbox / Developer Access**: Visit [dashboard.sandbox.pawapay.cloud](https://dashboard.sandbox.pawapay.cloud) to create an instant test developer account without paperwork.
+2. **Production Access**: Visit [pawapay.cloud](https://pawapay.cloud/) and click **Get in Touch / Onboard**.
+3. **KYB Verification (Production)**:
+   - Business Registration certificate (incorporation in DR Congo, Kenya, UK, or international).
+   - Proof of Directors' identity (Passport / National ID).
+   - Settlement bank account details or corporate mobile money wallet.
+
+#### Step 2: Retrieve Your API Key
+1. Log in to the PawaPay Dashboard.
+2. Navigate to **Developers > API Keys**.
+3. Click **Generate New API Key**. Copy the generated Bearer token (`PAWAPAY_API_KEY`).
+   - Keep this key secure. It is passed in HTTP headers as: `Authorization: Bearer <PAWAPAY_API_KEY>`.
+
+#### Step 3: Configure Webhooks
+1. In the PawaPay Dashboard, navigate to **Settings > Webhooks**.
+2. Set your **Webhook Callback URL**:
+   ```
+   https://your-production-domain.com/api/wallet/webhook
+   ```
+3. Enable event notifications for:
+   - `deposit.completed` (user PIN validated and stream tokens to be credited)
+   - `deposit.failed`
+   - `payout.completed` (streamer cashout successful)
+
+#### Step 4: Environment Variables (`.env`)
+```env
+# PawaPay Mobile Money Gateway
+PAWAPAY_API_KEY="your_pawapay_api_bearer_token"
+# Set to 'true' for sandbox.pawapay.cloud, or 'false' for live production
+PAWAPAY_SANDBOX="false"
+```
+
+#### Supported PawaPay Operator Correspondent Codes:
+| Country | Network | Correspondent Code |
+| :--- | :--- | :--- |
+| **DR Congo (RDC)** | Vodacom M-Pesa | `VODACOM_CD` |
+| **DR Congo (RDC)** | Orange Money | `ORANGE_CD` |
+| **DR Congo (RDC)** | Airtel Money | `AIRTEL_CD` |
+| **DR Congo (RDC)** | Afrimoney | `AFRICELL_CD` |
+| **Kenya** | Safaricom M-Pesa | `MPESA_KE` |
+| **Ghana** | MTN MoMo | `MTN_GH` |
+| **Senegal** | Wave | `WAVE_SN` |
+| **Côte d’Ivoire** | Orange Money | `ORANGE_CI` |
+
+---
+
+### 8.2 CinetPay (`cinetpay.com`) — Setup & Configuration (DR Congo & Francophone Africa)
+
+#### Step 1: Sign Up & Access the Merchant Portal
+1. Visit [cinetpay.com](https://cinetpay.com/) and click **Créer un compte (Sign Up)** or go directly to [app.cinetpay.com](https://app.cinetpay.com/).
+2. Select your country of registration (**RDC / DR Congo**, Côte d’Ivoire, Senegal, Cameroon, etc.).
+3. Submit the required documents:
+   - Registre du Commerce et du Crédit Mobilier (RCCM) or equivalent business registration.
+   - Numéro d'Identification Nationale (ID.NAT) or tax number.
+   - Director's valid National ID or Passport.
+
+#### Step 2: Retrieve Your API Key & Site ID
+1. Log in to [app.cinetpay.com](https://app.cinetpay.com/).
+2. Navigate to **Administration > Mes Services / Mes Sites**:
+   - **Site ID (`CINETPAY_SITE_ID`)**: A unique 6 to 8 digit number (e.g. `987654`).
+   - **API Key (`CINETPAY_API_KEY`)**: Under **Sécurité / Clés API**, click **Générer une clé API**.
+   - **Secret Key (`CINETPAY_SECRET_KEY`)**: Used for verifying HMAC token signatures on incoming webhooks.
+
+#### Step 3: Configure Notification & Return URLs
+In your CinetPay site settings:
+- **URL de Notification (IPN Webhook)**:
+  ```
+  https://your-production-domain.com/api/wallet/webhook
+  ```
+- **URL de Retour (Return URL)**:
+  ```
+  https://your-production-domain.com/api/wallet/complete
+  ```
+
+#### Step 4: Environment Variables (`.env`)
+```env
+# CinetPay (DR Congo & West/Central Africa)
+CINETPAY_API_KEY="your_cinetpay_api_key_here"
+CINETPAY_SITE_ID="your_cinetpay_site_id_here"
+CINETPAY_SECRET_KEY="your_cinetpay_secret_key_here"
+```
+
+#### How CinetPay Process Works:
+1. When a user buys tokens, the backend calls `https://api-checkout.cinetpay.com/v2/payment` with `site_id`, `amount`, `currency` (`CDF` or `USD`), and customer phone number.
+2. CinetPay triggers the USSD prompt directly on the customer's phone (Vodacom M-Pesa RDC, Orange Money RDC, or Airtel).
+3. The user enters their PIN on their phone.
+4. CinetPay sends an IPN POST request to `/api/wallet/webhook` with `cpm_trans_status: 'ACCEPTED'`.
+5. The platform validates the transaction and credits the stream tokens.
+
+---
+
+### 8.3 Paystack (`paystack.com`) — Setup & Configuration (Kenya, Ghana, West Africa)
+
+#### Step 1: Sign Up & Access the Merchant Portal
+1. Visit [dashboard.paystack.com/signup](https://dashboard.paystack.com/signup).
+2. Choose your country: **Kenya**, **Ghana**, **Côte d’Ivoire**, **South Africa**, or **Nigeria**.
+3. Fill in your business details. Paystack approves accounts for test mode immediately.
+
+#### Step 2: Enable Mobile Money Payment Method
+1. In the Paystack Dashboard, go to **Settings > Preferences**.
+2. Under **Payment Methods**, make sure **Mobile Money** is checked:
+   - For Kenya: **M-Pesa**
+   - For Ghana: **MTN, Vodafone/Telecel, AirtelTigo**
+   - For Côte d’Ivoire: **Wave, Orange Money, MTN**
+
+#### Step 3: Retrieve API Keys
+1. Go to **Settings > API Keys & Webhooks**:
+   - **Test Secret Key**: `sk_test_...`
+   - **Live Secret Key**: `sk_live_...`
+   - **Public Key**: `pk_live_...`
+
+#### Step 4: Configure Webhook
+1. Under **Settings > API Keys & Webhooks > Webhooks**:
+2. Set the **Webhook URL**:
+   ```
+   https://your-production-domain.com/api/wallet/webhook
+   ```
+3. Paystack signs every webhook with an HMAC-SHA512 hash in the `x-paystack-signature` header using your Secret Key.
+
+#### Step 5: Environment Variables (`.env`)
+```env
+# Paystack (Kenya M-Pesa, Ghana, Côte d'Ivoire)
+PAYSTACK_SECRET_KEY="sk_live_your_paystack_secret_key"
+PAYSTACK_PUBLIC_KEY="pk_live_your_paystack_public_key"
+```
+
+---
+
+### 8.4 Safaricom Daraja Direct API (Kenya M-Pesa Direct)
+
+If you only want direct Safaricom M-Pesa in Kenya with zero aggregator middleman:
+
+1. **Access Developer Portal**: Visit [developer.safaricom.co.ke](https://developer.safaricom.co.ke/) and create an account.
+2. **Create an App**: Go to **My Apps > Create App**. Check **Lipa Na M-Pesa Online Sandbox**.
+3. **Retrieve Credentials**:
+   - **Consumer Key**: Passed to OAuth token endpoint.
+   - **Consumer Secret**: Used to generate bearer tokens.
+   - **Passkey**: Used to compute the STK push password:
+     ```
+     Password = Base64(Shortcode + Passkey + Timestamp)
+     ```
+   - **Shortcode**: Your Paybill or Till number (e.g. `174379` in sandbox).
+4. **Endpoint for STK Push**:
+   `POST https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest`
+5. **Callback URL**:
+   ```
+   https://your-production-domain.com/api/wallet/webhook
+   ```
+
+---
+
+### 8.5 DPO Pay (`dpogroup.com`) — Setup & Configuration (East & Southern Africa)
+
+#### Step 1: Sign Up & Access the Merchant Portal
+1. Visit [dpogroup.com](https://www.dpogroup.com/) and submit a Merchant Application.
+2. Complete KYB compliance verification for your entity in Kenya, Tanzania, Uganda, South Africa, or UK/UAE.
+3. Once approved, you are granted access to the DPO Merchant Portal.
+
+#### Step 2: Retrieve Your Credentials
+In your DPO Merchant Portal:
+- **Company Token (`DPO_COMPANY_TOKEN`)**: A 32-character hexadecimal token that authenticates your merchant account.
+- **Service Type (`DPO_SERVICE_TYPE`)**: The numerical ID corresponding to your service classification (e.g. `3854` for standard digital services / e-commerce).
+
+#### Step 3: Configure Webhook (IPN) & Redirect URLs
+In the DPO Portal under **Payment Configuration > IPN**:
+- **IPN URL**:
+  ```
+  https://your-production-domain.com/api/wallet/webhook
+  ```
+- **Redirect URL**:
+  ```
+  https://your-production-domain.com/api/wallet/complete
+  ```
+
+#### Step 4: Environment Variables (`.env`)
+```env
+# DPO Pay (Kenya, Tanzania, Uganda, Southern Africa)
+DPO_COMPANY_TOKEN="your_32_char_company_token"
+DPO_SERVICE_TYPE="3854"
+# Set to 'true' for test sandbox, 'false' for secure.3gdirectpay.com
+DPO_SANDBOX="false"
+```
+
+---
+
+### 8.6 MTN MoMo API (`momodeveloper.mtn.com`) — Direct Telco Access
+
+If you prefer direct integration with MTN Mobile Money in Ghana, Uganda, Cameroon, Côte d'Ivoire, or Rwanda:
+
+#### Step 1: Create Developer Account & Subscribe to Product
+1. Register at [momodeveloper.mtn.com](https://momodeveloper.mtn.com/).
+2. Navigate to **Products** and click **Subscribe** to the **Collections** product.
+3. Obtain your **Primary Key** and **Secondary Key** (`Ocp-Apim-Subscription-Key`).
+
+#### Step 2: Provision API User and API Key (Sandbox)
+1. Generate a random UUID v4 string (e.g. using `crypto.randomUUID()`). This is your `X-Reference-Id`.
+2. Create your API User:
+   ```bash
+   curl -X POST https://sandbox.momodeveloper.mtn.com/v1_0/apiuser \
+     -H "X-Reference-Id: <YOUR-UUID-V4>" \
+     -H "Ocp-Apim-Subscription-Key: <PRIMARY_KEY>" \
+     -H "Content-Type: application/json" \
+     -d '{"providerCallbackHost": "your-production-domain.com"}'
+   ```
+3. Generate the API Key for that user:
+   ```bash
+   curl -X POST https://sandbox.momodeveloper.mtn.com/v1_0/apiuser/<YOUR-UUID-V4>/apikey \
+     -H "Ocp-Apim-Subscription-Key: <PRIMARY_KEY>"
+   ```
+   Save the returned `apiKey`.
+
+#### Step 3: Environment Variables (`.env`)
+```env
+# MTN MoMo Direct API
+MTN_MOMO_SUBSCRIPTION_KEY="your_primary_subscription_key"
+MTN_MOMO_API_USER="your_uuid_v4_api_user"
+MTN_MOMO_API_KEY="your_generated_api_key"
+MTN_MOMO_TARGET_ENV="sandbox" # or "production"
+```
+
+---
+
+### 8.7 Ready-to-Test cURL Commands for Sandbox Verification
+
+#### PawaPay Test STK Push
+```bash
+curl -X POST https://api.sandbox.pawapay.cloud/deposits \
+  -H "Authorization: Bearer <PAWAPAY_API_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "depositId": "test-deposit-001",
+    "amount": "28000",
+    "currency": "CDF",
+    "correspondent": "VODACOM_CD",
+    "payer": {
+      "type": "MSISDN",
+      "address": { "value": "243810000001" }
+    },
+    "customerTimestamp": "2026-09-17T07:00:00Z",
+    "statementDescription": "PulseStream 100 Tokens"
+  }'
+```
+
+#### CinetPay Test Payment Initialization
+```bash
+curl -X POST https://api-checkout.cinetpay.com/v2/payment \
+  -H "Content-Type: application/json" \
+  -d '{
+    "apikey": "<CINETPAY_API_KEY>",
+    "site_id": "<CINETPAY_SITE_ID>",
+    "transaction_id": "test-tx-001",
+    "amount": 28000,
+    "currency": "CDF",
+    "description": "PulseStream 100 Tokens",
+    "notify_url": "https://your-domain.com/api/wallet/webhook",
+    "return_url": "https://your-domain.com/api/wallet/complete",
+    "channels": "MOBILE_MONEY"
+  }'
+```
+
+---
+
+### 8.8 Summary of Fastest Onboarding & Access by Country
+
+| Target Region | Fastest Gateway to Access | Typical Approval Time | Documents Needed |
+| :--- | :--- | :---: | :--- |
+| **DR Congo (RDC)** | **CinetPay** or **PawaPay** | 2–5 Business Days | RCCM, ID.NAT, Director Passport, Bank/MoMo statement |
+| **Kenya** | **Paystack** or **PawaPay** | 1–2 Business Days | Certificate of Incorporation, KRA PIN, Director ID |
+| **Ghana** | **Paystack** or **PawaPay** | 1–3 Business Days | Registrar General (RGD) docs, Ghana Card |
+| **Côte d’Ivoire / Senegal** | **CinetPay** or **Wave Direct** | 2–4 Business Days | RCCM, NINEA, Director ID |
+| **Uganda / Rwanda / Tanzania**| **PawaPay** or **DPO Pay** | 2–4 Business Days | Certificate of Incorporation, Tax Certificate |
+| **All Africa (Consolidated)** | **PawaPay** | 3–7 Business Days | Single international contract for 18 countries |
+
+
