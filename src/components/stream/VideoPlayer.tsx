@@ -4,7 +4,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Room, RoomEvent, RemoteTrack } from 'livekit-client';
 import { io, Socket } from 'socket.io-client';
 import Hls from 'hls.js';
-import { Volume2, VolumeX, Maximize, Radio, Users, Sparkles, Wifi, Play, Globe, Camera, CameraOff } from 'lucide-react';
+import { Volume2, VolumeX, Maximize, Maximize2, Radio, Users, Sparkles, Wifi, Play, Globe, Camera, CameraOff, Smartphone, Laptop } from 'lucide-react';
 
 interface VideoPlayerProps {
   streamId: string;
@@ -48,6 +48,50 @@ export default function VideoPlayer({
   const [userCamActive, setUserCamActive] = useState(false);
   const [userMicActive, setUserMicActive] = useState(false);
   const [userStream, setUserStream] = useState<MediaStream | null>(null);
+
+  // Responsive device metrics & viewport sizing
+  const [windowDimensions, setWindowDimensions] = useState({ width: 1280, height: 720 });
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [isPortrait, setIsPortrait] = useState(false);
+  const [aspectMode, setAspectMode] = useState<'AUTO' | '16:9' | '9:16' | '4:3'>('AUTO');
+  const [videoFit, setVideoFit] = useState<'cover' | 'contain'>('contain');
+  const [showControlsMobile, setShowControlsMobile] = useState(false);
+
+  useEffect(() => {
+    const updateMetrics = () => {
+      if (typeof window === 'undefined') return;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      setWindowDimensions({ width: w, height: h });
+      const mobile = w <= 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      setIsMobileDevice(mobile);
+      setIsPortrait(h > w);
+    };
+
+    updateMetrics();
+    window.addEventListener('resize', updateMetrics);
+    window.addEventListener('orientationchange', updateMetrics);
+    return () => {
+      window.removeEventListener('resize', updateMetrics);
+      window.removeEventListener('orientationchange', updateMetrics);
+    };
+  }, []);
+
+  const getContainerAspectClass = () => {
+    if (aspectMode === 'AUTO') {
+      if (isMobileDevice && isPortrait) {
+        return 'aspect-[9/16] w-full max-w-[400px] max-h-[72vh] mx-auto min-h-[350px] shadow-2xl';
+      }
+      return 'aspect-video w-full max-h-[55vh] sm:max-h-[58vh] lg:max-h-[64vh] min-h-[220px] sm:min-h-[320px]';
+    }
+    if (aspectMode === '9:16') {
+      return 'aspect-[9/16] w-full max-w-[400px] max-h-[72vh] mx-auto min-h-[350px] shadow-2xl';
+    }
+    if (aspectMode === '4:3') {
+      return 'aspect-[4/3] w-full max-w-[680px] max-h-[60vh] mx-auto min-h-[260px]';
+    }
+    return 'aspect-video w-full max-h-[55vh] sm:max-h-[58vh] lg:max-h-[64vh] min-h-[220px] sm:min-h-[320px]';
+  };
 
   // Sync props when stream data updates
   useEffect(() => {
@@ -362,150 +406,297 @@ export default function VideoPlayer({
   }, [userStream]);
 
   return (
-    <div
-      ref={containerRef}
-      className="relative w-full aspect-video rounded-2xl bg-black border border-surfaceBorder overflow-hidden shadow-2xl flex items-center justify-center group"
-    >
-      {/* Remote WebRTC Video Surface */}
-      <video
-        ref={videoElementRef}
-        autoPlay
-        playsInline
-        className={`w-full h-full object-cover ${hasRemoteVideo ? 'block' : 'hidden'}`}
-      />
-      <audio ref={audioElementRef} autoPlay />
-
-      {/* Fallback Animated Visualizer */}
-      {!hasRemoteVideo && (
-        <canvas
-          ref={canvasRef}
-          width={960}
-          height={540}
-          className="w-full h-full object-cover"
+    <div className="space-y-2">
+      {/* Video Viewport Container (Device Proportional) */}
+      <div
+        ref={containerRef}
+        onClick={() => setShowControlsMobile(!showControlsMobile)}
+        className={`relative rounded-2xl bg-black border border-surfaceBorder overflow-hidden shadow-2xl flex items-center justify-center group transition-all duration-300 ${getContainerAspectClass()}`}
+      >
+        {/* Remote WebRTC Video Surface */}
+        <video
+          ref={videoElementRef}
+          autoPlay
+          playsInline
+          className={`w-full h-full ${videoFit === 'cover' ? 'object-cover' : 'object-contain'} transition-all duration-300 ${hasRemoteVideo ? 'block' : 'hidden'}`}
         />
-      )}
+        <audio ref={audioElementRef} autoPlay />
 
-      {/* Cam-to-Cam (C2C) Picture-in-Picture Viewer Cam */}
-      {isPrivate && c2cEnabled && (
-        <div className="absolute bottom-16 right-4 z-30 w-44 sm:w-56 aspect-video rounded-xl bg-surface/90 backdrop-blur-md border-2 border-pink-500/80 shadow-2xl overflow-hidden flex flex-col items-center justify-center group/pip transition-all">
-          {userCamActive ? (
-            <video
-              ref={userCamRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-full object-cover mirror scale-x-[-1]"
-            />
-          ) : (
-            <div className="flex flex-col items-center justify-center p-3 text-center">
-              <CameraOff className="w-6 h-6 text-gray-400 mb-1" />
-              <span className="text-[10px] text-gray-300 font-bold">Your Cam is Off</span>
+        {/* Fallback Animated Visualizer */}
+        {!hasRemoteVideo && (
+          <canvas
+            ref={canvasRef}
+            width={960}
+            height={540}
+            className={`w-full h-full ${videoFit === 'cover' ? 'object-cover' : 'object-contain'}`}
+          />
+        )}
+
+        {/* Cam-to-Cam (C2C) Picture-in-Picture Viewer Cam */}
+        {isPrivate && c2cEnabled && (
+          <div className="absolute bottom-16 right-3 sm:right-4 z-30 w-36 sm:w-52 aspect-video rounded-xl bg-surface/90 backdrop-blur-md border-2 border-pink-500/80 shadow-2xl overflow-hidden flex flex-col items-center justify-center group/pip transition-all">
+            {userCamActive ? (
+              <video
+                ref={userCamRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full h-full object-cover mirror scale-x-[-1]"
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center p-2 text-center">
+                <CameraOff className="w-5 h-5 text-gray-400 mb-0.5" />
+                <span className="text-[9px] text-gray-300 font-bold">Your Cam is Off</span>
+              </div>
+            )}
+
+            {/* C2C PiP Control Bar */}
+            <div className="absolute inset-x-0 bottom-0 p-1 bg-gradient-to-t from-black/90 to-transparent flex items-center justify-between">
+              <span className="text-[8px] font-black uppercase tracking-wider text-pink-400 px-1">
+                {userCamActive ? 'C2C LIVE' : 'STANDBY'}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleUserCam();
+                  }}
+                  className={`p-1 rounded-md text-[9px] font-bold transition flex items-center gap-1 ${
+                    userCamActive
+                      ? 'bg-red-600/90 text-white hover:bg-red-700'
+                      : 'bg-pink-600/90 text-white hover:bg-pink-700'
+                  }`}
+                  title={userCamActive ? 'Turn Off My Cam' : 'Broadcast My Cam'}
+                >
+                  {userCamActive ? <CameraOff className="w-2.5 h-2.5" /> : <Camera className="w-2.5 h-2.5" />}
+                  <span className="text-[8px]">{userCamActive ? 'Stop' : 'Start'}</span>
+                </button>
+              </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* C2C PiP Control Bar */}
-          <div className="absolute inset-x-0 bottom-0 p-1.5 bg-gradient-to-t from-black/90 to-transparent flex items-center justify-between">
-            <span className="text-[9px] font-black uppercase tracking-wider text-pink-400 px-1">
-              {userCamActive ? 'C2C LIVE' : 'C2C STANDBY'}
-            </span>
-            <div className="flex items-center gap-1">
+        {/* Top Overlay Badges - Horizontally scrollable on small screens */}
+        <div className="absolute top-2.5 sm:top-4 left-2.5 sm:left-4 right-2.5 sm:right-4 flex items-center justify-between gap-2 pointer-events-none z-20">
+          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-0.5 flex-nowrap touch-pan-x pointer-events-auto max-w-[70%] sm:max-w-none">
+            <div className="shrink-0 flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-red-600/90 text-white text-[10px] sm:text-xs font-black tracking-wider uppercase shadow-lg shadow-red-600/40">
+              <Radio className="w-3 h-3 animate-ping" />
+              <span>{isPrivate ? 'PRIVATE SHOW (1:1)' : 'LIVE'}</span>
+            </div>
+
+            <div className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-[10px] sm:text-xs font-semibold border border-white/10">
+              <Users className="w-3.5 h-3.5 text-brandPurple" />
+              <span>{viewerCount} Viewers</span>
+            </div>
+
+            {/* Device & Aspect Ratio Badge */}
+            <div className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[10px] text-gray-300">
+              {aspectMode === 'AUTO' ? (
+                isMobileDevice && isPortrait ? <Smartphone className="w-3 h-3 text-cyan-400" /> : <Laptop className="w-3 h-3 text-amber-400" />
+              ) : aspectMode === '9:16' ? (
+                <Smartphone className="w-3 h-3 text-cyan-400" />
+              ) : (
+                <Laptop className="w-3 h-3 text-amber-400" />
+              )}
+              <span className="font-semibold">
+                {aspectMode === 'AUTO' ? (isMobileDevice && isPortrait ? 'Phone 9:16' : 'Laptop 16:9') : aspectMode}
+              </span>
+            </div>
+          </div>
+
+          <div className="shrink-0 text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-gray-300 border border-white/10 flex items-center gap-1.5">
+            {connectionType === 'CLOUDINARY_EMBED' ? (
+              <>
+                <Globe className="w-3 h-3 text-cyan-400 animate-pulse" />
+                <span className="text-cyan-300 hidden sm:inline">Cloudinary Stream</span>
+                <span className="text-cyan-300 sm:hidden">Cloudinary</span>
+              </>
+            ) : connectionType === 'HLS_STREAM' ? (
+              <>
+                <Globe className="w-3 h-3 text-indigo-400 animate-pulse" />
+                <span className="text-indigo-300 hidden sm:inline">HLS Adaptive</span>
+                <span className="text-indigo-300 sm:hidden">HLS</span>
+              </>
+            ) : connectionType === 'LIVEKIT_WEBRTC' ? (
+              <>
+                <Wifi className="w-3 h-3 text-emerald-400" />
+                <span className="hidden sm:inline">LiveKit WebRTC</span>
+                <span className="sm:hidden">WebRTC</span>
+              </>
+            ) : (
+              <>
+                <Wifi className="w-3 h-3 text-gray-400" />
+                <span className="hidden sm:inline">Direct Feed</span>
+                <span className="sm:hidden">Feed</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Bottom Controls Bar (Visible on Hover or Touch) */}
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className={`absolute bottom-0 left-0 right-0 p-3 sm:p-4 bg-gradient-to-t from-black/95 via-black/60 to-transparent flex items-center justify-between gap-3 transition-opacity duration-200 z-20 ${
+            showControlsMobile ? 'opacity-100 pointer-events-auto' : 'opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto'
+          }`}
+        >
+          <div className="text-xs text-white font-bold truncate max-w-[140px] sm:max-w-xs shrink-0">
+            {streamTitle}
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto no-scrollbar py-0.5 flex-nowrap touch-pan-x">
+            {/* Volume control */}
+            <div className="shrink-0 flex items-center gap-1.5 bg-surfaceLight/80 px-2 py-1.5 rounded-xl border border-white/10">
               <button
-                onClick={toggleUserCam}
-                className={`p-1 rounded-md text-[10px] font-bold transition flex items-center gap-1 ${
-                  userCamActive
-                    ? 'bg-red-600/90 text-white hover:bg-red-700'
-                    : 'bg-pink-600/90 text-white hover:bg-pink-700'
-                }`}
-                title={userCamActive ? 'Turn Off My Cam' : 'Broadcast My Cam'}
+                onClick={() => setMuted(!muted)}
+                className="text-white hover:text-gray-300 transition"
+                title={muted ? 'Unmute' : 'Mute'}
               >
-                {userCamActive ? <CameraOff className="w-3 h-3" /> : <Camera className="w-3 h-3" />}
-                <span className="text-[9px]">{userCamActive ? 'Stop' : 'Start Cam'}</span>
+                {muted || volume === 0 ? (
+                  <VolumeX className="w-4 h-4 text-red-400" />
+                ) : (
+                  <Volume2 className="w-4 h-4 text-white" />
+                )}
+              </button>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={muted ? 0 : volume}
+                onChange={(e) => {
+                  setVolume(parseFloat(e.target.value));
+                  setMuted(false);
+                }}
+                className="w-14 sm:w-16 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-brandPurple"
+              />
+            </div>
+
+            {/* Quick Sizing & Aspect Switcher inside player */}
+            <div className="shrink-0 flex items-center p-0.5 rounded-xl bg-surfaceLight/80 border border-white/10 text-[11px] font-semibold">
+              <button
+                type="button"
+                onClick={() => setAspectMode('AUTO')}
+                className={`px-2 py-1 rounded-lg flex items-center gap-1 transition ${
+                  aspectMode === 'AUTO' ? 'bg-brandPurple text-white' : 'text-gray-400 hover:text-white'
+                }`}
+                title="Auto Proportional to Device"
+              >
+                {isMobileDevice && isPortrait ? <Smartphone className="w-3 h-3 text-cyan-400" /> : <Laptop className="w-3 h-3 text-amber-400" />}
+                <span className="hidden sm:inline">Auto</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAspectMode('16:9')}
+                className={`px-2 py-1 rounded-lg flex items-center gap-1 transition ${
+                  aspectMode === '16:9' ? 'bg-brandPurple text-white' : 'text-gray-400 hover:text-white'
+                }`}
+                title="Laptop 16:9"
+              >
+                <Laptop className="w-3 h-3" />
+                <span className="hidden sm:inline">16:9</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAspectMode('9:16')}
+                className={`px-2 py-1 rounded-lg flex items-center gap-1 transition ${
+                  aspectMode === '9:16' ? 'bg-brandPurple text-white' : 'text-gray-400 hover:text-white'
+                }`}
+                title="Phone 9:16"
+              >
+                <Smartphone className="w-3 h-3" />
+                <span className="hidden sm:inline">9:16</span>
               </button>
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* Top Overlay Badges */}
-      <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none z-20">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-600/90 text-white text-xs font-black tracking-wider uppercase shadow-lg shadow-red-600/40">
-            <Radio className="w-3 h-3 animate-ping" />
-            <span>{isPrivate ? 'PRIVATE SHOW (1:1)' : 'LIVE'}</span>
-          </div>
+            {/* Fit / Fill Toggle */}
+            <button
+              type="button"
+              onClick={() => setVideoFit(videoFit === 'cover' ? 'contain' : 'cover')}
+              className={`shrink-0 px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition flex items-center gap-1 ${
+                videoFit === 'cover'
+                  ? 'bg-surfaceLight/80 border-white/10 text-gray-200 hover:text-white'
+                  : 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300'
+              }`}
+              title="Toggle between Full Frame (Fit) and Edge-to-Edge (Fill)"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{videoFit === 'cover' ? 'Fill' : 'Fit'}</span>
+            </button>
 
-          <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-semibold border border-white/10">
-            <Users className="w-3.5 h-3.5 text-brandPurple" />
-            <span>{viewerCount} Viewers</span>
+            {/* Fullscreen Button */}
+            <button
+              onClick={toggleFullscreen}
+              className="shrink-0 p-2 rounded-xl bg-surfaceLight/80 hover:bg-surfaceLight text-white transition border border-white/10"
+              title="Fullscreen"
+            >
+              <Maximize className="w-4 h-4 text-white" />
+            </button>
           </div>
-        </div>
-
-        <div className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-gray-300 border border-white/10 flex items-center gap-1.5">
-          {connectionType === 'CLOUDINARY_EMBED' ? (
-            <>
-              <Globe className="w-3 h-3 text-cyan-400 animate-pulse" />
-              <span className="text-cyan-300">Cloudinary Live Stream</span>
-            </>
-          ) : connectionType === 'HLS_STREAM' ? (
-            <>
-              <Globe className="w-3 h-3 text-indigo-400 animate-pulse" />
-              <span className="text-indigo-300">HLS Adaptive Stream</span>
-            </>
-          ) : connectionType === 'LIVEKIT_WEBRTC' ? (
-            <>
-              <Wifi className="w-3 h-3 text-emerald-400" />
-              <span>LiveKit Cloud WebRTC</span>
-            </>
-          ) : (
-            <>
-              <Wifi className="w-3 h-3 text-gray-400" />
-              <span>Direct Broadcast Feed</span>
-            </>
-          )}
         </div>
       </div>
 
-      {/* Bottom Controls Bar (Visible on Hover) */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
-        <div className="text-xs text-white font-bold truncate max-w-sm">
-          {streamTitle}
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* Volume control */}
-          <div className="flex items-center gap-1.5 bg-surfaceLight/80 px-2 py-1.5 rounded-xl border border-white/10">
-            <button
-              onClick={() => setMuted(!muted)}
-              className="text-white hover:text-gray-300 transition"
-              title={muted ? 'Unmute' : 'Mute'}
-            >
-              {muted || volume === 0 ? (
-                <VolumeX className="w-4 h-4 text-red-400" />
-              ) : (
-                <Volume2 className="w-4 h-4 text-white" />
-              )}
-            </button>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={muted ? 0 : volume}
-              onChange={(e) => {
-                setVolume(parseFloat(e.target.value));
-                setMuted(false);
-              }}
-              className="w-16 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-brandPurple"
-            />
-          </div>
+      {/* Viewer Sizing & Screen Mode Ribbon (Always accessible & left-right scrollable on phones/laptops) */}
+      <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl glass-panel border border-surfaceBorder text-xs">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 flex-nowrap touch-pan-x">
+          <span className="text-gray-400 font-bold shrink-0">Screen Size:</span>
 
           <button
-            onClick={toggleFullscreen}
-            className="p-2 rounded-xl bg-surfaceLight/80 hover:bg-surfaceLight text-white transition border border-white/10"
-            title="Fullscreen"
+            type="button"
+            onClick={() => setAspectMode('AUTO')}
+            className={`shrink-0 px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition font-semibold ${
+              aspectMode === 'AUTO'
+                ? 'bg-brandPurple text-white shadow'
+                : 'bg-surfaceLight text-gray-300 hover:text-white border border-surfaceBorder'
+            }`}
           >
-            <Maximize className="w-4 h-4 text-white" />
+            {isMobileDevice && isPortrait ? <Smartphone className="w-3.5 h-3.5 text-cyan-400" /> : <Laptop className="w-3.5 h-3.5 text-amber-400" />}
+            <span>Auto ({isMobileDevice && isPortrait ? 'Phone' : 'Laptop'})</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setAspectMode('16:9')}
+            className={`shrink-0 px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition font-semibold ${
+              aspectMode === '16:9'
+                ? 'bg-brandPurple text-white shadow'
+                : 'bg-surfaceLight text-gray-300 hover:text-white border border-surfaceBorder'
+            }`}
+          >
+            <Laptop className="w-3.5 h-3.5" />
+            <span>16:9 (Laptop)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setAspectMode('9:16')}
+            className={`shrink-0 px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition font-semibold ${
+              aspectMode === '9:16'
+                ? 'bg-brandPurple text-white shadow'
+                : 'bg-surfaceLight text-gray-300 hover:text-white border border-surfaceBorder'
+            }`}
+          >
+            <Smartphone className="w-3.5 h-3.5" />
+            <span>9:16 (Phone)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setVideoFit(videoFit === 'cover' ? 'contain' : 'cover')}
+            className={`shrink-0 px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition font-semibold border ${
+              videoFit === 'cover'
+                ? 'bg-surfaceLight text-gray-200 border-surfaceBorder hover:text-white'
+                : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+            }`}
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+            <span>{videoFit === 'cover' ? 'Mode: Fill' : 'Mode: Fit'}</span>
+          </button>
+        </div>
+
+        <div className="hidden sm:flex items-center gap-1.5 text-gray-400 shrink-0 font-medium text-[11px]">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span>Device Sync Active</span>
         </div>
       </div>
     </div>

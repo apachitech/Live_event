@@ -16,7 +16,7 @@ import SubscribeModal from '@/components/subscription/SubscribeModal';
 import PrivateShowRequestModal from '@/components/stream/PrivateShowRequestModal';
 import PrivateShowMeterBanner from '@/components/stream/PrivateShowMeterBanner';
 import { TipAlertPayload, TipGoalPayload } from '@/types';
-import { Coins, Heart, Lock, Flag, Share2, Users, Radio, Sparkles, Trophy } from 'lucide-react';
+import { Coins, Heart, Lock, Flag, Share2, Users, Radio, Sparkles, Trophy, Check } from 'lucide-react';
 
 export default function WatchPage() {
   const params = useParams();
@@ -32,6 +32,7 @@ export default function WatchPage() {
   const [viewerCount, setViewerCount] = useState(0);
   const [leaderboardRefresh, setLeaderboardRefresh] = useState(0);
   const [activeTab, setActiveTab] = useState<'menu' | 'leaderboard'>('menu');
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Modals
   const [isTipModalOpen, setIsTipModalOpen] = useState(false);
@@ -148,6 +149,14 @@ export default function WatchPage() {
     } catch {}
   };
 
+  const handleShare = () => {
+    if (typeof window !== 'undefined') {
+      navigator.clipboard.writeText(window.location.href);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-12 text-center">
@@ -244,12 +253,12 @@ export default function WatchPage() {
                 </div>
               </div>
 
-              {/* Action Buttons: Tip, Subscribe, Private Show */}
+              {/* Action Buttons: Tip, Subscribe, Private Show, Share, Report (Scrollable Left-Right on Mobile/Small Devices) */}
               {!isCurrentStreamer && (
-                <div className="flex items-center gap-2.5 flex-wrap">
+                <div className="flex items-center gap-2 sm:gap-2.5 overflow-x-auto no-scrollbar py-1 w-full sm:w-auto flex-nowrap touch-pan-x overscroll-x-contain">
                   <button
                     onClick={() => setIsTipModalOpen(true)}
-                    className="btn-glow-gold px-4 py-2.5 rounded-xl text-xs font-black text-black flex items-center gap-1.5"
+                    className="shrink-0 btn-glow-gold px-4 py-2.5 rounded-xl text-xs font-black text-black flex items-center gap-1.5 transition hover:scale-105"
                   >
                     <Coins className="w-4 h-4" />
                     <span>Send Tip</span>
@@ -257,7 +266,7 @@ export default function WatchPage() {
 
                   <button
                     onClick={() => setIsSubModalOpen(true)}
-                    className="px-4 py-2.5 rounded-xl bg-pink-600/20 hover:bg-pink-600/30 text-pink-300 border border-pink-500/30 text-xs font-bold flex items-center gap-1.5 transition"
+                    className="shrink-0 px-4 py-2.5 rounded-xl bg-pink-600/20 hover:bg-pink-600/30 text-pink-300 border border-pink-500/30 text-xs font-bold flex items-center gap-1.5 transition hover:scale-105"
                   >
                     <Heart className="w-4 h-4" />
                     <span>Fan Club</span>
@@ -266,7 +275,7 @@ export default function WatchPage() {
                   {!isPrivateActive && (
                     <button
                       onClick={() => setIsPrivateModalOpen(true)}
-                      className="px-4 py-2.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-bold flex items-center gap-1.5 transition"
+                      className="shrink-0 px-4 py-2.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-bold flex items-center gap-1.5 transition hover:scale-105"
                     >
                       <Lock className="w-4 h-4" />
                       <span>Private ({stream.privateRatePerMin || 60}🪙/m)</span>
@@ -274,8 +283,17 @@ export default function WatchPage() {
                   )}
 
                   <button
+                    onClick={handleShare}
+                    className="shrink-0 px-3.5 py-2.5 rounded-xl bg-surfaceLight hover:bg-surfaceBorder text-gray-200 border border-surfaceBorder text-xs font-bold flex items-center gap-1.5 transition hover:scale-105"
+                    title="Share Live Stream Link"
+                  >
+                    {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4 text-brandPurple" />}
+                    <span>{copiedLink ? 'Copied!' : 'Share'}</span>
+                  </button>
+
+                  <button
                     onClick={handleReportStream}
-                    className="p-2.5 rounded-xl bg-surfaceLight border border-surfaceBorder text-gray-400 hover:text-red-400 transition"
+                    className="shrink-0 p-2.5 rounded-xl bg-surfaceLight border border-surfaceBorder text-gray-400 hover:text-red-400 transition"
                     title="Report Stream"
                   >
                     <Flag className="w-4 h-4" />
@@ -294,10 +312,10 @@ export default function WatchPage() {
 
           {/* Bottom Interactive Area: Tabs for Tip Menu & Top Supporters Leaderboard */}
           <div className="space-y-3">
-            <div className="flex items-center gap-2 border-b border-surfaceBorder pb-2">
+            <div className="flex items-center gap-2 border-b border-surfaceBorder pb-2 overflow-x-auto no-scrollbar flex-nowrap touch-pan-x">
               <button
                 onClick={() => setActiveTab('menu')}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition ${
+                className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition ${
                   activeTab === 'menu'
                     ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
                     : 'text-gray-400 hover:text-white'
@@ -308,7 +326,7 @@ export default function WatchPage() {
               </button>
               <button
                 onClick={() => setActiveTab('leaderboard')}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition ${
+                className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition ${
                   activeTab === 'leaderboard'
                     ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                     : 'text-gray-400 hover:text-white'

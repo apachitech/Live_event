@@ -533,14 +533,14 @@ export default function BroadcastStudio({
 
   return (
     <div className="space-y-4">
-      {/* Broadcast Telemetry & Source Switcher Bar */}
+      {/* Broadcast Telemetry & Source Switcher Bar (Left-Right Scrollable on Devices) */}
       <div className="p-3.5 rounded-2xl glass-panel border border-surfaceBorder flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-bold text-gray-400">Stream Source:</span>
-          <div className="flex items-center p-0.5 rounded-xl bg-surfaceLight border border-surfaceBorder text-xs font-semibold">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full md:w-auto flex-nowrap touch-pan-x">
+          <span className="text-xs font-bold text-gray-400 shrink-0">Stream Source:</span>
+          <div className="shrink-0 flex items-center p-0.5 rounded-xl bg-surfaceLight border border-surfaceBorder text-xs font-semibold">
             <button
               onClick={() => handleSaveSource('WEBRTC')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition ${
+              className={`shrink-0 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition ${
                 sourceMode === 'WEBRTC'
                   ? 'bg-brandPurple text-white shadow'
                   : 'text-gray-400 hover:text-white'
@@ -555,7 +555,7 @@ export default function BroadcastStudio({
                 fetchIngress();
                 handleSaveSource('RTMP');
               }}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition ${
+              className={`shrink-0 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition ${
                 sourceMode === 'RTMP'
                   ? 'bg-brandPurple text-white shadow'
                   : 'text-gray-400 hover:text-white'
@@ -567,7 +567,7 @@ export default function BroadcastStudio({
 
             <button
               onClick={() => handleSaveSource('EXTERNAL_EMBED')}
-              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition ${
+              className={`shrink-0 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition ${
                 sourceMode === 'EXTERNAL_EMBED'
                   ? 'bg-brandPurple text-white shadow'
                   : 'text-gray-400 hover:text-white'
@@ -580,15 +580,15 @@ export default function BroadcastStudio({
         </div>
 
         {/* Live Broadcast Telemetry Stats & Main Start/Stop Action Button */}
-        <div className="flex items-center gap-3 text-xs flex-wrap justify-between md:justify-end">
+        <div className="flex items-center gap-2.5 text-xs overflow-x-auto no-scrollbar py-1 w-full md:w-auto flex-nowrap touch-pan-x justify-start md:justify-end">
           {isLive && (
-            <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 font-mono font-bold">
+            <div className="shrink-0 flex items-center gap-2 px-3 py-1 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 font-mono font-bold">
               <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
               <span>REC {formatStopwatch(elapsedSeconds)}</span>
             </div>
           )}
 
-          <div className="hidden sm:flex items-center gap-1.5 text-emerald-400 font-semibold px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+          <div className="shrink-0 hidden sm:flex items-center gap-1.5 text-emerald-400 font-semibold px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
             <Activity className="w-3.5 h-3.5" />
             <span>1080p • 60 FPS</span>
           </div>
@@ -598,7 +598,7 @@ export default function BroadcastStudio({
             <button
               onClick={onStartStream}
               disabled={isActionLoading}
-              className="btn-glow-purple px-4 py-2 rounded-xl text-xs font-black text-white flex items-center gap-2 shadow-lg hover:scale-105 transition-transform disabled:opacity-50"
+              className="shrink-0 btn-glow-purple px-4 py-2 rounded-xl text-xs font-black text-white flex items-center gap-2 shadow-lg hover:scale-105 transition-transform disabled:opacity-50"
             >
               {isActionLoading ? (
                 <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -611,7 +611,7 @@ export default function BroadcastStudio({
             <button
               onClick={onEndStream}
               disabled={isActionLoading}
-              className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-xs font-black text-white flex items-center gap-2 shadow-lg shadow-red-600/30 hover:scale-105 transition-all disabled:opacity-50"
+              className="shrink-0 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-xs font-black text-white flex items-center gap-2 shadow-lg shadow-red-600/30 hover:scale-105 transition-all disabled:opacity-50"
             >
               {isActionLoading ? (
                 <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -693,11 +693,11 @@ export default function BroadcastStudio({
           </>
         )}
 
-        {/* Top Badges & Live Status Overlay */}
-        <div className="absolute top-2.5 sm:top-4 left-2.5 sm:left-4 right-2.5 sm:right-4 flex flex-wrap items-center justify-between gap-2 pointer-events-none z-30">
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+        {/* Top Badges & Live Status Overlay - Scrollable Left-Right on Small Devices */}
+        <div className="absolute top-2.5 sm:top-4 left-2.5 sm:left-4 right-2.5 sm:right-4 flex items-center justify-between gap-2 pointer-events-none z-30">
+          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-0.5 flex-nowrap touch-pan-x max-w-[55%] sm:max-w-none">
             <span
-              className={`px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-lg ${
+              className={`shrink-0 px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-lg ${
                 isLive ? 'bg-red-600 text-white' : 'bg-gray-800/80 text-gray-300 border border-white/10'
               }`}
             >
@@ -706,7 +706,7 @@ export default function BroadcastStudio({
             </span>
 
             {/* Device & Aspect Ratio Indicator Tag */}
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[10px] text-gray-300">
+            <div className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[10px] text-gray-300">
               {aspectMode === 'AUTO' ? (
                 isMobileDevice && isPortrait ? <Smartphone className="w-3 h-3 text-cyan-400" /> : <Laptop className="w-3 h-3 text-amber-400" />
               ) : aspectMode === '9:16' ? (
@@ -720,33 +720,33 @@ export default function BroadcastStudio({
             </div>
 
             {isScreenSharing && (
-              <span className="px-2 py-0.5 rounded-full bg-blue-600/90 text-white text-[10px] font-bold flex items-center gap-1 shadow">
+              <span className="shrink-0 px-2 py-0.5 rounded-full bg-blue-600/90 text-white text-[10px] font-bold flex items-center gap-1 shadow">
                 <Monitor className="w-3 h-3" /> Screen
               </span>
             )}
 
             {sourceMode === 'EXTERNAL_EMBED' ? (
-              <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-[10px] font-bold flex items-center gap-1">
+              <span className="shrink-0 px-2 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-[10px] font-bold flex items-center gap-1">
                 <Globe className="w-3 h-3" /> External
               </span>
             ) : sourceMode === 'RTMP' ? (
-              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[10px] font-bold">
+              <span className="shrink-0 px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[10px] font-bold">
                 RTMP
               </span>
             ) : livekitConnected ? (
-              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold flex items-center gap-1">
+              <span className="shrink-0 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold flex items-center gap-1">
                 <Sparkles className="w-3 h-3" /> WebRTC
               </span>
             ) : null}
           </div>
 
-          <div className="flex items-center gap-2 pointer-events-auto">
+          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-0.5 flex-nowrap touch-pan-x pointer-events-auto">
             {/* Live Button on Video Surface */}
             {!isLive ? (
               <button
                 onClick={onStartStream}
                 disabled={isActionLoading}
-                className="btn-glow-purple px-4 py-1.5 rounded-full text-xs font-black text-white flex items-center gap-1.5 shadow-xl hover:scale-105 transition disabled:opacity-50"
+                className="shrink-0 btn-glow-purple px-3 sm:px-4 py-1.5 rounded-full text-xs font-black text-white flex items-center gap-1.5 shadow-xl hover:scale-105 transition disabled:opacity-50"
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
                 <span>GO LIVE</span>
@@ -755,17 +755,17 @@ export default function BroadcastStudio({
               <button
                 onClick={onEndStream}
                 disabled={isActionLoading}
-                className="px-4 py-1.5 rounded-full bg-red-600 hover:bg-red-700 text-xs font-black text-white flex items-center gap-1.5 shadow-xl transition hover:scale-105 disabled:opacity-50"
+                className="shrink-0 px-3 sm:px-4 py-1.5 rounded-full bg-red-600 hover:bg-red-700 text-xs font-black text-white flex items-center gap-1.5 shadow-xl transition hover:scale-105 disabled:opacity-50"
               >
                 <Square className="w-3.5 h-3.5 fill-current" />
-                <span>STOP STREAM</span>
+                <span>STOP</span>
               </button>
             )}
 
             {/* Soundboard Toggle */}
             <button
               onClick={() => setShowSoundboard(!showSoundboard)}
-              className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-tokenGold border border-amber-500/30 text-xs font-bold flex items-center gap-1.5 transition shadow"
+              className="shrink-0 px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-tokenGold border border-amber-500/30 text-xs font-bold flex items-center gap-1.5 transition shadow"
               title="Broadcast Soundboard & SFX"
             >
               <Music className="w-3.5 h-3.5" />
@@ -775,7 +775,7 @@ export default function BroadcastStudio({
             {/* Interactive Toy Modal */}
             <button
               onClick={() => setShowToyModal(true)}
-              className="px-2.5 py-1 rounded-lg bg-pink-600/80 hover:bg-pink-600 text-white border border-pink-400/40 text-xs font-bold flex items-center gap-1.5 transition shadow"
+              className="shrink-0 px-2.5 py-1 rounded-lg bg-pink-600/80 hover:bg-pink-600 text-white border border-pink-400/40 text-xs font-bold flex items-center gap-1.5 transition shadow"
               title="Pair Lovense or Bluetooth Interactive Toy"
             >
               <Zap className="w-3.5 h-3.5 animate-pulse text-amber-300" />
@@ -785,7 +785,7 @@ export default function BroadcastStudio({
             {/* OBS Credentials Drawer */}
             <button
               onClick={fetchIngress}
-              className="px-2.5 py-1 rounded-lg bg-surfaceLight/90 hover:bg-surfaceLight text-white border border-white/10 text-xs font-semibold flex items-center gap-1.5 transition"
+              className="shrink-0 px-2.5 py-1 rounded-lg bg-surfaceLight/90 hover:bg-surfaceLight text-white border border-white/10 text-xs font-semibold flex items-center gap-1.5 transition"
             >
               <Key className="w-3.5 h-3.5 text-tokenGold" />
               <span>OBS</span>
@@ -795,7 +795,7 @@ export default function BroadcastStudio({
             {streamId && (
               <button
                 onClick={() => copyToClipboard(`${window.location.origin}/watch/${streamId}`, 'room')}
-                className="px-2.5 py-1 rounded-lg bg-surfaceLight/90 hover:bg-surfaceLight text-white border border-white/10 text-xs font-semibold flex items-center gap-1.5 transition"
+                className="shrink-0 px-2.5 py-1 rounded-lg bg-surfaceLight/90 hover:bg-surfaceLight text-white border border-white/10 text-xs font-semibold flex items-center gap-1.5 transition"
                 title="Copy Public Stream Link"
               >
                 {copiedRoomLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5 text-brandPurple" />}
@@ -870,10 +870,10 @@ export default function BroadcastStudio({
       {/* Studio Action Controls & Device Bar */}
       <div className="p-4 rounded-2xl glass-panel border border-surfaceBorder">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          {/* Device Selection Dropdowns */}
-          <div className="flex items-center gap-3 flex-wrap">
+          {/* Device Selection Dropdowns (Scrollable Left-Right on Small Devices) */}
+          <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto no-scrollbar pb-1 w-full lg:w-auto flex-nowrap touch-pan-x">
             {/* Camera Select */}
-            <div className="flex items-center gap-1.5">
+            <div className="shrink-0 flex items-center gap-1.5">
               <Video className="w-4 h-4 text-brandPurple flex-shrink-0" />
               <select
                 value={selectedVideoDeviceId}
@@ -890,7 +890,7 @@ export default function BroadcastStudio({
             </div>
 
             {/* Mic Select */}
-            <div className="flex items-center gap-1.5">
+            <div className="shrink-0 flex items-center gap-1.5">
               <Mic className="w-4 h-4 text-brandPink flex-shrink-0" />
               <select
                 value={selectedAudioDeviceId}
@@ -907,12 +907,12 @@ export default function BroadcastStudio({
             </div>
           </div>
 
-          {/* Quick Hardware & Feature Action Toggles */}
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* Quick Hardware & Feature Action Toggles (Scrollable Left-Right Ribbon on Mobile) */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 w-full lg:w-auto flex-nowrap touch-pan-x">
             {/* Screen Share Button */}
             <button
               onClick={toggleScreenShare}
-              className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
+              className={`shrink-0 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
                 isScreenSharing
                   ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
                   : 'bg-surfaceLight hover:bg-surfaceBorder text-gray-300 border border-surfaceBorder'
@@ -925,7 +925,7 @@ export default function BroadcastStudio({
             {/* Video Mute Toggle */}
             <button
               onClick={toggleVideo}
-              className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
+              className={`shrink-0 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
                 isVideoEnabled
                   ? 'bg-surfaceLight hover:bg-surfaceBorder text-white border border-surfaceBorder'
                   : 'bg-red-500/20 text-red-400 border border-red-500/30'
@@ -938,7 +938,7 @@ export default function BroadcastStudio({
             {/* Audio Mute Toggle */}
             <button
               onClick={toggleAudio}
-              className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
+              className={`shrink-0 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition ${
                 isAudioEnabled
                   ? 'bg-surfaceLight hover:bg-surfaceBorder text-white border border-surfaceBorder'
                   : 'bg-red-500/20 text-red-400 border border-red-500/30'
@@ -951,7 +951,7 @@ export default function BroadcastStudio({
             {/* Mirror Toggle */}
             <button
               onClick={() => setIsMirrored(!isMirrored)}
-              className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition ${
+              className={`shrink-0 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition ${
                 isMirrored
                   ? 'bg-purple-600/20 border-purple-500/40 text-purple-300'
                   : 'bg-surfaceLight border-surfaceBorder text-gray-300 hover:text-white'
@@ -962,7 +962,7 @@ export default function BroadcastStudio({
             </button>
 
             {/* Camera Filters Dropdown */}
-            <div className="relative">
+            <div className="shrink-0 relative">
               <button
                 onClick={() => setShowFilterMenu(!showFilterMenu)}
                 className="px-3 py-2 rounded-xl bg-surfaceLight hover:bg-surfaceBorder border border-surfaceBorder text-gray-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition"
@@ -992,7 +992,7 @@ export default function BroadcastStudio({
             </div>
 
             {/* Screen Proportions & Device Aspect Ratio Selector */}
-            <div className="flex items-center p-0.5 rounded-xl bg-surfaceLight border border-surfaceBorder text-xs font-semibold">
+            <div className="shrink-0 flex items-center p-0.5 rounded-xl bg-surfaceLight border border-surfaceBorder text-xs font-semibold">
               <button
                 type="button"
                 onClick={() => setAspectMode('AUTO')}
@@ -1044,7 +1044,7 @@ export default function BroadcastStudio({
             <button
               type="button"
               onClick={() => setVideoFit(videoFit === 'cover' ? 'contain' : 'cover')}
-              className={`px-3 py-2 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 ${
+              className={`shrink-0 px-3 py-2 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 ${
                 videoFit === 'cover'
                   ? 'bg-surfaceLight border-surfaceBorder text-gray-300 hover:text-white'
                   : 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300'
@@ -1064,7 +1064,7 @@ export default function BroadcastStudio({
                   const nextIndex = (currentIndex + 1) % videoDevices.length;
                   setSelectedVideoDeviceId(videoDevices[nextIndex].deviceId);
                 }}
-                className="px-3 py-2 rounded-xl bg-surfaceLight hover:bg-surfaceBorder border border-surfaceBorder text-gray-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition"
+                className="shrink-0 px-3 py-2 rounded-xl bg-surfaceLight hover:bg-surfaceBorder border border-surfaceBorder text-gray-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition"
                 title="Flip Camera (Front / Rear)"
               >
                 <RotateCcw className="w-3.5 h-3.5 text-cyan-400" />
