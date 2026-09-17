@@ -278,6 +278,113 @@ export default function BroadcastStudio({
     };
   }, [selectedVideoDeviceId, selectedAudioDeviceId]);
 
+  // Dedicated Video Preview Synchronization Effect
+  useEffect(() => {
+    const video = videoPreviewRef.current;
+    if (video && mediaStream && isVideoEnabled) {
+      if (video.srcObject !== mediaStream) {
+        video.srcObject = mediaStream;
+      }
+      video.play().catch(() => {});
+    }
+  }, [mediaStream, isVideoEnabled, sourceMode, isScreenSharing]);
+
+  // Dedicated External Stream Embed Preview Synchronization Effect
+  useEffect(() => {
+    const video = externalPreviewRef.current;
+    if (!video || !externalUrl || sourceMode !== 'EXTERNAL_EMBED') return;
+
+    let hls: Hls | null = null;
+    const isHls = externalUrl.includes('.m3u8');
+
+    if (isHls && Hls.isSupported()) {
+      hls = new Hls({ enableWorker: true });
+      hls.loadSource(externalUrl);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        video.play().catch(() => {});
+      });
+    } else if (isHls && video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = externalUrl;
+      video.play().catch(() => {});
+    } else {
+      if (video.src !== externalUrl) {
+        video.src = externalUrl;
+      }
+      video.loop = true;
+      video.play().catch(() => {});
+    }
+
+    return () => {
+      if (hls) hls.destroy();
+      if (video) {
+        video.pause();
+        video.removeAttribute('src');
+        video.load();
+      }
+    };
+  }, [externalUrl, sourceMode]);
+
+  // Simulated Studio Test Video Pattern (for standby testing without hardware camera)
+  const startSimulatedCamera = () => {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1280;
+      canvas.height = 720;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      let frame = 0;
+      const drawFrame = () => {
+        frame++;
+        const grad = ctx.createLinearGradient(0, 0, 1280, 720);
+        grad.addColorStop(0, '#0f172a');
+        grad.addColorStop(0.5, '#2e1065');
+        grad.addColorStop(1, '#020617');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 1280, 720);
+
+        ctx.strokeStyle = '#a855f7';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        const r = 120 + Math.sin(frame * 0.05) * 25;
+        ctx.arc(640, 340, r, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#06b6d4';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(640, 340, r + 30, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = '#f43f5e';
+        ctx.font = 'bold 36px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('LIVE BROADCAST STUDIO TEST FEED', 640, 330);
+
+        ctx.fillStyle = '#cbd5e1';
+        ctx.font = '18px sans-serif';
+        ctx.fillText(`Active Test Pattern • Frame ${frame} • 1080p 60fps`, 640, 380);
+
+        requestAnimationFrame(drawFrame);
+      };
+      drawFrame();
+
+      const simStream = (canvas as any).captureStream ? (canvas as any).captureStream(30) : null;
+      if (simStream) {
+        setMediaStream(simStream);
+        setPermissionError(null);
+        setIsVideoEnabled(true);
+        if (videoPreviewRef.current) {
+          videoPreviewRef.current.srcObject = simStream;
+          videoPreviewRef.current.play().catch(() => {});
+        }
+      }
+    } catch (e: any) {
+      console.warn('Could not start simulated camera:', e);
+    }
+  };
+
   // Live broadcast stopwatch timer
   useEffect(() => {
     let interval: any;
@@ -633,7 +740,7 @@ export default function BroadcastStudio({
             autoPlay
             playsInline
             muted
-            className="w-full h-full object-contain bg-black z-0"
+            className="absolute inset-0 w-full h-full object-contain bg-black z-0"
           />
         )}
 
@@ -648,15 +755,43 @@ export default function BroadcastStudio({
               className={`${videoFit === 'cover' ? 'object-cover' : 'object-contain'} transition-all duration-300 ${
                 isScreenSharing
                   ? 'absolute bottom-3 right-3 sm:bottom-4 sm:right-4 w-32 h-18 sm:w-48 sm:h-28 rounded-xl border-2 border-brandPurple shadow-2xl z-20'
-                  : 'w-full h-full'
+                  : 'absolute inset-0 w-full h-full'
               } ${!isVideoEnabled || permissionError ? 'hidden' : 'block'} ${
                 isMirrored ? '-scale-x-100' : ''
               } ${filterStyles[selectedFilter]}`}
             />
 
             {/* Fallback Screen when Video Disabled or No Camera */}
-            {(!isVideoEnabled || permissionError) && !isScreenSharing && (
-              <div className="flex flex-col items-center justify-center text-center p-6 space-y-3">
+            {sourceMode === 'RTMP' && (!isVideoEnabled || permissionError) && !isScreenSharing && (
+              <div className="flex flex-col items-center justify-center text-center p-6 space-y-3 z-10">
+                <div className="p-4 rounded-2xl bg-brandPurple/10 border border-brandPurple/20 text-brandPurple animate-pulse">
+                  <Radio className="w-10 h-10" />
+                </div>
+                <div className="text-sm font-bold text-white">OBS / RTMP Ingest Mode Active</div>
+                <p className="text-xs text-gray-400 max-w-sm">
+                  Broadcast live from OBS Studio, Streamlabs, or vMix using your stream key.
+                </p>
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    onClick={() => setShowObsDrawer(true)}
+                    className="px-3.5 py-1.5 rounded-xl bg-brandPurple hover:bg-brandPurple/80 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-lg shadow-brandPurple/30"
+                  >
+                    <Key className="w-3.5 h-3.5" />
+                    <span>View Stream Key & RTMP URL</span>
+                  </button>
+                  <button
+                    onClick={startSimulatedCamera}
+                    className="px-3 py-1.5 rounded-xl bg-surfaceLight hover:bg-surfaceBorder border border-surfaceBorder text-gray-300 text-xs font-bold transition flex items-center gap-1.5"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-pink-400" />
+                    <span>Test Pattern</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {sourceMode !== 'RTMP' && (!isVideoEnabled || permissionError) && !isScreenSharing && (
+              <div className="flex flex-col items-center justify-center text-center p-6 space-y-3 z-10">
                 <div className="p-4 rounded-2xl bg-surfaceLight border border-surfaceBorder text-brandPurple animate-pulse-subtle">
                   <VideoOff className="w-10 h-10" />
                 </div>
@@ -664,6 +799,13 @@ export default function BroadcastStudio({
                 <p className="text-xs text-gray-400 max-w-sm">
                   {permissionError || 'Click "Video On" below to enable camera stream.'}
                 </p>
+                <button
+                  onClick={startSimulatedCamera}
+                  className="px-3.5 py-1.5 rounded-xl bg-brandPurple/20 hover:bg-brandPurple/30 border border-brandPurple/40 text-brandPurple text-xs font-bold transition flex items-center gap-1.5"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Use Studio Test Pattern Feed</span>
+                </button>
               </div>
             )}
           </>
@@ -677,7 +819,7 @@ export default function BroadcastStudio({
                 playsInline
                 muted
                 loop
-                className={`w-full h-full ${videoFit === 'cover' ? 'object-cover' : 'object-contain'} transition-all duration-300`}
+                className={`absolute inset-0 w-full h-full ${videoFit === 'cover' ? 'object-cover' : 'object-contain'} transition-all duration-300`}
               />
             ) : (
               <div className="flex flex-col items-center justify-center text-center p-6 space-y-3">

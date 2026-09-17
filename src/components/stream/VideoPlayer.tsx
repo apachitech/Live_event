@@ -119,71 +119,88 @@ export default function VideoPlayer({
     };
   }, [streamId]);
 
-  // 1. Play Cloudinary or External HLS Stream if active
+  // Resolved video URL for direct ingest / fallback playback
+  const resolvedVideoUrl =
+    currentExternalUrl ||
+    externalStreamUrl ||
+    'https://res.cloudinary.com/demo/video/upload/sample.mp4';
+
+  // Unified Stream Playback Engine (LiveKit WebRTC + HLS + MP4 Direct Ingest Fallback)
   useEffect(() => {
-    if (currentSourceType === 'EXTERNAL_EMBED' && currentExternalUrl) {
+    let room: Room | null = null;
+    let hlsInstance: Hls | null = null;
+    let isCancelled = false;
+
+    const playDirectMedia = (url: string) => {
       const video = videoElementRef.current;
       if (!video) return;
 
-      let hlsInstance: Hls | null = null;
-      const isHls = currentExternalUrl.includes('.m3u8');
-
+      const isHls = url.includes('.m3u8');
       if (isHls && Hls.isSupported()) {
         setConnectionType('HLS_STREAM');
+        if (hlsInstance) hlsInstance.destroy();
         hlsInstance = new Hls({
           enableWorker: true,
           lowLatencyMode: true,
           backBufferLength: 90,
         });
 
-        hlsInstance.loadSource(currentExternalUrl);
+        hlsInstance.loadSource(url);
         hlsInstance.attachMedia(video);
         hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
-          video.play().catch(() => {});
+          video.play().catch((err) => {
+            if (err.name === 'NotAllowedError') {
+              video.muted = true;
+              setMuted(true);
+              video.play().catch(() => {});
+            }
+          });
           setHasRemoteVideo(true);
         });
 
         hlsInstance.on(Hls.Events.ERROR, (_event, data) => {
           if (data.fatal) {
-            console.warn('HLS Fatal Error:', data.details);
+            console.warn('HLS stream notice:', data.details);
           }
         });
       } else if (isHls && video.canPlayType('application/vnd.apple.mpegurl')) {
-        // Native Apple Safari HLS playback
         setConnectionType('HLS_STREAM');
-        video.src = currentExternalUrl;
-        video.play().catch(() => {});
+        video.src = url;
+        video.play().catch((err) => {
+          if (err.name === 'NotAllowedError') {
+            video.muted = true;
+            setMuted(true);
+            video.play().catch(() => {});
+          }
+        });
         setHasRemoteVideo(true);
       } else {
-        // Direct MP4 / Cloudinary video URL playback
-        setConnectionType('CLOUDINARY_EMBED');
-        video.src = currentExternalUrl;
+        setConnectionType(
+          currentSourceType === 'EXTERNAL_EMBED' ? 'CLOUDINARY_EMBED' : 'DIRECT_INGEST'
+        );
+        if (video.src !== url) {
+          video.src = url;
+        }
         video.loop = true;
-        video.play().catch(() => {});
+        video.play().catch((err) => {
+          if (err.name === 'NotAllowedError') {
+            video.muted = true;
+            setMuted(true);
+            video.play().catch(() => {});
+          }
+        });
         setHasRemoteVideo(true);
       }
+    };
 
-      return () => {
-        if (hlsInstance) {
-          hlsInstance.destroy();
-        }
-        if (video) {
-          video.pause();
-          video.removeAttribute('src');
-          video.load();
-        }
-        setHasRemoteVideo(false);
-      };
-    }
-  }, [currentSourceType, currentExternalUrl]);
+    async function initSubscriber() {
+      // Direct external embed mode
+      if (currentSourceType === 'EXTERNAL_EMBED') {
+        playDirectMedia(resolvedVideoUrl);
+        return;
+      }
 
-  // 2. Connect to LiveKit WebRTC Room if source is WEBRTC
-  useEffect(() => {
-    if (currentSourceType === 'EXTERNAL_EMBED') return;
-
-    let room: Room | null = null;
-
-    async function initLiveKitSubscriber() {
+      // WebRTC or RTMP mode: attempt LiveKit cloud connection
       try {
         const res = await fetch('/api/stream/token', {
           method: 'POST',
@@ -192,9 +209,11 @@ export default function VideoPlayer({
         });
 
         const data = await res.json();
-        if (!data.success || !data.credentials) return;
+        if (isCancelled) return;
 
-        const { serverUrl, participantToken } = data.credentials;
+        const credentials = data?.credentials;
+        const serverUrl = credentials?.serverUrl;
+        const participantToken = credentials?.participantToken;
 
         if (serverUrl && (serverUrl.startsWith('wss://') || serverUrl.startsWith('ws://'))) {
           setConnectionType('LIVEKIT_WEBRTC');
@@ -224,24 +243,51 @@ export default function VideoPlayer({
           });
 
           await room.connect(serverUrl, participantToken);
+          if (isCancelled) {
+            room.disconnect();
+            return;
+          }
           setLivekitRoom(room);
+
+          // If no video track is published yet after 2.5s, fall back to direct media
+          setTimeout(() => {
+            if (!isCancelled && !hasRemoteVideo && videoElementRef.current && !videoElementRef.current.srcObject) {
+              playDirectMedia(resolvedVideoUrl);
+            }
+          }, 2500);
         } else {
+          // Direct ingest / mock / local relay mode -> play stream media
           setConnectionType('DIRECT_INGEST');
+          playDirectMedia(resolvedVideoUrl);
         }
       } catch (err: any) {
         console.warn('LiveKit subscriber notice:', err.message);
-        setConnectionType('DIRECT_INGEST');
+        if (!isCancelled) {
+          setConnectionType('DIRECT_INGEST');
+          playDirectMedia(resolvedVideoUrl);
+        }
       }
     }
 
-    initLiveKitSubscriber();
+    initSubscriber();
 
     return () => {
+      isCancelled = true;
       if (room) {
         room.disconnect();
       }
+      if (hlsInstance) {
+        hlsInstance.destroy();
+      }
+      const video = videoElementRef.current;
+      if (video) {
+        video.pause();
+        video.removeAttribute('src');
+        video.load();
+      }
+      setHasRemoteVideo(false);
     };
-  }, [streamId, currentSourceType]);
+  }, [streamId, currentSourceType, resolvedVideoUrl]);
 
   // Volume & Mute listener
   useEffect(() => {
@@ -413,12 +459,20 @@ export default function VideoPlayer({
         onClick={() => setShowControlsMobile(!showControlsMobile)}
         className={`relative rounded-2xl bg-black border border-surfaceBorder overflow-hidden shadow-2xl flex items-center justify-center group transition-all duration-300 ${getContainerAspectClass()}`}
       >
-        {/* Remote WebRTC Video Surface */}
+        {/* Video Surface */}
         <video
           ref={videoElementRef}
           autoPlay
           playsInline
-          className={`w-full h-full ${videoFit === 'cover' ? 'object-cover' : 'object-contain'} transition-all duration-300 ${hasRemoteVideo ? 'block' : 'hidden'}`}
+          muted={muted}
+          onPlaying={() => setHasRemoteVideo(true)}
+          onLoadedData={() => setHasRemoteVideo(true)}
+          onCanPlay={() => setHasRemoteVideo(true)}
+          className={`absolute inset-0 w-full h-full ${
+            videoFit === 'cover' ? 'object-cover' : 'object-contain'
+          } transition-opacity duration-300 ${
+            hasRemoteVideo ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none z-0'
+          }`}
         />
         <audio ref={audioElementRef} autoPlay />
 
@@ -428,7 +482,9 @@ export default function VideoPlayer({
             ref={canvasRef}
             width={960}
             height={540}
-            className={`w-full h-full ${videoFit === 'cover' ? 'object-cover' : 'object-contain'}`}
+            className={`absolute inset-0 w-full h-full ${
+              videoFit === 'cover' ? 'object-cover' : 'object-contain'
+            } z-0`}
           />
         )}
 
