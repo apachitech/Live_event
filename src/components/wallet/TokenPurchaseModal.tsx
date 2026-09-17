@@ -38,6 +38,10 @@ export default function TokenPurchaseModal() {
 
   const [loading, setLoading] = useState(false);
 
+  const cleanNumber = cardNumber.replace(/\D/g, '');
+  const isVisa = cleanNumber.startsWith('4');
+  const isMastercard = /^(5[1-5]|2[2-7])/.test(cleanNumber);
+
   if (!isPurchaseModalOpen) return null;
 
   const handleCheckout = async () => {
@@ -194,7 +198,7 @@ export default function TokenPurchaseModal() {
                 }`}
               >
                 <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
-                <span className="text-[11px] sm:text-xs font-semibold">VaultPay Card</span>
+                <span className="text-[11px] sm:text-xs font-semibold">Virtual Card (Visa/MC)</span>
               </button>
 
               <button
@@ -307,16 +311,29 @@ export default function TokenPurchaseModal() {
             </div>
           )}
 
-          {/* 2.4 VaultPay Virtual Card Input Panel */}
+          {/* 2.4 Virtual Card (Visa & Mastercard) Input Panel */}
           {paymentMethod === 'VAULTPAY' && (
             <div className="p-3.5 sm:p-4 rounded-xl bg-cyan-950/20 border border-cyan-500/30 space-y-3 animate-fade-in">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-bold text-cyan-400">
                   <CreditCard className="w-4 h-4" />
-                  <span>VaultPay Virtual Visa Card</span>
+                  <span>Virtual Visa / Mastercard (Any Provider)</span>
                 </div>
-                <span className="text-[10px] text-cyan-300/80 uppercase tracking-widest font-semibold">
-                  Luhn-Verified
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-[9px] font-black px-1.5 py-0.5 rounded transition ${isVisa ? 'bg-blue-600 text-white shadow ring-1 ring-blue-400' : 'bg-surfaceLight text-gray-500'}`}>
+                    VISA
+                  </span>
+                  <span className={`text-[9px] font-black px-1.5 py-0.5 rounded transition ${isMastercard ? 'bg-amber-600 text-white shadow ring-1 ring-amber-400' : 'bg-surfaceLight text-gray-500'}`}>
+                    MASTERCARD
+                  </span>
+                </div>
+              </div>
+
+              {/* Supported Mobile Money Virtual Cards Banner */}
+              <div className="rounded-xl bg-cyan-900/25 border border-cyan-500/25 p-2.5 text-[11px] text-cyan-200/90 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-cyan-400 shrink-0" />
+                <span>
+                  Accepts all virtual cards: <strong>M-Pesa GlobalPay</strong>, <strong>Airtel Mastercard</strong>, <strong>Chipper Cash</strong>, <strong>Pyypl</strong>, <strong>Eversend</strong>, <strong>VaultPay</strong>, or standard bank cards.
                 </span>
               </div>
 
@@ -336,7 +353,7 @@ export default function TokenPurchaseModal() {
 
                 <div>
                   <label className="block text-[11px] font-semibold text-gray-300 mb-1">
-                    VaultPay Virtual Card Number (16 digits)
+                    Virtual Card Number (16 digits)
                   </label>
                   <div className="relative">
                     <input
@@ -351,8 +368,10 @@ export default function TokenPurchaseModal() {
                       }}
                       className="w-full px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs tracking-wider font-mono focus:outline-none focus:border-cyan-400 placeholder:text-gray-500"
                     />
-                    <span className="absolute right-3 top-2 text-[10px] font-bold text-cyan-400">
-                      VISA
+                    <span className={`absolute right-3 top-2 text-[10px] font-black uppercase tracking-wider ${
+                      isVisa ? 'text-blue-400' : isMastercard ? 'text-amber-400' : 'text-cyan-400'
+                    }`}>
+                      {isVisa ? 'VISA' : isMastercard ? 'MASTERCARD' : 'CARD'}
                     </span>
                   </div>
                 </div>
@@ -394,21 +413,37 @@ export default function TokenPurchaseModal() {
               </div>
 
               {/* Quick Test Card Helper */}
-              <div className="pt-2 border-t border-cyan-500/20 flex items-center justify-between">
-                <span className="text-[10px] text-gray-400">Sample Test Card:</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const sample = SAMPLE_VAULTPAY_CARDS[0];
-                    setCardNumber(sample.number);
-                    setCardExpiry(sample.expiry);
-                    setCardCvv(sample.cvv);
-                    setCardholderName('VIP Supporter');
-                  }}
-                  className="text-[10px] text-cyan-400 hover:text-cyan-300 underline font-medium"
-                >
-                  Auto-fill Sandbox Card
-                </button>
+              <div className="pt-2 border-t border-cyan-500/20 flex items-center justify-between text-[10px]">
+                <span className="text-gray-400">Sandbox Test Cards:</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const sample = SAMPLE_VAULTPAY_CARDS[0];
+                      setCardNumber(sample.number);
+                      setCardExpiry(sample.expiry);
+                      setCardCvv(sample.cvv);
+                      setCardholderName('M-Pesa VIP Supporter');
+                    }}
+                    className="text-cyan-400 hover:text-cyan-300 underline font-medium"
+                  >
+                    Test Virtual Visa
+                  </button>
+                  <span className="text-gray-600">•</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const sample = SAMPLE_VAULTPAY_CARDS[2];
+                      setCardNumber(sample.number);
+                      setCardExpiry(sample.expiry);
+                      setCardCvv(sample.cvv);
+                      setCardholderName('Airtel VIP Supporter');
+                    }}
+                    className="text-amber-400 hover:text-amber-300 underline font-medium"
+                  >
+                    Test Virtual Mastercard
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -444,7 +479,7 @@ export default function TokenPurchaseModal() {
                 <span>
                   Buy {selectedPackage.tokens} Tokens with{' '}
                   {paymentMethod === 'VAULTPAY'
-                    ? 'VaultPay'
+                    ? 'Virtual Card (Visa/MC)'
                     : paymentMethod === 'CRYPTO'
                     ? `Crypto (${selectedCrypto.toUpperCase().replace('TRC20', ' TRC-20').replace('ERC20', ' ERC-20')})`
                     : 'Sandbox'}
