@@ -198,7 +198,7 @@ export default function TokenPurchaseModal() {
                 }`}
               >
                 <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
-                <span className="text-[11px] sm:text-xs font-semibold">Virtual Card (Visa/MC)</span>
+                <span className="text-[11px] sm:text-xs font-semibold">Bank / Virtual Card</span>
               </button>
 
               <button
@@ -317,7 +317,7 @@ export default function TokenPurchaseModal() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-bold text-cyan-400">
                   <CreditCard className="w-4 h-4" />
-                  <span>Virtual Visa / Mastercard (Any Provider)</span>
+                  <span>Bank Card & Virtual Card (Visa • Mastercard)</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className={`text-[9px] font-black px-1.5 py-0.5 rounded transition ${isVisa ? 'bg-blue-600 text-white shadow ring-1 ring-blue-400' : 'bg-surfaceLight text-gray-500'}`}>
@@ -329,22 +329,22 @@ export default function TokenPurchaseModal() {
                 </div>
               </div>
 
-              {/* Supported Mobile Money Virtual Cards Banner */}
+              {/* Supported Physical & Virtual Cards Banner */}
               <div className="rounded-xl bg-cyan-900/25 border border-cyan-500/25 p-2.5 text-[11px] text-cyan-200/90 flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-cyan-400 shrink-0" />
                 <span>
-                  Accepts all virtual cards: <strong>M-Pesa GlobalPay</strong>, <strong>Airtel Mastercard</strong>, <strong>Chipper Cash</strong>, <strong>Pyypl</strong>, <strong>Eversend</strong>, <strong>VaultPay</strong>, or standard bank cards.
+                  Accepts all <strong>physical bank cards</strong> (Debit/Credit from any bank) and <strong>mobile money virtual cards</strong> (M-Pesa GlobalPay, Airtel, Chipper Cash, Pyypl, VaultPay).
                 </span>
               </div>
 
               <div className="grid grid-cols-1 gap-2.5">
                 <div>
                   <label className="block text-[11px] font-semibold text-gray-300 mb-1">
-                    Cardholder Full Name
+                    Cardholder Full Name (as on card or app)
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. John Doe / Streamer VIP"
+                    placeholder="e.g. John Doe / Cardholder Name"
                     value={cardholderName}
                     onChange={(e) => setCardholderName(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs focus:outline-none focus:border-cyan-400 placeholder:text-gray-500"
@@ -353,7 +353,7 @@ export default function TokenPurchaseModal() {
 
                 <div>
                   <label className="block text-[11px] font-semibold text-gray-300 mb-1">
-                    Virtual Card Number (16 digits)
+                    Card Number (16 digits — Physical or Virtual)
                   </label>
                   <div className="relative">
                     <input
@@ -423,11 +423,11 @@ export default function TokenPurchaseModal() {
                       setCardNumber(sample.number);
                       setCardExpiry(sample.expiry);
                       setCardCvv(sample.cvv);
-                      setCardholderName('M-Pesa VIP Supporter');
+                      setCardholderName('Alex Cardholder');
                     }}
                     className="text-cyan-400 hover:text-cyan-300 underline font-medium"
                   >
-                    Test Virtual Visa
+                    Test Visa (Bank / M-Pesa)
                   </button>
                   <span className="text-gray-600">•</span>
                   <button
@@ -437,11 +437,11 @@ export default function TokenPurchaseModal() {
                       setCardNumber(sample.number);
                       setCardExpiry(sample.expiry);
                       setCardCvv(sample.cvv);
-                      setCardholderName('Airtel VIP Supporter');
+                      setCardholderName('Morgan Cardholder');
                     }}
                     className="text-amber-400 hover:text-amber-300 underline font-medium"
                   >
-                    Test Virtual Mastercard
+                    Test Mastercard (Bank / Airtel)
                   </button>
                 </div>
               </div>
@@ -479,7 +479,7 @@ export default function TokenPurchaseModal() {
                 <span>
                   Buy {selectedPackage.tokens} Tokens with{' '}
                   {paymentMethod === 'VAULTPAY'
-                    ? 'Virtual Card (Visa/MC)'
+                    ? 'Card (Visa/MC)'
                     : paymentMethod === 'CRYPTO'
                     ? `Crypto (${selectedCrypto.toUpperCase().replace('TRC20', ' TRC-20').replace('ERC20', ' ERC-20')})`
                     : 'Sandbox'}
