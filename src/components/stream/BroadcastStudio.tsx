@@ -26,6 +26,10 @@ import {
   Eye,
   EyeOff,
   Music,
+  Smartphone,
+  Laptop,
+  Maximize2,
+  RotateCcw,
 } from 'lucide-react';
 import ToyPairingModal from './ToyPairingModal';
 import { soundEffects } from '@/lib/sound/soundEffects';
@@ -102,6 +106,50 @@ export default function BroadcastStudio({
   // Soundboard panel
   const [showSoundboard, setShowSoundboard] = useState(false);
   const [activeSfx, setActiveSfx] = useState<string | null>(null);
+
+  // Screen Proportions & Device Adaptation
+  const [aspectMode, setAspectMode] = useState<'AUTO' | '16:9' | '9:16' | '4:3'>('AUTO');
+  const [videoFit, setVideoFit] = useState<'cover' | 'contain'>('cover');
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [isPortrait, setIsPortrait] = useState(false);
+
+  // Track window resizing and device orientation changes
+  useEffect(() => {
+    const updateDeviceMetrics = () => {
+      const mobile = window.innerWidth < 768;
+      const portrait = window.innerHeight > window.innerWidth;
+      setIsMobileDevice(mobile);
+      setIsPortrait(portrait);
+    };
+    updateDeviceMetrics();
+    window.addEventListener('resize', updateDeviceMetrics);
+    window.addEventListener('orientationchange', updateDeviceMetrics);
+    return () => {
+      window.removeEventListener('resize', updateDeviceMetrics);
+      window.removeEventListener('orientationchange', updateDeviceMetrics);
+    };
+  }, []);
+
+  // Compute proportional aspect ratio class based on laptop vs phone
+  const getContainerAspectClass = () => {
+    if (aspectMode === '16:9') {
+      return 'aspect-video w-full max-h-[58vh] sm:max-h-[62vh] min-h-[200px] sm:min-h-[300px]';
+    }
+    if (aspectMode === '9:16') {
+      return 'aspect-[9/16] w-full max-w-[360px] sm:max-w-[400px] max-h-[72vh] mx-auto min-h-[340px] shadow-2xl';
+    }
+    if (aspectMode === '4:3') {
+      return 'aspect-[4/3] w-full max-w-[620px] max-h-[60vh] mx-auto min-h-[220px] sm:min-h-[280px]';
+    }
+
+    // 'AUTO' mode: adapts to phone vs laptop
+    if (isMobileDevice && isPortrait) {
+      // Mobile portrait orientation: stream vertically like native mobile camera
+      return 'aspect-[9/16] w-full max-w-[380px] max-h-[70vh] mx-auto min-h-[340px] shadow-2xl';
+    }
+    // Laptop / Desktop / Landscape tablet: proportional widescreen
+    return 'aspect-video w-full max-h-[55vh] sm:max-h-[58vh] lg:max-h-[64vh] min-h-[200px] sm:min-h-[300px]';
+  };
 
   // 1. Enumerate media devices
   useEffect(() => {
@@ -576,8 +624,8 @@ export default function BroadcastStudio({
         </div>
       </div>
 
-      {/* Video Preview Surface */}
-      <div className="relative aspect-video rounded-2xl bg-black border border-surfaceBorder overflow-hidden shadow-2xl flex items-center justify-center">
+      {/* Video Preview Surface (Proportional to Laptop or Phone Device) */}
+      <div className={`relative rounded-2xl bg-black border border-surfaceBorder overflow-hidden shadow-2xl flex items-center justify-center transition-all duration-300 ${getContainerAspectClass()}`}>
         {/* Screen Share Layer */}
         {isScreenSharing && (
           <video
@@ -597,9 +645,9 @@ export default function BroadcastStudio({
               autoPlay
               playsInline
               muted
-              className={`object-cover transition-all duration-300 ${
+              className={`${videoFit === 'cover' ? 'object-cover' : 'object-contain'} transition-all duration-300 ${
                 isScreenSharing
-                  ? 'absolute bottom-4 right-4 w-48 h-28 rounded-xl border-2 border-brandPurple shadow-2xl z-20'
+                  ? 'absolute bottom-3 right-3 sm:bottom-4 sm:right-4 w-32 h-18 sm:w-48 sm:h-28 rounded-xl border-2 border-brandPurple shadow-2xl z-20'
                   : 'w-full h-full'
               } ${!isVideoEnabled || permissionError ? 'hidden' : 'block'} ${
                 isMirrored ? '-scale-x-100' : ''
@@ -629,7 +677,7 @@ export default function BroadcastStudio({
                 playsInline
                 muted
                 loop
-                className="w-full h-full object-cover"
+                className={`w-full h-full ${videoFit === 'cover' ? 'object-cover' : 'object-contain'} transition-all duration-300`}
               />
             ) : (
               <div className="flex flex-col items-center justify-center text-center p-6 space-y-3">
@@ -646,34 +694,48 @@ export default function BroadcastStudio({
         )}
 
         {/* Top Badges & Live Status Overlay */}
-        <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none z-30">
-          <div className="flex items-center gap-2">
+        <div className="absolute top-2.5 sm:top-4 left-2.5 sm:left-4 right-2.5 sm:right-4 flex flex-wrap items-center justify-between gap-2 pointer-events-none z-30">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
             <span
-              className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-lg ${
+              className={`px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-lg ${
                 isLive ? 'bg-red-600 text-white' : 'bg-gray-800/80 text-gray-300 border border-white/10'
               }`}
             >
               <Radio className={`w-3 h-3 ${isLive ? 'animate-ping' : ''}`} />
-              {isLive ? '🔴 ON AIR (LIVE)' : 'STUDIO PREVIEW (OFFLINE)'}
+              {isLive ? '🔴 ON AIR' : 'PREVIEW'}
             </span>
 
+            {/* Device & Aspect Ratio Indicator Tag */}
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[10px] text-gray-300">
+              {aspectMode === 'AUTO' ? (
+                isMobileDevice && isPortrait ? <Smartphone className="w-3 h-3 text-cyan-400" /> : <Laptop className="w-3 h-3 text-amber-400" />
+              ) : aspectMode === '9:16' ? (
+                <Smartphone className="w-3 h-3 text-cyan-400" />
+              ) : (
+                <Laptop className="w-3 h-3 text-amber-400" />
+              )}
+              <span className="font-semibold">
+                {aspectMode === 'AUTO' ? (isMobileDevice && isPortrait ? 'Phone 9:16' : 'Laptop 16:9') : aspectMode}
+              </span>
+            </div>
+
             {isScreenSharing && (
-              <span className="px-2.5 py-1 rounded-full bg-blue-600/90 text-white text-[10px] font-bold flex items-center gap-1 shadow">
-                <Monitor className="w-3 h-3" /> Screen Shared
+              <span className="px-2 py-0.5 rounded-full bg-blue-600/90 text-white text-[10px] font-bold flex items-center gap-1 shadow">
+                <Monitor className="w-3 h-3" /> Screen
               </span>
             )}
 
             {sourceMode === 'EXTERNAL_EMBED' ? (
-              <span className="px-2.5 py-1 rounded-full bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-[10px] font-bold flex items-center gap-1">
-                <Globe className="w-3 h-3" /> External Feed
+              <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-[10px] font-bold flex items-center gap-1">
+                <Globe className="w-3 h-3" /> External
               </span>
             ) : sourceMode === 'RTMP' ? (
-              <span className="px-2.5 py-1 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[10px] font-bold">
-                RTMP Ingress
+              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[10px] font-bold">
+                RTMP
               </span>
             ) : livekitConnected ? (
-              <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold flex items-center gap-1">
-                <Sparkles className="w-3 h-3" /> LiveKit WebRTC
+              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold flex items-center gap-1">
+                <Sparkles className="w-3 h-3" /> WebRTC
               </span>
             ) : null}
           </div>
@@ -928,6 +990,87 @@ export default function BroadcastStudio({
                 </div>
               )}
             </div>
+
+            {/* Screen Proportions & Device Aspect Ratio Selector */}
+            <div className="flex items-center p-0.5 rounded-xl bg-surfaceLight border border-surfaceBorder text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setAspectMode('AUTO')}
+                className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition ${
+                  aspectMode === 'AUTO'
+                    ? 'bg-brandPurple text-white shadow'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+                title="Auto Proportional to Device (Phone or Laptop)"
+              >
+                {isMobileDevice && isPortrait ? (
+                  <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
+                ) : (
+                  <Laptop className="w-3.5 h-3.5 text-amber-400" />
+                )}
+                <span>Auto</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setAspectMode('16:9')}
+                className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition ${
+                  aspectMode === '16:9'
+                    ? 'bg-brandPurple text-white shadow'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+                title="Laptop & Desktop Widescreen 16:9"
+              >
+                <Laptop className="w-3.5 h-3.5" />
+                <span>16:9</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setAspectMode('9:16')}
+                className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition ${
+                  aspectMode === '9:16'
+                    ? 'bg-brandPurple text-white shadow'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+                title="Mobile Phone Vertical 9:16"
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                <span>9:16</span>
+              </button>
+            </div>
+
+            {/* Fit / Fill Toggle */}
+            <button
+              type="button"
+              onClick={() => setVideoFit(videoFit === 'cover' ? 'contain' : 'cover')}
+              className={`px-3 py-2 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 ${
+                videoFit === 'cover'
+                  ? 'bg-surfaceLight border-surfaceBorder text-gray-300 hover:text-white'
+                  : 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300'
+              }`}
+              title="Toggle between Fill Screen (Cover) and Full Frame (Contain)"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+              <span>{videoFit === 'cover' ? 'Fill' : 'Fit'}</span>
+            </button>
+
+            {/* Flip Camera (Phone front/rear switch) */}
+            {videoDevices.length > 1 && (
+              <button
+                type="button"
+                onClick={() => {
+                  const currentIndex = videoDevices.findIndex((d) => d.deviceId === selectedVideoDeviceId);
+                  const nextIndex = (currentIndex + 1) % videoDevices.length;
+                  setSelectedVideoDeviceId(videoDevices[nextIndex].deviceId);
+                }}
+                className="px-3 py-2 rounded-xl bg-surfaceLight hover:bg-surfaceBorder border border-surfaceBorder text-gray-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition"
+                title="Flip Camera (Front / Rear)"
+              >
+                <RotateCcw className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Flip Cam</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
