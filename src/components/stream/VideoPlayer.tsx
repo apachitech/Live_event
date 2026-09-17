@@ -35,7 +35,7 @@ export default function VideoPlayer({
 
   const [hasRemoteVideo, setHasRemoteVideo] = useState(false);
   const [livekitRoom, setLivekitRoom] = useState<Room | null>(null);
-  const [muted, setMuted] = useState(false);
+  const [muted, setMuted] = useState(true);
   const [volume, setVolume] = useState(1);
   const [fullscreen, setFullscreen] = useState(false);
   const [currentSourceType, setCurrentSourceType] = useState(sourceType);
@@ -131,10 +131,10 @@ export default function VideoPlayer({
     let hlsInstance: Hls | null = null;
     let isCancelled = false;
 
-    const playDirectMedia = (url: string) => {
-      const video = videoElementRef.current;
-      if (!video) return;
+    const video = videoElementRef.current;
+    if (!video) return;
 
+    const playDirectMedia = (url: string) => {
       const isHls = url.includes('.m3u8');
       if (isHls && Hls.isSupported()) {
         setConnectionType('HLS_STREAM');
@@ -148,13 +148,7 @@ export default function VideoPlayer({
         hlsInstance.loadSource(url);
         hlsInstance.attachMedia(video);
         hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
-          video.play().catch((err) => {
-            if (err.name === 'NotAllowedError') {
-              video.muted = true;
-              setMuted(true);
-              video.play().catch(() => {});
-            }
-          });
+          video.play().catch(() => {});
           setHasRemoteVideo(true);
         });
 
@@ -166,13 +160,7 @@ export default function VideoPlayer({
       } else if (isHls && video.canPlayType('application/vnd.apple.mpegurl')) {
         setConnectionType('HLS_STREAM');
         video.src = url;
-        video.play().catch((err) => {
-          if (err.name === 'NotAllowedError') {
-            video.muted = true;
-            setMuted(true);
-            video.play().catch(() => {});
-          }
-        });
+        video.play().catch(() => {});
         setHasRemoteVideo(true);
       } else {
         setConnectionType(
@@ -182,94 +170,49 @@ export default function VideoPlayer({
           video.src = url;
         }
         video.loop = true;
-        video.play().catch((err) => {
-          if (err.name === 'NotAllowedError') {
-            video.muted = true;
-            setMuted(true);
-            video.play().catch(() => {});
-          }
-        });
+        video.play().catch(() => {});
         setHasRemoteVideo(true);
       }
     };
 
-    async function initSubscriber() {
-      // Direct external embed mode
-      if (currentSourceType === 'EXTERNAL_EMBED') {
-        playDirectMedia(resolvedVideoUrl);
-        return;
-      }
+    // Immediately start media playback from frame 0
+    playDirectMedia(resolvedVideoUrl);
 
-      // WebRTC or RTMP mode: attempt LiveKit cloud connection
-      try {
-        const res = await fetch('/api/stream/token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ streamId }),
-        });
-
-        const data = await res.json();
-        if (isCancelled) return;
-
-        const credentials = data?.credentials;
-        const serverUrl = credentials?.serverUrl;
-        const participantToken = credentials?.participantToken;
-
-        if (serverUrl && (serverUrl.startsWith('wss://') || serverUrl.startsWith('ws://'))) {
-          setConnectionType('LIVEKIT_WEBRTC');
-          room = new Room({
-            adaptiveStream: true,
-            dynacast: true,
-          });
-
-          room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
-            if (track.kind === 'video' && videoElementRef.current) {
-              track.attach(videoElementRef.current);
-              setHasRemoteVideo(true);
+    // Concurrently attempt LiveKit cloud connection for WebRTC
+    if (currentSourceType === 'WEBRTC') {
+      fetch('/api/stream/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ streamId }),
+      })
+        .then((res) => res.json())
+        .then(async (data) => {
+          if (isCancelled) return;
+          const { serverUrl, participantToken } = data?.credentials || {};
+          if (serverUrl && (serverUrl.startsWith('wss://') || serverUrl.startsWith('ws://'))) {
+            setConnectionType('LIVEKIT_WEBRTC');
+            room = new Room({ adaptiveStream: true, dynacast: true });
+            room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
+              if (track.kind === 'video' && videoElementRef.current) {
+                track.attach(videoElementRef.current);
+                setHasRemoteVideo(true);
+              }
+              if (track.kind === 'audio' && audioElementRef.current) {
+                track.attach(audioElementRef.current);
+              }
+            });
+            await room.connect(serverUrl, participantToken);
+            if (!isCancelled) {
+              setLivekitRoom(room);
+            } else {
+              room.disconnect();
             }
-            if (track.kind === 'audio' && audioElementRef.current) {
-              track.attach(audioElementRef.current);
-            }
-          });
-
-          room.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack) => {
-            if (track.kind === 'video') {
-              track.detach();
-              setHasRemoteVideo(false);
-            }
-            if (track.kind === 'audio') {
-              track.detach();
-            }
-          });
-
-          await room.connect(serverUrl, participantToken);
-          if (isCancelled) {
-            room.disconnect();
-            return;
           }
-          setLivekitRoom(room);
-
-          // If no video track is published yet after 2.5s, fall back to direct media
-          setTimeout(() => {
-            if (!isCancelled && !hasRemoteVideo && videoElementRef.current && !videoElementRef.current.srcObject) {
-              playDirectMedia(resolvedVideoUrl);
-            }
-          }, 2500);
-        } else {
-          // Direct ingest / mock / local relay mode -> play stream media
-          setConnectionType('DIRECT_INGEST');
-          playDirectMedia(resolvedVideoUrl);
-        }
-      } catch (err: any) {
-        console.warn('LiveKit subscriber notice:', err.message);
-        if (!isCancelled) {
-          setConnectionType('DIRECT_INGEST');
-          playDirectMedia(resolvedVideoUrl);
-        }
-      }
+        })
+        .catch((err) => {
+          console.warn('LiveKit subscriber notice:', err);
+        });
     }
-
-    initSubscriber();
 
     return () => {
       isCancelled = true;
@@ -279,13 +222,6 @@ export default function VideoPlayer({
       if (hlsInstance) {
         hlsInstance.destroy();
       }
-      const video = videoElementRef.current;
-      if (video) {
-        video.pause();
-        video.removeAttribute('src');
-        video.load();
-      }
-      setHasRemoteVideo(false);
     };
   }, [streamId, currentSourceType, resolvedVideoUrl]);
 
@@ -439,6 +375,7 @@ export default function VideoPlayer({
   useEffect(() => {
     if (userCamRef.current && userStream) {
       userCamRef.current.srcObject = userStream;
+      userCamRef.current.play().catch(() => {});
     }
   }, [userStream, userCamActive]);
 
@@ -456,25 +393,45 @@ export default function VideoPlayer({
       {/* Video Viewport Container (Device Proportional) */}
       <div
         ref={containerRef}
-        onClick={() => setShowControlsMobile(!showControlsMobile)}
+        onClick={() => {
+          if (muted) {
+            setMuted(false);
+          }
+          setShowControlsMobile(!showControlsMobile);
+        }}
         className={`relative rounded-2xl bg-black border border-surfaceBorder overflow-hidden shadow-2xl flex items-center justify-center group transition-all duration-300 ${getContainerAspectClass()}`}
       >
         {/* Video Surface */}
         <video
           ref={videoElementRef}
+          src={resolvedVideoUrl}
           autoPlay
           playsInline
           muted={muted}
+          loop
           onPlaying={() => setHasRemoteVideo(true)}
           onLoadedData={() => setHasRemoteVideo(true)}
           onCanPlay={() => setHasRemoteVideo(true)}
           className={`absolute inset-0 w-full h-full ${
             videoFit === 'cover' ? 'object-cover' : 'object-contain'
-          } transition-opacity duration-300 ${
-            hasRemoteVideo ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none z-0'
-          }`}
+          } z-10`}
         />
         <audio ref={audioElementRef} autoPlay />
+
+        {/* Floating Tap to Unmute Banner */}
+        {muted && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setMuted(false);
+            }}
+            className="absolute top-14 left-1/2 -translate-x-1/2 z-30 px-3.5 py-1.5 rounded-full bg-black/80 hover:bg-black text-white text-xs font-bold border border-white/20 backdrop-blur-md shadow-2xl flex items-center gap-1.5 transition hover:scale-105 pointer-events-auto"
+          >
+            <VolumeX className="w-3.5 h-3.5 text-pink-400" />
+            <span>Tap to Unmute</span>
+          </button>
+        )}
 
         {/* Fallback Animated Visualizer */}
         {!hasRemoteVideo && (
