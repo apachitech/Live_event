@@ -198,7 +198,7 @@ export default function TokenPurchaseModal() {
                 }`}
               >
                 <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
-                <span className="text-[11px] sm:text-xs font-semibold">Bank / Virtual Card</span>
+                <span className="text-[11px] sm:text-xs font-semibold">Pay with Card (Visa | MC)</span>
               </button>
 
               <button
@@ -317,7 +317,7 @@ export default function TokenPurchaseModal() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-bold text-cyan-400">
                   <CreditCard className="w-4 h-4" />
-                  <span>Bank Card & Virtual Card (Visa • Mastercard)</span>
+                  <span>Pay with Card (Visa | MC)</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className={`text-[9px] font-black px-1.5 py-0.5 rounded transition ${isVisa ? 'bg-blue-600 text-white shadow ring-1 ring-blue-400' : 'bg-surfaceLight text-gray-500'}`}>
@@ -479,7 +479,7 @@ export default function TokenPurchaseModal() {
                 <span>
                   Buy {selectedPackage.tokens} Tokens with{' '}
                   {paymentMethod === 'VAULTPAY'
-                    ? 'Card (Visa/MC)'
+                    ? 'Card (Visa | MC)'
                     : paymentMethod === 'CRYPTO'
                     ? `Crypto (${selectedCrypto.toUpperCase().replace('TRC20', ' TRC-20').replace('ERC20', ' ERC-20')})`
                     : 'Sandbox'}
