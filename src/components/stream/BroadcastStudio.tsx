@@ -844,7 +844,7 @@ export default function BroadcastStudio({
               }`}
             >
               <Radio className={`w-3 h-3 ${isLive ? 'animate-ping' : ''}`} />
-              {isLive ? '🔴 ON AIR' : 'PREVIEW'}
+              {isLive ? '🔴 ON AIR' : '⚪ READY TO BROADCAST'}
             </span>
 
             {/* Device & Aspect Ratio Indicator Tag */}
