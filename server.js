@@ -282,6 +282,52 @@ const io = new Server(server, {
       io.to(`stream:${streamId}`).emit('private_show_response', response);
     });
 
+    // ---------------------------------------------------------------------------
+    // WebRTC Native Camera Stream Signaling & Relay
+    // ---------------------------------------------------------------------------
+    // Broadcaster announces live camera feed availability
+    socket.on('webrtc_broadcaster_ready', ({ streamId }) => {
+      socket.broadcast.to(`stream:${streamId}`).emit('webrtc_broadcaster_available', {
+        streamId,
+        broadcasterSocketId: socket.id,
+      });
+    });
+
+    // Viewer requests direct camera stream from broadcaster
+    socket.on('webrtc_viewer_join', ({ streamId }) => {
+      socket.broadcast.to(`stream:${streamId}`).emit('webrtc_viewer_joined', {
+        streamId,
+        viewerSocketId: socket.id,
+      });
+    });
+
+    // Broadcaster sends SDP offer to specific viewer
+    socket.on('webrtc_signal_offer', ({ targetSocketId, offer, streamId }) => {
+      io.to(targetSocketId).emit('webrtc_signal_offer', {
+        broadcasterSocketId: socket.id,
+        offer,
+        streamId,
+      });
+    });
+
+    // Viewer sends SDP answer back to broadcaster
+    socket.on('webrtc_signal_answer', ({ targetSocketId, answer, streamId }) => {
+      io.to(targetSocketId).emit('webrtc_signal_answer', {
+        viewerSocketId: socket.id,
+        answer,
+        streamId,
+      });
+    });
+
+    // ICE Candidate exchange between broadcaster and viewer
+    socket.on('webrtc_ice_candidate', ({ targetSocketId, candidate, streamId }) => {
+      io.to(targetSocketId).emit('webrtc_ice_candidate', {
+        fromSocketId: socket.id,
+        candidate,
+        streamId,
+      });
+    });
+
     socket.on('disconnect', () => {
       if (currentRoom) {
         const streamId = currentRoom.replace('stream:', '');

@@ -214,6 +214,87 @@ export default function VideoPlayer({
         });
     }
 
+    // Native WebRTC Direct Camera Listener (receives broadcaster's real camera feed)
+    let directPc: RTCPeerConnection | null = null;
+    const socket: Socket = io();
+    let currentBroadcasterSocketId: string | null = null;
+
+    const ICE_CONFIG: RTCConfiguration = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+      ],
+    };
+
+    if (currentSourceType === 'WEBRTC' || currentSourceType === 'RTMP') {
+      socket.emit('join_room', {
+        streamId,
+        user: { id: `viewer_${Math.random().toString(36).substring(2, 8)}`, username: 'Viewer', role: 'VIEWER' },
+      });
+
+      // Request stream from broadcaster
+      socket.emit('webrtc_viewer_join', { streamId });
+
+      socket.on('webrtc_broadcaster_available', () => {
+        socket.emit('webrtc_viewer_join', { streamId });
+      });
+
+      socket.on('webrtc_signal_offer', async ({ broadcasterSocketId, offer, streamId: targetStreamId }: any) => {
+        if (targetStreamId !== streamId || isCancelled) return;
+        currentBroadcasterSocketId = broadcasterSocketId;
+
+        if (directPc) {
+          directPc.close();
+        }
+
+        const pc = new RTCPeerConnection(ICE_CONFIG);
+        directPc = pc;
+
+        pc.ontrack = (event) => {
+          if (event.streams && event.streams[0] && video) {
+            video.srcObject = event.streams[0];
+            video.play().catch(() => {});
+            setHasRemoteVideo(true);
+            setConnectionType('LIVEKIT_WEBRTC');
+          }
+        };
+
+        pc.onicecandidate = (event) => {
+          if (event.candidate && currentBroadcasterSocketId) {
+            socket.emit('webrtc_ice_candidate', {
+              targetSocketId: currentBroadcasterSocketId,
+              candidate: event.candidate,
+              streamId,
+            });
+          }
+        };
+
+        try {
+          await pc.setRemoteDescription(new RTCSessionDescription(offer));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+
+          socket.emit('webrtc_signal_answer', {
+            targetSocketId: broadcasterSocketId,
+            answer,
+            streamId,
+          });
+        } catch (err) {
+          console.warn('WebRTC viewer answer error:', err);
+        }
+      });
+
+      socket.on('webrtc_ice_candidate', async ({ candidate }: any) => {
+        if (directPc && directPc.signalingState !== 'closed' && candidate) {
+          try {
+            await directPc.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (err) {
+            console.warn('WebRTC viewer addIceCandidate error:', err);
+          }
+        }
+      });
+    }
+
     return () => {
       isCancelled = true;
       if (room) {
@@ -222,6 +303,10 @@ export default function VideoPlayer({
       if (hlsInstance) {
         hlsInstance.destroy();
       }
+      if (directPc) {
+        directPc.close();
+      }
+      socket.disconnect();
     };
   }, [streamId, currentSourceType, resolvedVideoUrl]);
 

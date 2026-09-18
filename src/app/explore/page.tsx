@@ -166,7 +166,7 @@ function ExploreSlidePlayer({
     }
   };
 
-  // 1. LiveKit WebRTC Connection (used for Studio Broadcast & OBS RTMP Ingress)
+  // 1. LiveKit WebRTC Connection & Native WebRTC Direct Camera Relay
   useEffect(() => {
     if (!isActive) {
       if (livekitRoomRef.current) {
@@ -178,9 +178,88 @@ function ExploreSlidePlayer({
     }
 
     let isCancelled = false;
+    let directPc: RTCPeerConnection | null = null;
+    const socket: Socket = io();
+    let currentBroadcasterSocketId: string | null = null;
 
-    // Both WEBRTC Studio broadcast and OBS RTMP Ingress connect to LiveKit room
+    const ICE_CONFIG: RTCConfiguration = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+      ],
+    };
+
+    // Both WEBRTC Studio broadcast and OBS RTMP Ingress connect to live stream
     if (effectiveSourceType === 'WEBRTC' || effectiveSourceType === 'RTMP') {
+      // Direct WebRTC signaling
+      socket.emit('join_room', {
+        streamId: stream.id,
+        user: { id: `explore_viewer_${Math.random().toString(36).substring(2, 7)}`, username: 'ExploreViewer', role: 'VIEWER' },
+      });
+
+      socket.emit('webrtc_viewer_join', { streamId: stream.id });
+
+      socket.on('webrtc_broadcaster_available', () => {
+        socket.emit('webrtc_viewer_join', { streamId: stream.id });
+      });
+
+      socket.on('webrtc_signal_offer', async ({ broadcasterSocketId, offer, streamId: targetStreamId }: any) => {
+        if (targetStreamId !== stream.id || isCancelled) return;
+        currentBroadcasterSocketId = broadcasterSocketId;
+
+        if (directPc) {
+          directPc.close();
+        }
+
+        const pc = new RTCPeerConnection(ICE_CONFIG);
+        directPc = pc;
+
+        pc.ontrack = (event) => {
+          if (event.streams && event.streams[0] && videoRef.current) {
+            videoRef.current.srcObject = event.streams[0];
+            videoRef.current.play().catch(() => {});
+            setHasRemoteWebRtcTrack(true);
+            setIsLoaded(true);
+            setAutoplayBlocked(false);
+          }
+        };
+
+        pc.onicecandidate = (event) => {
+          if (event.candidate && currentBroadcasterSocketId) {
+            socket.emit('webrtc_ice_candidate', {
+              targetSocketId: currentBroadcasterSocketId,
+              candidate: event.candidate,
+              streamId: stream.id,
+            });
+          }
+        };
+
+        try {
+          await pc.setRemoteDescription(new RTCSessionDescription(offer));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+
+          socket.emit('webrtc_signal_answer', {
+            targetSocketId: broadcasterSocketId,
+            answer,
+            streamId: stream.id,
+          });
+        } catch (err) {
+          console.warn('WebRTC explore answer error:', err);
+        }
+      });
+
+      socket.on('webrtc_ice_candidate', async ({ candidate }: any) => {
+        if (directPc && directPc.signalingState !== 'closed' && candidate) {
+          try {
+            await directPc.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (err) {
+            console.warn('WebRTC explore addIceCandidate error:', err);
+          }
+        }
+      });
+
+      // Also connect to LiveKit Cloud if credentials exist
       fetch('/api/stream/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -217,6 +296,10 @@ function ExploreSlidePlayer({
         livekitRoomRef.current.disconnect();
         livekitRoomRef.current = null;
       }
+      if (directPc) {
+        directPc.close();
+      }
+      socket.disconnect();
     };
   }, [isActive, stream.id, effectiveSourceType]);
 
