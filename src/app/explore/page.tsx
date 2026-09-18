@@ -57,6 +57,7 @@ const RELIABLE_HLS_URL = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
 interface SlidePlayerProps {
   stream: ExploreStream;
   isActive: boolean;
+  shouldPreload?: boolean;
   isMuted: boolean;
   onToggleMute: () => void;
   onLike: () => void;
@@ -71,6 +72,7 @@ interface SlidePlayerProps {
 function ExploreSlidePlayer({
   stream,
   isActive,
+  shouldPreload = false,
   isMuted,
   onToggleMute,
   onLike,
@@ -88,6 +90,9 @@ function ExploreSlidePlayer({
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [hasRemoteWebRtcTrack, setHasRemoteWebRtcTrack] = useState(false);
 
+  // Pre-connection condition: warm up connections for active and adjacent slides
+  const shouldConnect = isActive || shouldPreload;
+
   // Dynamic source type state (synced with real-time socket events)
   const [effectiveSourceType, setEffectiveSourceType] = useState(stream.sourceType || 'WEBRTC');
 
@@ -102,33 +107,10 @@ function ExploreSlidePlayer({
 
   const [currentSrc, setCurrentSrc] = useState(computeInitialSrc);
 
-  // Real-time stream source synchronization via Socket.IO
+  // Real-time stream source synchronization
   useEffect(() => {
     setEffectiveSourceType(stream.sourceType || 'WEBRTC');
   }, [stream.sourceType]);
-
-  useEffect(() => {
-    const socket: Socket = io();
-    socket.emit('join_room', {
-      streamId: stream.id,
-      user: { id: 'explore_slide_viewer', username: 'ExploreViewer', role: 'VIEWER' },
-    });
-
-    socket.on('stream_source_changed', (payload: any) => {
-      if (payload.streamId === stream.id) {
-        if (payload.sourceType) {
-          setEffectiveSourceType(payload.sourceType);
-        }
-        if (payload.externalStreamUrl) {
-          setCurrentSrc(payload.externalStreamUrl);
-        }
-      }
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [stream.id]);
 
   const streamerName = stream.streamer?.displayName || 'Streamer';
   const streamerAvatar =
@@ -166,9 +148,9 @@ function ExploreSlidePlayer({
     }
   };
 
-  // 1. LiveKit WebRTC Connection & Native WebRTC Direct Camera Relay
+  // 1. Unified Socket & WebRTC Pre-connect Engine (Warms up active & adjacent slides instantly)
   useEffect(() => {
-    if (!isActive) {
+    if (!shouldConnect) {
       if (livekitRoomRef.current) {
         livekitRoomRef.current.disconnect();
         livekitRoomRef.current = null;
@@ -189,14 +171,25 @@ function ExploreSlidePlayer({
       ],
     };
 
+    socket.emit('join_room', {
+      streamId: stream.id,
+      user: { id: `explore_viewer_${Math.random().toString(36).substring(2, 7)}`, username: 'ExploreViewer', role: 'VIEWER' },
+    });
+
+    // Handle live stream source updates in the same socket session
+    socket.on('stream_source_changed', (payload: any) => {
+      if (payload.streamId === stream.id) {
+        if (payload.sourceType) {
+          setEffectiveSourceType(payload.sourceType);
+        }
+        if (payload.externalStreamUrl) {
+          setCurrentSrc(payload.externalStreamUrl);
+        }
+      }
+    });
+
     // Both WEBRTC Studio broadcast and OBS RTMP Ingress connect to live stream
     if (effectiveSourceType === 'WEBRTC' || effectiveSourceType === 'RTMP') {
-      // Direct WebRTC signaling
-      socket.emit('join_room', {
-        streamId: stream.id,
-        user: { id: `explore_viewer_${Math.random().toString(36).substring(2, 7)}`, username: 'ExploreViewer', role: 'VIEWER' },
-      });
-
       let pendingExploreCandidates: RTCIceCandidateInit[] = [];
       let isExploreTrackReceiving = false;
 
@@ -239,15 +232,25 @@ function ExploreSlidePlayer({
         pc.ontrack = (event) => {
           if (event.streams && event.streams[0] && videoRef.current) {
             isExploreTrackReceiving = true;
-            if (videoRef.current.srcObject !== event.streams[0]) {
-              if (videoRef.current.src) {
-                videoRef.current.removeAttribute('src');
+            const v = videoRef.current;
+            if (v.srcObject !== event.streams[0]) {
+              if (v.src) {
+                v.removeAttribute('src');
               }
-              videoRef.current.srcObject = event.streams[0];
-              videoRef.current.play().catch(() => {});
+              v.srcObject = event.streams[0];
               setHasRemoteWebRtcTrack(true);
-              setIsLoaded(true);
-              setAutoplayBlocked(false);
+            }
+            if (isActive) {
+              v.muted = isMuted;
+              v.play().then(() => {
+                setIsLoaded(true);
+                setAutoplayBlocked(false);
+              }).catch((err) => {
+                if (err.name === 'NotAllowedError') setAutoplayBlocked(true);
+              });
+            } else {
+              v.muted = true;
+              v.pause();
             }
           }
         };
@@ -323,8 +326,10 @@ function ExploreSlidePlayer({
               if (track.kind === 'video' && videoRef.current) {
                 track.attach(videoRef.current);
                 setHasRemoteWebRtcTrack(true);
-                setIsLoaded(true);
-                setAutoplayBlocked(false);
+                if (isActive) {
+                  setIsLoaded(true);
+                  setAutoplayBlocked(false);
+                }
               }
             });
 
@@ -347,18 +352,23 @@ function ExploreSlidePlayer({
       }
       socket.disconnect();
     };
-  }, [isActive, stream.id, effectiveSourceType]);
+  }, [shouldConnect, stream.id, effectiveSourceType, isActive, isMuted]);
 
-  // 2. Direct HLS or MP4 Media Playback Engine (used for External Feed or fallback)
+  // 2. Direct HLS or MP4 Media Playback Engine (Pre-buffers when shouldConnect is true)
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || hasRemoteWebRtcTrack) return;
+    if (!video || hasRemoteWebRtcTrack || !shouldConnect) return;
 
     if (isHls && Hls.isSupported()) {
       if (hlsRef.current) {
         hlsRef.current.destroy();
       }
-      const hls = new Hls({ enableWorker: true, lowLatencyMode: true });
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+        backBufferLength: 30,
+        maxBufferLength: 10,
+      });
       hlsRef.current = hls;
       hls.loadSource(currentSrc);
       hls.attachMedia(video);
@@ -392,27 +402,41 @@ function ExploreSlidePlayer({
         hlsRef.current = null;
       }
     };
-  }, [currentSrc, isHls, isActive, hasRemoteWebRtcTrack, triggerPlay]);
+  }, [currentSrc, isHls, shouldConnect, hasRemoteWebRtcTrack, triggerPlay, isActive]);
 
-  // 3. Sync Active / Inactive playback
+  // 3. Instant Playback Synchronizer on Slide Change
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     if (isActive) {
-      triggerPlay();
+      video.muted = isMuted;
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            setIsLoaded(true);
+            setAutoplayBlocked(false);
+          })
+          .catch((err) => {
+            if (err.name === 'NotAllowedError') {
+              setAutoplayBlocked(true);
+            }
+          });
+      }
     } else {
+      video.muted = true;
       video.pause();
     }
-  }, [isActive, triggerPlay]);
+  }, [isActive, isMuted]);
 
-  // 4. Sync Mute status
+  // 4. Volume & Mute sync
   useEffect(() => {
     const video = videoRef.current;
     if (video) {
-      video.muted = isMuted;
+      video.muted = !isActive || isMuted;
     }
-  }, [isMuted]);
+  }, [isMuted, isActive]);
 
   return (
     <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden select-none">
@@ -465,14 +489,21 @@ function ExploreSlidePlayer({
       {/* Main Live Video Surface */}
       <video
         ref={videoRef}
+        preload="auto"
         autoPlay={isActive}
         playsInline
-        muted={isMuted}
+        muted={!isActive || isMuted}
         loop
         onError={handleMediaError}
-        onLoadedData={() => setIsLoaded(true)}
-        onPlaying={() => setIsLoaded(true)}
-        className="absolute inset-0 w-full h-full object-cover z-10"
+        onLoadedData={() => {
+          if (isActive) setIsLoaded(true);
+        }}
+        onPlaying={() => {
+          if (isActive) setIsLoaded(true);
+        }}
+        className={`absolute inset-0 w-full h-full object-cover z-10 transition-opacity duration-200 ${
+          isLoaded ? 'opacity-100' : 'opacity-0'
+        }`}
       />
 
       {/* Autoplay Blocked Interactivity Prompt */}
@@ -962,6 +993,7 @@ export default function MobileExploreFeed() {
                   <ExploreSlidePlayer
                     stream={s}
                     isActive={idx === currentIndex}
+                    shouldPreload={Math.abs(offset) <= 1}
                     isMuted={isMuted}
                     onToggleMute={() => setIsMuted(!isMuted)}
                     onLike={handleLike}
