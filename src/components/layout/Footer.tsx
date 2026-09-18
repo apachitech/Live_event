@@ -2,9 +2,12 @@
 
 import Link from 'next/link';
 import { useSiteConfig } from '@/context/SiteConfigContext';
+import { useLanguage } from '@/context/LanguageContext';
+import LanguageSwitcher from '@/components/common/LanguageSwitcher';
 
 export function Footer() {
   const { siteName, siteDescription, contentRating } = useSiteConfig();
+  const { t } = useLanguage();
 
   const isAdult = contentRating === 'ADULT';
   const isKids = contentRating === 'KIDS';
@@ -57,27 +60,32 @@ export function Footer() {
             </Link>
           )}
           <Link href="/terms" className="hover:text-white transition-colors">
-            Terms of Service
+            {t('footer.terms', 'Terms of Service')}
           </Link>
           <Link href="/privacy" className="hover:text-white transition-colors">
-            Privacy Policy
+            {t('footer.privacy', 'Privacy Policy')}
           </Link>
           <Link href="/explore" className="hover:text-pink-400 transition-colors">
-            Explore Feed
+            {t('footer.explore', 'Explore Feed')}
           </Link>
           <Link href="/vods" className="hover:text-white transition-colors">
-            VOD Directory
+            {t('footer.vods', 'VOD Directory')}
           </Link>
           <a href="/api/health" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-emerald-400 transition-colors">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            System Health
+            {t('footer.health', 'System Health')}
           </a>
+
+          {/* Language Switcher Dropdown in Footer */}
+          <div className="ml-2">
+            <LanguageSwitcher variant="dropdown" />
+          </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto border-t border-slate-900 mt-6 pt-6 flex flex-col sm:flex-row items-center justify-between text-slate-600 gap-4 text-center">
-        <p>© {new Date().getFullYear()} {siteName} Media Inc. All rights reserved.</p>
-        <p>Zero tolerance policy for illegal or non-consensual content.</p>
+        <p>© {new Date().getFullYear()} {siteName} Media Inc. {t('footer.rights', 'All rights reserved.')}</p>
+        <p>{t('footer.policy', 'Zero tolerance policy for illegal or non-consensual content.')}</p>
       </div>
     </footer>
   );

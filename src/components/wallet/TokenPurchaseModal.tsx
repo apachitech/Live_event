@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useSiteConfig } from '@/context/SiteConfigContext';
+import { useLanguage } from '@/context/LanguageContext';
+import LanguageSwitcher from '@/components/common/LanguageSwitcher';
 import { TOKEN_PACKAGES as FALLBACK_PACKAGES, TokenPackage } from '@/types';
 import { SupportedPaymentMethod } from '@/lib/payment';
 import { SUPPORTED_CRYPTO_CURRENCIES } from '@/lib/payment/cryptoAdapter';
@@ -26,6 +28,7 @@ import {
 export default function TokenPurchaseModal() {
   const { isPurchaseModalOpen, closePurchaseModal } = useAuth();
   const { tokenPackages: dynamicPackages, siteName } = useSiteConfig();
+  const { t } = useLanguage();
   const activePackages = dynamicPackages && dynamicPackages.length > 0 ? dynamicPackages : FALLBACK_PACKAGES;
 
   const [selectedPackage, setSelectedPackage] = useState<TokenPackage>(activePackages[1] || activePackages[0]);
@@ -128,17 +131,20 @@ export default function TokenPurchaseModal() {
               <Coins className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg md:text-xl font-bold text-white">Get Stream Tokens</h2>
-              <p className="text-[11px] sm:text-xs text-gray-400">Tipping, tip menus, fan club subs & private 1:1 shows</p>
+              <h2 className="text-base sm:text-lg md:text-xl font-bold text-white">{t('modal.title', 'Get Stream Tokens')}</h2>
+              <p className="text-[11px] sm:text-xs text-gray-400">{t('modal.subtitle', 'Tipping, tip menus, fan club subs & private 1:1 shows')}</p>
             </div>
           </div>
-          <button
-            onClick={closePurchaseModal}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-surfaceLight transition"
-            aria-label="Close Modal"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher variant="pill" />
+            <button
+              onClick={closePurchaseModal}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-surfaceLight transition"
+              aria-label="Close Modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* 2. Scrollable Body (Adaptive Proportions & Custom Scrollbar) */}
@@ -146,7 +152,7 @@ export default function TokenPurchaseModal() {
           {/* 2.1 Package Selection Grid (Proportional 2x2 on Mobile, 4 Columns on Tablet/Desktop) */}
           <div>
             <label className="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-2">
-              1. Select Token Bundle:
+              {t('modal.step1', '1. Select Token Bundle:')}
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
               {activePackages.map((pkg) => {
@@ -181,15 +187,15 @@ export default function TokenPurchaseModal() {
 
                       {pkg.bonusTokens ? (
                         <div className="text-[9px] text-emerald-400 font-medium flex items-center gap-1">
-                          <Sparkles className="w-2.5 h-2.5 shrink-0" /> +{pkg.bonusTokens} Bonus
+                          <Sparkles className="w-2.5 h-2.5 shrink-0" /> +{pkg.bonusTokens} {t('modal.bonus', 'Bonus')}
                         </div>
                       ) : (
-                        <div className="text-[9px] text-gray-500">Standard Pack</div>
+                        <div className="text-[9px] text-gray-500">{t('modal.standardPack', 'Standard Pack')}</div>
                       )}
                     </div>
 
                     <div className="mt-2 pt-1.5 border-t border-surfaceBorder/60 flex justify-between items-center text-[11px]">
-                      <span className="text-gray-400">Price</span>
+                      <span className="text-gray-400">{t('modal.price', 'Price')}</span>
                       <span className="font-bold text-white">${(pkg.priceCents / 100).toFixed(2)}</span>
                     </div>
                   </div>
@@ -201,7 +207,7 @@ export default function TokenPurchaseModal() {
           {/* 2.2 Payment Method Selector Tabs */}
           <div>
             <label className="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-2">
-              2. Choose Payment Method:
+              {t('modal.step2', '2. Choose Payment Method:')}
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <button
@@ -214,7 +220,7 @@ export default function TokenPurchaseModal() {
                 }`}
               >
                 <Smartphone className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
-                <span className="text-[11px] sm:text-xs font-semibold text-center">Mobile Money (SasPay)</span>
+                <span className="text-[11px] sm:text-xs font-semibold text-center">{t('modal.saspayTab', 'Mobile Money (SasPay)')}</span>
               </button>
 
               <button
@@ -227,7 +233,7 @@ export default function TokenPurchaseModal() {
                 }`}
               >
                 <Bitcoin className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
-                <span className="text-[11px] sm:text-xs font-semibold text-center">Crypto (USDT/BTC)</span>
+                <span className="text-[11px] sm:text-xs font-semibold text-center">{t('modal.cryptoTab', 'Crypto (USDT/BTC)')}</span>
               </button>
 
               <button
@@ -240,7 +246,7 @@ export default function TokenPurchaseModal() {
                 }`}
               >
                 <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
-                <span className="text-[11px] sm:text-xs font-semibold text-center">Card (Visa | MC)</span>
+                <span className="text-[11px] sm:text-xs font-semibold text-center">{t('modal.cardTab', 'Card (Visa | MC)')}</span>
               </button>
 
               <button
@@ -253,7 +259,7 @@ export default function TokenPurchaseModal() {
                 }`}
               >
                 <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-tokenGold" />
-                <span className="text-[11px] sm:text-xs font-semibold text-center">Sandbox Test</span>
+                <span className="text-[11px] sm:text-xs font-semibold text-center">{t('modal.sandboxTab', 'Sandbox Test')}</span>
               </button>
             </div>
           </div>
@@ -568,7 +574,7 @@ export default function TokenPurchaseModal() {
           <div className="p-3 rounded-xl bg-surfaceLight/80 border border-surfaceBorder text-[11px] text-gray-400 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>256-Bit Encrypted • Instant Wallet Balance Credit</span>
+              <span>{t('modal.security', '256-Bit Encrypted • Instant Wallet Balance Credit')}</span>
             </div>
             <span className="text-gray-300 font-semibold shrink-0">1 Token ≈ $0.10</span>
           </div>
@@ -580,7 +586,7 @@ export default function TokenPurchaseModal() {
             onClick={closePurchaseModal}
             className="px-4 py-2 rounded-xl text-xs font-medium text-gray-400 hover:text-white transition hover:bg-surfaceLight"
           >
-            Cancel
+            {t('modal.cancel', 'Cancel')}
           </button>
           <button
             onClick={handleCheckout}
@@ -588,19 +594,19 @@ export default function TokenPurchaseModal() {
             className="btn-glow-gold px-5 sm:px-7 py-2.5 rounded-xl text-xs sm:text-sm font-black text-black flex items-center gap-2 shadow transition transform active:scale-95"
           >
             {loading ? (
-              <span>Connecting to Gateway...</span>
+              <span>{t('modal.connecting', 'Connecting to Gateway...')}</span>
             ) : (
               <>
                 <Coins className="w-4 h-4 text-black shrink-0" />
                 <span>
-                  Buy {selectedPackage.tokens} Tokens with{' '}
+                  {t('modal.buyWith', 'Buy')} {selectedPackage.tokens} {t('modal.tokensWith', 'Tokens with')}{' '}
                   {paymentMethod === 'SASPAY'
-                    ? 'Mobile Money (SasPay)'
+                    ? t('modal.saspayTab', 'Mobile Money (SasPay)')
                     : paymentMethod === 'VAULTPAY'
-                    ? 'Card (Visa | MC)'
+                    ? t('modal.cardTab', 'Card (Visa | MC)')
                     : paymentMethod === 'CRYPTO'
                     ? `Crypto (${selectedCrypto.toUpperCase().replace('TRC20', ' TRC-20').replace('ERC20', ' ERC-20')})`
-                    : 'Sandbox'}
+                    : t('modal.sandboxTab', 'Sandbox Test')}
                 </span>
               </>
             )}

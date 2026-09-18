@@ -4,11 +4,14 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useSiteConfig } from '@/context/SiteConfigContext';
+import { useLanguage } from '@/context/LanguageContext';
+import LanguageSwitcher from '@/components/common/LanguageSwitcher';
 import { Radio, Coins, Plus, Video, Shield, User, LogOut, ChevronDown, CheckCircle2, Film } from 'lucide-react';
 
 export default function Navbar() {
   const { user, logout, openPurchaseModal } = useAuth();
   const { siteName, siteTagline, contentRating } = useSiteConfig();
+  const { t } = useLanguage();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   return (
@@ -42,30 +45,33 @@ export default function Navbar() {
 
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
             <Link href="/" className="text-gray-200 hover:text-white transition">
-              Live Directory
+              {t('nav.liveDirectory', 'Live Directory')}
             </Link>
             <Link href="/explore" className="text-pink-400 hover:text-white flex items-center gap-1.5 transition font-semibold">
               <Radio className="w-3.5 h-3.5 text-pink-400 animate-pulse" />
-              <span>Explore (Swipe Feed)</span>
+              <span>{t('nav.explore', 'Explore (Swipe Feed)')}</span>
             </Link>
             <Link href="/vods" className="text-purple-300 hover:text-white flex items-center gap-1.5 transition font-semibold">
               <Film className="w-3.5 h-3.5 text-brandPurple" />
-              <span>VODs & Replays</span>
+              <span>{t('nav.vods', 'VODs & Replays')}</span>
             </Link>
             <Link href="/?category=Gaming" className="text-gray-400 hover:text-gray-200 transition">
-              Gaming
+              {t('nav.gaming', 'Gaming')}
             </Link>
             <Link href="/?category=Chat" className="text-gray-400 hover:text-gray-200 transition">
-              Chat
+              {t('nav.chat', 'Chat')}
             </Link>
             <Link href="/?category=Creative" className="text-gray-400 hover:text-gray-200 transition">
-              Creative
+              {t('nav.creative', 'Creative')}
             </Link>
           </nav>
         </div>
 
-        {/* Right: Actions, Wallet, Studio, and User Menu */}
-        <div className="flex items-center gap-3.5">
+        {/* Right: Actions, Wallet, Language, Studio, and User Menu */}
+        <div className="flex items-center gap-2.5 sm:gap-3.5">
+          {/* Language Switcher */}
+          <LanguageSwitcher variant="pill" />
+
           {user ? (
             <>
               {/* Wallet Balance Pill */}
@@ -75,11 +81,11 @@ export default function Navbar() {
                   <span className="text-sm font-extrabold text-white">
                     {user.wallet?.balance ?? 0}
                   </span>
-                  <span className="text-[11px] text-tokenGold font-semibold hidden sm:inline">Tokens</span>
+                  <span className="text-[11px] text-tokenGold font-semibold hidden sm:inline">{t('nav.tokens', 'Tokens')}</span>
                 </div>
                 <button
                   onClick={openPurchaseModal}
-                  title="Buy Tokens"
+                  title={t('nav.buyTokens', 'Buy Tokens')}
                   className="btn-glow-gold p-1.5 rounded-lg text-black hover:scale-105 transition flex items-center justify-center"
                 >
                   <Plus className="w-3.5 h-3.5 stroke-[3]" />
@@ -93,7 +99,7 @@ export default function Navbar() {
                   className="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-purple-600/20 border border-purple-500/30 text-purple-300 hover:bg-purple-600/30 hover:text-white text-xs font-bold transition shadow-sm"
                 >
                   <Video className="w-3.5 h-3.5" />
-                  <span>Go Live Studio</span>
+                  <span>{t('nav.studio', 'Go Live Studio')}</span>
                 </Link>
               )}
 
@@ -104,7 +110,7 @@ export default function Navbar() {
                   className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 hover:bg-red-500/30 text-xs font-bold transition"
                 >
                   <Shield className="w-3.5 h-3.5" />
-                  <span>Admin</span>
+                  <span>{t('nav.admin', 'Admin')}</span>
                 </Link>
               )}
 
@@ -147,7 +153,7 @@ export default function Navbar() {
                         className="w-full text-left px-4 py-2 text-xs text-amber-400 hover:bg-surfaceLight flex items-center gap-2 transition"
                       >
                         <Coins className="w-3.5 h-3.5" />
-                        <span>Get Tokens</span>
+                        <span>{t('nav.getTokens', 'Get Tokens')}</span>
                       </button>
 
                       {(user.role === 'STREAMER' || user.role === 'ADMIN') && (
@@ -158,7 +164,7 @@ export default function Navbar() {
                             className="block px-4 py-2 text-xs text-gray-300 hover:bg-surfaceLight hover:text-white flex items-center gap-2 transition"
                           >
                             <Video className="w-3.5 h-3.5" />
-                            <span>Broadcast Studio</span>
+                            <span>{t('nav.broadcastStudio', 'Broadcast Studio')}</span>
                           </Link>
                           <Link
                             href="/dashboard/streamer/payouts"
@@ -166,7 +172,7 @@ export default function Navbar() {
                             className="block px-4 py-2 text-xs text-gray-300 hover:bg-surfaceLight hover:text-white flex items-center gap-2 transition"
                           >
                             <Coins className="w-3.5 h-3.5" />
-                            <span>Earnings & Payouts</span>
+                            <span>{t('nav.earnings', 'Earnings & Payouts')}</span>
                           </Link>
                           <Link
                             href="/dashboard/streamer/vods"
@@ -174,7 +180,7 @@ export default function Navbar() {
                             className="block px-4 py-2 text-xs text-purple-300 hover:bg-surfaceLight hover:text-white flex items-center gap-2 transition"
                           >
                             <Film className="w-3.5 h-3.5 text-brandPurple" />
-                            <span>VOD Manager</span>
+                            <span>{t('nav.vodManager', 'VOD Manager')}</span>
                           </Link>
                         </>
                       )}
@@ -186,7 +192,7 @@ export default function Navbar() {
                           className="block px-4 py-2 text-xs text-red-400 hover:bg-surfaceLight flex items-center gap-2 transition"
                         >
                           <Shield className="w-3.5 h-3.5" />
-                          <span>Admin Dashboard</span>
+                          <span>{t('nav.adminDashboard', 'Admin Dashboard')}</span>
                         </Link>
                       )}
                     </div>
@@ -200,7 +206,7 @@ export default function Navbar() {
                         className="w-full text-left px-4 py-2 text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition"
                       >
                         <LogOut className="w-3.5 h-3.5" />
-                        <span>Sign Out</span>
+                        <span>{t('nav.signout', 'Sign Out')}</span>
                       </button>
                     </div>
                   </div>
@@ -213,13 +219,13 @@ export default function Navbar() {
                 href="/login"
                 className="px-3.5 py-2 rounded-xl text-xs font-semibold text-gray-300 hover:text-white hover:bg-surfaceLight transition"
               >
-                Log In
+                {t('nav.login', 'Log In')}
               </Link>
               <Link
                 href="/register"
                 className="btn-glow-purple px-4 py-2 rounded-xl text-xs font-bold text-white transition shadow-sm"
               >
-                Sign Up (18+)
+                {t('nav.signup', 'Sign Up (18+)')}
               </Link>
             </div>
           )}
