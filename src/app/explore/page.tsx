@@ -26,6 +26,8 @@ import {
   Camera,
   Globe,
   Monitor,
+  Megaphone,
+  ExternalLink,
 } from 'lucide-react';
 import SendTipModal from '@/components/stream/SendTipModal';
 
@@ -38,6 +40,13 @@ interface ExploreStream {
   sourceType: string;
   externalStreamUrl?: string | null;
   recordingUrl?: string | null;
+  isAd?: boolean;
+  adData?: {
+    id: string;
+    title: string;
+    imageUrl: string;
+    targetUrl: string;
+  };
   streamer: {
     id: string;
     displayName: string;
@@ -721,6 +730,74 @@ function ExploreSlidePlayer({
   );
 }
 
+function ExploreAdSlide({
+  ad,
+  isActive,
+}: {
+  ad: { id: string; title: string; imageUrl: string; targetUrl: string };
+  isActive: boolean;
+}) {
+  useEffect(() => {
+    if (isActive && ad.id) {
+      fetch('/api/ads/public', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: ad.id, event: 'impression' }),
+      }).catch(() => {});
+    }
+  }, [isActive, ad.id]);
+
+  const handleAdClick = () => {
+    fetch('/api/ads/public', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: ad.id, event: 'click' }),
+    }).catch(() => {});
+  };
+
+  return (
+    <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden select-none">
+      <img
+        src={ad.imageUrl}
+        alt={ad.title}
+        className="absolute inset-0 w-full h-full object-cover"
+        onError={(e: any) => {
+          e.target.src = 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=1000';
+        }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/60 pointer-events-none" />
+
+      {/* Top Header Badge */}
+      <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-tokenGold text-black text-xs font-black uppercase shadow-lg tracking-wider">
+          <Megaphone className="w-3.5 h-3.5" />
+          <span>Sponsored Card</span>
+        </div>
+      </div>
+
+      {/* Bottom Call to Action */}
+      <div className="absolute left-4 right-4 bottom-12 z-20 space-y-3 max-w-lg">
+        <h3 className="text-xl sm:text-2xl font-black text-white leading-tight drop-shadow-md">
+          {ad.title}
+        </h3>
+        <p className="text-xs text-gray-300">
+          Featured partner promotion & community perk. Swipe up to return to live broadcasts.
+        </p>
+        <a
+          href={ad.targetUrl}
+          target="_blank"
+          rel="noreferrer"
+          onClick={handleAdClick}
+          className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-brandPurple to-brandPink text-white text-sm font-black shadow-2xl hover:scale-105 transition"
+        >
+          <span>Visit Partner / Offer</span>
+          <ExternalLink className="w-4 h-4" />
+        </a>
+      </div>
+    </div>
+  );
+}
+
 export default function MobileExploreFeed() {
   const { user } = useAuth();
   const [streams, setStreams] = useState<ExploreStream[]>([]);
@@ -746,20 +823,55 @@ export default function MobileExploreFeed() {
   const lastWheelTime = useRef<number>(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Fetch streams list
-  const fetchStreams = useCallback(() => {
+  // Fetch streams list and active ads
+  const fetchStreams = useCallback(async () => {
     setLoading(true);
     const query = selectedCategory !== 'All' ? `?category=${encodeURIComponent(selectedCategory)}` : '';
-    fetch(`/api/stream/list${query}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.streams) {
-          setStreams(data.streams);
-          setCurrentIndex(0);
+    try {
+      const [streamsRes, adsRes] = await Promise.all([
+        fetch(`/api/stream/list${query}`),
+        fetch('/api/ads/public?placement=FEED'),
+      ]);
+      const streamsData = await streamsRes.json();
+      const adsData = await adsRes.json();
+
+      let combinedStreams: ExploreStream[] = [];
+      if (Array.isArray(streamsData.streams)) {
+        combinedStreams = [...streamsData.streams];
+      }
+
+      if (Array.isArray(adsData.ads) && adsData.ads.length > 0) {
+        const adItems: ExploreStream[] = adsData.ads.map((ad: any) => ({
+          id: `ad_${ad.id}`,
+          title: ad.title,
+          category: 'Sponsored',
+          viewerCount: 0,
+          totalTokensEarned: 0,
+          sourceType: 'EXTERNAL_EMBED',
+          isAd: true,
+          adData: ad,
+          streamer: {
+            id: 'sponsor',
+            displayName: 'Sponsored Partner',
+          },
+        }));
+
+        if (combinedStreams.length >= 2) {
+          combinedStreams.splice(2, 0, adItems[0]);
+        } else if (combinedStreams.length > 0) {
+          combinedStreams.push(adItems[0]);
+        } else {
+          combinedStreams = adItems;
         }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      }
+
+      setStreams(combinedStreams);
+      setCurrentIndex(0);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   }, [selectedCategory]);
 
   useEffect(() => {
@@ -990,20 +1102,24 @@ export default function MobileExploreFeed() {
                     transition: isSwiping.current ? 'none' : 'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
                   }}
                 >
-                  <ExploreSlidePlayer
-                    stream={s}
-                    isActive={idx === currentIndex}
-                    shouldPreload={Math.abs(offset) <= 1}
-                    isMuted={isMuted}
-                    onToggleMute={() => setIsMuted(!isMuted)}
-                    onLike={handleLike}
-                    isLiked={isLiked}
-                    showLikeHeart={showLikeHeart && idx === currentIndex}
-                    onTip={() => setSelectedTipStream(s)}
-                    onShare={handleShare}
-                    copiedLink={copiedLink}
-                    onPiP={handlePiP}
-                  />
+                  {s.isAd && s.adData ? (
+                    <ExploreAdSlide ad={s.adData} isActive={idx === currentIndex} />
+                  ) : (
+                    <ExploreSlidePlayer
+                      stream={s}
+                      isActive={idx === currentIndex}
+                      shouldPreload={Math.abs(offset) <= 1}
+                      isMuted={isMuted}
+                      onToggleMute={() => setIsMuted(!isMuted)}
+                      onLike={handleLike}
+                      isLiked={isLiked}
+                      showLikeHeart={showLikeHeart && idx === currentIndex}
+                      onTip={() => setSelectedTipStream(s)}
+                      onShare={handleShare}
+                      copiedLink={copiedLink}
+                      onPiP={handlePiP}
+                    />
+                  )}
                 </div>
               );
             })}

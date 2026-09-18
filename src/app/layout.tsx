@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
+import { SiteConfigProvider } from '@/context/SiteConfigContext';
 import Navbar from '@/components/Navbar';
 import TokenPurchaseModal from '@/components/wallet/TokenPurchaseModal';
 import AgeVerificationModal from '@/components/auth/AgeVerificationModal';
@@ -27,13 +28,15 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className="min-h-screen flex flex-col bg-[#0a0a0f] text-gray-100 antialiased selection:bg-purple-600 selection:text-white">
         <AuthProvider>
-          <Navbar />
-          <main className="min-h-[calc(100vh-4rem)] flex-1">
-            {children}
-          </main>
-          <Footer />
-          <TokenPurchaseModal />
-          <AgeVerificationModal />
+          <SiteConfigProvider>
+            <Navbar />
+            <main className="min-h-[calc(100vh-4rem)] flex-1">
+              {children}
+            </main>
+            <Footer />
+            <TokenPurchaseModal />
+            <AgeVerificationModal />
+          </SiteConfigProvider>
         </AuthProvider>
       </body>
     </html>

@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { TOKEN_PACKAGES, TokenPackage } from '@/types';
+import { useSiteConfig } from '@/context/SiteConfigContext';
+import { TOKEN_PACKAGES as FALLBACK_PACKAGES, TokenPackage } from '@/types';
 import { SupportedPaymentMethod } from '@/lib/payment';
 import { SUPPORTED_CRYPTO_CURRENCIES } from '@/lib/payment/cryptoAdapter';
 import { SAMPLE_VAULTPAY_CARDS } from '@/lib/payment/vaultPayAdapter';
@@ -23,8 +24,21 @@ import {
 
 export default function TokenPurchaseModal() {
   const { isPurchaseModalOpen, closePurchaseModal } = useAuth();
-  const [selectedPackage, setSelectedPackage] = useState<TokenPackage>(TOKEN_PACKAGES[1]);
+  const { tokenPackages: dynamicPackages, siteName } = useSiteConfig();
+  const activePackages = dynamicPackages && dynamicPackages.length > 0 ? dynamicPackages : FALLBACK_PACKAGES;
+
+  const [selectedPackage, setSelectedPackage] = useState<TokenPackage>(activePackages[1] || activePackages[0]);
   const [paymentMethod, setPaymentMethod] = useState<SupportedPaymentMethod>('CRYPTO');
+
+  // Keep selectedPackage synced if admin updates packages dynamically
+  useEffect(() => {
+    if (activePackages.length > 0) {
+      const found = activePackages.find((p) => p.id === selectedPackage?.id);
+      if (!found) {
+        setSelectedPackage(activePackages[1] || activePackages[0]);
+      }
+    }
+  }, [activePackages]);
 
   // Cryptocurrency state
   const [selectedCrypto, setSelectedCrypto] = useState('usdttrc20');
@@ -120,7 +134,7 @@ export default function TokenPurchaseModal() {
               1. Select Token Bundle:
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
-              {TOKEN_PACKAGES.map((pkg) => {
+              {activePackages.map((pkg) => {
                 const isSelected = selectedPackage.id === pkg.id;
                 return (
                   <div

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { Shield, DollarSign, Users, Video, Clock, Check, X, AlertCircle, Settings, Flag } from 'lucide-react';
+import { Shield, DollarSign, Users, Video, Clock, Check, X, AlertCircle, Settings, Flag, Megaphone, Coins, Gift, Globe } from 'lucide-react';
 
 export default function AdminOverviewPage() {
   const { user } = useAuth();
@@ -71,6 +71,13 @@ export default function AdminOverviewPage() {
 
         <div className="flex items-center gap-2.5 flex-wrap">
           <Link
+            href="/admin/ads"
+            className="px-3.5 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder hover:border-gray-600 text-xs font-bold text-gray-300 flex items-center gap-1.5 transition"
+          >
+            <Megaphone className="w-3.5 h-3.5 text-tokenGold" />
+            <span>Advertisements</span>
+          </Link>
+          <Link
             href="/admin/audit"
             className="px-3.5 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder hover:border-gray-600 text-xs font-bold text-gray-300 flex items-center gap-1.5 transition"
           >
@@ -92,6 +99,73 @@ export default function AdminOverviewPage() {
             <span>Platform Settings</span>
           </Link>
         </div>
+      </div>
+
+      {/* Platform Control Center */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Link
+          href="/admin/settings?tab=branding"
+          className="p-5 rounded-2xl glass-panel border border-surfaceBorder hover:border-brandPurple/60 transition group block"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-10 h-10 rounded-xl bg-brandPurple/10 text-brandPurple flex items-center justify-center group-hover:scale-110 transition">
+              <Globe className="w-5 h-5" />
+            </div>
+            <span className="text-[10px] uppercase font-bold tracking-wider text-brandPurple">Live Sync</span>
+          </div>
+          <h3 className="text-sm font-black text-white group-hover:text-brandPurple transition">Site Branding</h3>
+          <p className="text-[11px] text-gray-400 mt-1">
+            CRUD site name, logos, slogans, and metadata with instantaneous site-wide reflection.
+          </p>
+        </Link>
+
+        <Link
+          href="/admin/settings?tab=pricing"
+          className="p-5 rounded-2xl glass-panel border border-surfaceBorder hover:border-tokenGold/60 transition group block"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-10 h-10 rounded-xl bg-tokenGold/10 text-tokenGold flex items-center justify-center group-hover:scale-110 transition">
+              <Coins className="w-5 h-5" />
+            </div>
+            <span className="text-[10px] uppercase font-bold tracking-wider text-tokenGold">Pricing</span>
+          </div>
+          <h3 className="text-sm font-black text-white group-hover:text-tokenGold transition">Token Pricing</h3>
+          <p className="text-[11px] text-gray-400 mt-1">
+            Organize purchase packages, set fiat USD rates, bonuses, and featured badges.
+          </p>
+        </Link>
+
+        <Link
+          href="/admin/settings?tab=distribute"
+          className="p-5 rounded-2xl glass-panel border border-surfaceBorder hover:border-emerald-500/60 transition group block"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition">
+              <Gift className="w-5 h-5" />
+            </div>
+            <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400">Airdrop</span>
+          </div>
+          <h3 className="text-sm font-black text-white group-hover:text-emerald-400 transition">Distribute Tokens</h3>
+          <p className="text-[11px] text-gray-400 mt-1">
+            Credit or airdrop free tokens to individual users or the entire active community.
+          </p>
+        </Link>
+
+        <Link
+          href="/admin/ads"
+          className="p-5 rounded-2xl glass-panel border border-surfaceBorder hover:border-pink-500/60 transition group block"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="w-10 h-10 rounded-xl bg-pink-500/10 text-pink-400 flex items-center justify-center group-hover:scale-110 transition">
+              <Megaphone className="w-5 h-5" />
+            </div>
+            <span className="text-[10px] uppercase font-bold tracking-wider text-pink-400">Campaigns</span>
+          </div>
+          <h3 className="text-sm font-black text-white group-hover:text-pink-400 transition">Advertisements</h3>
+          <p className="text-[11px] text-gray-400 mt-1">
+            Create sponsored swipe cards & directory banners, and monitor real-time impressions & CTR.
+          </p>
+        </Link>
       </div>
 
       {/* Analytics Cards */}

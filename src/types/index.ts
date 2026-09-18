@@ -27,6 +27,7 @@ export interface TokenPackage {
   label: string;
   bonusTokens?: number;
   badge?: string;
+  popular?: boolean;
 }
 
 export const TOKEN_PACKAGES: TokenPackage[] = [

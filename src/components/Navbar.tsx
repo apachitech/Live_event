@@ -3,10 +3,12 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { useSiteConfig } from '@/context/SiteConfigContext';
 import { Radio, Coins, Plus, Video, Shield, User, LogOut, ChevronDown, CheckCircle2, Film } from 'lucide-react';
 
 export default function Navbar() {
   const { user, logout, openPurchaseModal } = useAuth();
+  const { siteName, siteTagline } = useSiteConfig();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   return (
@@ -20,10 +22,12 @@ export default function Navbar() {
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-background animate-ping" />
             </div>
             <div className="flex flex-col">
-              <span className="text-lg font-black tracking-tight text-white flex items-center gap-1.5">
-                PULSE<span className="text-brandPink font-light">STREAM</span>
+              <span className="text-lg font-black tracking-tight text-white flex items-center gap-1.5 uppercase">
+                {siteName}
               </span>
-              <span className="text-[9px] tracking-widest text-gray-400 uppercase -mt-1 font-bold">Live Monetized Cam</span>
+              <span className="text-[9px] tracking-widest text-gray-400 uppercase -mt-1 font-bold truncate max-w-[160px]">
+                {siteTagline || 'Live Monetized Cam'}
+              </span>
             </div>
           </Link>
 
