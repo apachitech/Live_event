@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import Hls from 'hls.js';
 import { useAuth } from '@/context/AuthContext';
 import {
   Radio,
@@ -18,7 +19,6 @@ import {
   Smartphone,
   Laptop,
   ArrowRight,
-  Maximize2,
   Sparkles,
 } from 'lucide-react';
 import SendTipModal from '@/components/stream/SendTipModal';
@@ -29,16 +29,321 @@ interface ExploreStream {
   category: string;
   viewerCount: number;
   totalTokensEarned: number;
-  streamer: {
-    id: string;
-    displayName: string;
-  };
   sourceType: string;
   externalStreamUrl?: string | null;
   recordingUrl?: string | null;
+  streamer: {
+    id: string;
+    displayName: string;
+    user?: {
+      id?: string;
+      avatarUrl?: string | null;
+      username?: string;
+    };
+  };
 }
 
 const CATEGORIES = ['All', 'Gaming & Music', 'Creative Arts', 'Just Chatting', 'Interactive Shows'];
+
+interface SlidePlayerProps {
+  stream: ExploreStream;
+  isActive: boolean;
+  isMuted: boolean;
+  onToggleMute: () => void;
+  onLike: () => void;
+  isLiked: boolean;
+  showLikeHeart: boolean;
+  onTip: () => void;
+  onShare: () => void;
+  copiedLink: boolean;
+  onPiP: (video: HTMLVideoElement | null) => void;
+}
+
+function ExploreSlidePlayer({
+  stream,
+  isActive,
+  isMuted,
+  onToggleMute,
+  onLike,
+  isLiked,
+  showLikeHeart,
+  onTip,
+  onShare,
+  copiedLink,
+  onPiP,
+}: SlidePlayerProps) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const hlsRef = useRef<Hls | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  const videoSrc =
+    stream.externalStreamUrl ||
+    stream.recordingUrl ||
+    'https://res.cloudinary.com/demo/video/upload/sample.mp4';
+
+  const streamerName = stream.streamer?.displayName || 'Streamer';
+  const streamerAvatar =
+    stream.streamer?.user?.avatarUrl ||
+    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80';
+
+  const isHls = videoSrc.includes('.m3u8');
+
+  // Video attachment and playback effect
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (isHls && Hls.isSupported()) {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+      }
+      const hls = new Hls({ enableWorker: true, lowLatencyMode: true });
+      hlsRef.current = hls;
+      hls.loadSource(videoSrc);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (isActive) {
+          video.play().catch(() => {});
+        }
+      });
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal) {
+          console.warn('HLS feed notice:', data.details);
+        }
+      });
+    } else if (isHls && video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = videoSrc;
+      if (isActive) {
+        video.play().catch(() => {});
+      }
+    } else {
+      if (video.src !== videoSrc) {
+        video.src = videoSrc;
+      }
+      if (isActive) {
+        video.play().catch(() => {});
+      }
+    }
+
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [videoSrc, isHls, isActive]);
+
+  // Active state listener (play when active, pause when inactive)
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (isActive) {
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+    }
+  }, [isActive]);
+
+  // Mute state sync
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video) {
+      video.muted = isMuted;
+    }
+  }, [isMuted]);
+
+  return (
+    <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden select-none">
+      {/* Background Poster Stage with Broadcaster Photo (Shows while loading) */}
+      <div className="absolute inset-0 w-full h-full bg-[#0a0a12] flex items-center justify-center z-0 overflow-hidden">
+        <img
+          src={streamerAvatar}
+          alt={streamerName}
+          className="w-full h-full object-cover blur-2xl opacity-35 scale-125 pointer-events-none"
+        />
+        {!isLoaded && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 z-10">
+            <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-brandPurple mb-3 shadow-2xl animate-pulse">
+              <img src={streamerAvatar} alt={streamerName} className="w-full h-full object-cover" />
+            </div>
+            <div className="text-xs font-bold text-white flex items-center gap-1.5 bg-black/70 px-3.5 py-1.5 rounded-full border border-white/10 shadow-lg">
+              <Radio className="w-3.5 h-3.5 text-red-500 animate-ping" />
+              <span>Live Broadcast Connected</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Main Live Video Surface */}
+      <video
+        ref={videoRef}
+        autoPlay={isActive}
+        playsInline
+        muted={isMuted}
+        loop
+        onLoadedData={() => setIsLoaded(true)}
+        onPlaying={() => setIsLoaded(true)}
+        className="absolute inset-0 w-full h-full object-cover z-10"
+      />
+
+      {/* Subtle Gradient Overlays for Controls Readability */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/90 pointer-events-none z-10" />
+
+      {/* Tap for Sound Banner when Muted */}
+      {isMuted && isActive && (
+        <button
+          type="button"
+          onClick={onToggleMute}
+          className="absolute top-20 left-1/2 -translate-x-1/2 z-30 px-3.5 py-1.5 rounded-full bg-black/80 hover:bg-black text-white text-xs font-bold border border-white/20 backdrop-blur-md shadow-2xl flex items-center gap-1.5 transition hover:scale-105 pointer-events-auto"
+        >
+          <VolumeX className="w-3.5 h-3.5 text-pink-400" />
+          <span>Tap for Sound</span>
+        </button>
+      )}
+
+      {/* Top Stream Header */}
+      <div className="absolute top-12 sm:top-14 left-4 right-4 flex items-center justify-between z-20 pointer-events-none">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-nowrap touch-pan-x pointer-events-auto">
+          <div className="shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-600 text-white text-[11px] font-black uppercase shadow-lg shadow-red-600/40">
+            <Radio className="w-3 h-3 animate-ping" />
+            <span>LIVE</span>
+          </div>
+          <div className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-semibold border border-white/10 shadow">
+            <Users className="w-3.5 h-3.5 text-brandPurple" />
+            <span>{stream.viewerCount} Viewers</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 pointer-events-auto">
+          <button
+            onClick={() => onPiP(videoRef.current)}
+            className="p-2 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/10 hover:bg-black/80 transition"
+            title="Picture-in-Picture"
+          >
+            <PictureInPicture className="w-4 h-4" />
+          </button>
+          <button
+            onClick={onToggleMute}
+            className="p-2 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/10 hover:bg-black/80 transition"
+            title={isMuted ? 'Unmute Live Audio' : 'Mute Live Audio'}
+          >
+            {isMuted ? (
+              <VolumeX className="w-4 h-4 text-red-400" />
+            ) : (
+              <Volume2 className="w-4 h-4 text-emerald-400" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Double Tap Heart Animation */}
+      {showLikeHeart && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30 animate-ping duration-500">
+          <Heart className="w-24 h-24 fill-current text-pink-500" />
+        </div>
+      )}
+
+      {/* Right Side Action Column (Streamer, Like, Tip, Share, Enter Room) */}
+      <div className="absolute right-3 sm:right-4 bottom-24 flex flex-col items-center gap-3.5 z-20">
+        {/* Streamer Avatar */}
+        <Link
+          href={`/watch/${stream.id}`}
+          className="relative group/avatar cursor-pointer"
+          title={`Watch ${streamerName}`}
+        >
+          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-brandPurple shadow-xl bg-surfaceLight group-hover/avatar:scale-110 transition-transform">
+            <img src={streamerAvatar} alt={streamerName} className="w-full h-full object-cover" />
+          </div>
+          <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-red-600 text-white text-[9px] font-black uppercase shadow">
+            LIVE
+          </span>
+        </Link>
+
+        {/* Like Button */}
+        <button
+          onClick={onLike}
+          className="flex flex-col items-center gap-1 text-white group cursor-pointer"
+        >
+          <div
+            className={`p-2.5 rounded-full backdrop-blur-md border border-white/10 transition hover:scale-110 ${
+              isLiked
+                ? 'bg-pink-600 text-white scale-110 shadow-lg shadow-pink-500/40'
+                : 'bg-black/60 text-white'
+            }`}
+          >
+            <Heart className={`w-5 h-5 ${isLiked ? 'fill-current text-white' : ''}`} />
+          </div>
+          <span className="text-[10px] font-bold">Like</span>
+        </button>
+
+        {/* Send Tip Button */}
+        <button
+          onClick={onTip}
+          className="flex flex-col items-center gap-1 text-white cursor-pointer"
+        >
+          <div className="p-2.5 rounded-full bg-amber-500/90 hover:bg-amber-500 text-black shadow-lg shadow-amber-500/30 transition hover:scale-110">
+            <Coins className="w-5 h-5 fill-current" />
+          </div>
+          <span className="text-[10px] font-bold text-amber-300">Tip</span>
+        </button>
+
+        {/* Share Button */}
+        <button
+          onClick={onShare}
+          className="flex flex-col items-center gap-1 text-white cursor-pointer"
+        >
+          <div className="p-2.5 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/10 hover:bg-black/80 transition hover:scale-110">
+            {copiedLink ? <Check className="w-5 h-5 text-emerald-400" /> : <Share2 className="w-5 h-5" />}
+          </div>
+          <span className="text-[10px] font-bold">{copiedLink ? 'Copied' : 'Share'}</span>
+        </button>
+
+        {/* Enter Room Quick Icon */}
+        <Link
+          href={`/watch/${stream.id}`}
+          className="flex flex-col items-center gap-1 text-white cursor-pointer"
+        >
+          <div className="p-2.5 rounded-full bg-brandPurple/90 hover:bg-brandPurple text-white shadow-lg shadow-purple-500/30 transition hover:scale-110">
+            <ArrowRight className="w-5 h-5" />
+          </div>
+          <span className="text-[10px] font-bold">Room</span>
+        </Link>
+      </div>
+
+      {/* Bottom Metadata & Room Access Bar */}
+      <div className="absolute left-4 right-18 bottom-5 z-20 space-y-2">
+        <div>
+          <h3 className="text-sm sm:text-base font-extrabold text-white leading-snug drop-shadow-md line-clamp-2">
+            {stream.title}
+          </h3>
+          <div className="flex items-center gap-2 text-xs text-gray-300 mt-1">
+            <span className="font-bold text-white">@{streamerName}</span>
+            <span>•</span>
+            <span className="text-brandPurple font-semibold">{stream.category}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-nowrap touch-pan-x">
+          <Link
+            href={`/watch/${stream.id}`}
+            className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-brandPurple to-brandPink text-white text-xs font-black shadow-lg hover:scale-105 transition"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Enter Full Room & Chat</span>
+          </Link>
+
+          {stream.totalTokensEarned > 0 && (
+            <span className="shrink-0 px-2.5 py-1.5 rounded-xl bg-black/60 backdrop-blur-md text-tokenGold border border-white/10 text-xs font-bold flex items-center gap-1">
+              <Coins className="w-3.5 h-3.5" />
+              <span>{stream.totalTokensEarned} Tipped</span>
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function MobileExploreFeed() {
   const { user } = useAuth();
@@ -63,7 +368,6 @@ export default function MobileExploreFeed() {
 
   // Wheel debounce cooldown ref
   const lastWheelTime = useRef<number>(0);
-  const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Fetch streams list
@@ -87,20 +391,6 @@ export default function MobileExploreFeed() {
   }, [fetchStreams]);
 
   const activeStream = streams[currentIndex];
-
-  // Auto-play active video and pause inactive videos
-  useEffect(() => {
-    videoRefs.current.forEach((video, idx) => {
-      if (video) {
-        if (idx === currentIndex) {
-          video.play().catch(() => {});
-        } else {
-          video.pause();
-          video.currentTime = 0;
-        }
-      }
-    });
-  }, [currentIndex, streams]);
 
   // Navigation handlers
   const handleNext = useCallback(() => {
@@ -190,8 +480,7 @@ export default function MobileExploreFeed() {
   }, [handleNext, handlePrev]);
 
   // Picture-in-Picture support
-  const handlePiP = async () => {
-    const video = videoRefs.current[currentIndex];
+  const handlePiP = async (video: HTMLVideoElement | null) => {
     if (!video) return;
 
     if (document.pictureInPictureElement) {
@@ -303,173 +592,41 @@ export default function MobileExploreFeed() {
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
           onWheel={onWheel}
-          className={`relative w-full h-full transition-all duration-300 flex items-center justify-center ${
+          className={`relative w-full h-full transition-all duration-300 flex items-center justify-center overflow-hidden ${
             desktopViewMode === 'portrait'
-              ? 'max-w-[440px] aspect-[9/16] sm:max-h-[92vh] sm:rounded-3xl sm:border sm:border-surfaceBorder sm:shadow-2xl overflow-hidden'
-              : 'max-w-4xl aspect-video sm:max-h-[85vh] sm:rounded-3xl sm:border sm:border-surfaceBorder sm:shadow-2xl overflow-hidden'
+              ? 'max-w-[440px] aspect-[9/16] sm:max-h-[92vh] sm:rounded-3xl sm:border sm:border-surfaceBorder sm:shadow-2xl'
+              : 'max-w-4xl aspect-video sm:max-h-[85vh] sm:rounded-3xl sm:border sm:border-surfaceBorder sm:shadow-2xl'
           }`}
         >
-          {/* Vertical Slides Carousel */}
-          <div
-            className="w-full h-full relative"
-            style={{
-              transform: `translateY(calc(-${currentIndex * 100}% + ${dragOffset}px))`,
-              transition: isSwiping.current ? 'none' : 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)',
-            }}
-          >
+          {/* Vertical Slides Carousel Container */}
+          <div className="absolute inset-0 w-full h-full overflow-hidden">
             {streams.map((s, idx) => {
-              const videoSrc =
-                s.externalStreamUrl ||
-                s.recordingUrl ||
-                'https://res.cloudinary.com/demo/video/upload/sample.mp4';
+              const offset = idx - currentIndex;
+              const isNearby = Math.abs(offset) <= 2;
+              if (!isNearby) return null;
 
               return (
-                <div key={s.id} className="relative w-full h-full shrink-0 flex items-center justify-center bg-black">
-                  {/* Stream Video Surface */}
-                  <video
-                    ref={(el) => {
-                      videoRefs.current[idx] = el;
-                    }}
-                    src={videoSrc}
-                    loop
-                    playsInline
-                    muted={isMuted}
-                    className="w-full h-full object-cover"
+                <div
+                  key={s.id}
+                  className="absolute inset-0 w-full h-full"
+                  style={{
+                    transform: `translateY(calc(${offset * 100}% + ${dragOffset}px))`,
+                    transition: isSwiping.current ? 'none' : 'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
+                  }}
+                >
+                  <ExploreSlidePlayer
+                    stream={s}
+                    isActive={idx === currentIndex}
+                    isMuted={isMuted}
+                    onToggleMute={() => setIsMuted(!isMuted)}
+                    onLike={handleLike}
+                    isLiked={isLiked}
+                    showLikeHeart={showLikeHeart && idx === currentIndex}
+                    onTip={() => setSelectedTipStream(s)}
+                    onShare={handleShare}
+                    copiedLink={copiedLink}
+                    onPiP={handlePiP}
                   />
-
-                  {/* Gradient Scrim */}
-                  <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/95 pointer-events-none" />
-
-                  {/* Top Bar info inside stream slide */}
-                  <div className="absolute top-14 sm:top-12 left-4 right-4 flex items-center justify-between z-20 pointer-events-none">
-                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-nowrap touch-pan-x pointer-events-auto">
-                      <div className="shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-600/90 text-white text-[11px] font-black uppercase shadow-lg shadow-red-600/30">
-                        <Radio className="w-3 h-3 animate-ping" />
-                        <span>LIVE</span>
-                      </div>
-                      <div className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-semibold border border-white/10">
-                        <Users className="w-3.5 h-3.5 text-brandPurple" />
-                        <span>{s.viewerCount} Viewers</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 pointer-events-auto">
-                      <button
-                        onClick={handlePiP}
-                        className="p-2 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/10 hover:bg-black/80 transition"
-                        title="Picture-in-Picture"
-                      >
-                        <PictureInPicture className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setIsMuted(!isMuted)}
-                        className="p-2 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/10 hover:bg-black/80 transition"
-                        title={isMuted ? 'Unmute Live Audio' : 'Mute Live Audio'}
-                      >
-                        {isMuted ? (
-                          <VolumeX className="w-4 h-4 text-red-400" />
-                        ) : (
-                          <Volume2 className="w-4 h-4 text-emerald-400" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Double tap / Like pulse animation */}
-                  {showLikeHeart && idx === currentIndex && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30 animate-ping duration-500">
-                      <Heart className="w-24 h-24 fill-current text-pink-500" />
-                    </div>
-                  )}
-
-                  {/* Right Side Interactivity Column (Likes, Tips, Share, Watch) */}
-                  <div className="absolute right-3 sm:right-4 bottom-20 flex flex-col items-center gap-3.5 z-20">
-                    {/* Streamer Avatar */}
-                    <div className="relative">
-                      <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center font-black text-white text-sm shadow-xl border-2 border-white">
-                        {s.streamer.displayName.substring(0, 2).toUpperCase()}
-                      </div>
-                    </div>
-
-                    {/* Like Button */}
-                    <button
-                      onClick={handleLike}
-                      className="flex flex-col items-center gap-1 text-white group cursor-pointer"
-                    >
-                      <div
-                        className={`p-2.5 rounded-full backdrop-blur-md border border-white/10 transition hover:scale-110 ${
-                          isLiked ? 'bg-pink-600 text-white scale-110 shadow-lg shadow-pink-500/40' : 'bg-black/60 text-white'
-                        }`}
-                      >
-                        <Heart className={`w-5 h-5 ${isLiked ? 'fill-current text-white' : ''}`} />
-                      </div>
-                      <span className="text-[10px] font-bold">Like</span>
-                    </button>
-
-                    {/* Send Tip Button */}
-                    <button
-                      onClick={() => setSelectedTipStream(s)}
-                      className="flex flex-col items-center gap-1 text-white cursor-pointer"
-                    >
-                      <div className="p-2.5 rounded-full bg-amber-500/90 hover:bg-amber-500 text-black shadow-lg shadow-amber-500/30 transition hover:scale-110">
-                        <Coins className="w-5 h-5 fill-current" />
-                      </div>
-                      <span className="text-[10px] font-bold text-amber-300">Tip</span>
-                    </button>
-
-                    {/* Share Button */}
-                    <button
-                      onClick={handleShare}
-                      className="flex flex-col items-center gap-1 text-white cursor-pointer"
-                    >
-                      <div className="p-2.5 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/10 hover:bg-black/80 transition hover:scale-110">
-                        {copiedLink ? <Check className="w-5 h-5 text-emerald-400" /> : <Share2 className="w-5 h-5" />}
-                      </div>
-                      <span className="text-[10px] font-bold">{copiedLink ? 'Copied' : 'Share'}</span>
-                    </button>
-
-                    {/* Watch Full Room Link */}
-                    <Link
-                      href={`/watch/${s.id}`}
-                      className="flex flex-col items-center gap-1 text-white cursor-pointer"
-                    >
-                      <div className="p-2.5 rounded-full bg-brandPurple/90 hover:bg-brandPurple text-white shadow-lg shadow-purple-500/30 transition hover:scale-110">
-                        <ArrowRight className="w-5 h-5" />
-                      </div>
-                      <span className="text-[10px] font-bold">Room</span>
-                    </Link>
-                  </div>
-
-                  {/* Bottom Stream Metadata & Enter Room Bar */}
-                  <div className="absolute left-4 right-18 bottom-5 z-20 space-y-2">
-                    <div>
-                      <h3 className="text-sm sm:text-base font-extrabold text-white leading-snug drop-shadow-md line-clamp-2">
-                        {s.title}
-                      </h3>
-                      <div className="flex items-center gap-2 text-xs text-gray-300 mt-1">
-                        <span className="font-bold text-white">@{s.streamer.displayName}</span>
-                        <span>•</span>
-                        <span className="text-brandPurple font-semibold">{s.category}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-nowrap touch-pan-x">
-                      <Link
-                        href={`/watch/${s.id}`}
-                        className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-brandPurple to-brandPink text-white text-xs font-black shadow-lg hover:scale-105 transition"
-                      >
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>Enter Full Room & Chat</span>
-                      </Link>
-
-                      {s.totalTokensEarned > 0 && (
-                        <span className="shrink-0 px-2.5 py-1.5 rounded-xl bg-black/60 backdrop-blur-md text-tokenGold border border-white/10 text-xs font-bold flex items-center gap-1">
-                          <Coins className="w-3.5 h-3.5" />
-                          <span>{s.totalTokensEarned} Tipped</span>
-                        </span>
-                      )}
-                    </div>
-                  </div>
                 </div>
               );
             })}
