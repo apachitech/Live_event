@@ -73,9 +73,17 @@ export default function SingleVodWatchPage() {
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         video.play().catch(() => {});
       });
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal && video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = vod.videoUrl;
+          video.play().catch(() => {});
+        }
+      });
     } else if (isHls && video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = vod.videoUrl;
-      video.play().catch(() => {});
+      const onLoaded = () => video.play().catch(() => {});
+      video.addEventListener('loadedmetadata', onLoaded, { once: true });
+      if (video.readyState >= 1) onLoaded();
     } else {
       video.src = vod.videoUrl;
       video.play().catch(() => {});
@@ -157,6 +165,10 @@ export default function SingleVodWatchPage() {
             ref={videoRef}
             controls
             playsInline
+            // @ts-ignore
+            webkit-playsinline="true"
+            x5-playsinline="true"
+            controlsList="nodownload"
             className="w-full h-full object-cover"
           />
         ) : (

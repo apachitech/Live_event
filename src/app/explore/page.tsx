@@ -418,12 +418,21 @@ function ExploreSlidePlayer({
       });
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) {
-          handleMediaError();
+          if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            video.src = currentSrc;
+            if (isActive) triggerPlay();
+          } else {
+            handleMediaError();
+          }
         }
       });
     } else if (isHls && video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = currentSrc;
-      if (isActive) {
+      const onLoaded = () => {
+        if (isActive) triggerPlay();
+      };
+      video.addEventListener('loadedmetadata', onLoaded, { once: true });
+      if (video.readyState >= 1 && isActive) {
         triggerPlay();
       }
     } else {
@@ -531,6 +540,10 @@ function ExploreSlidePlayer({
         preload="auto"
         autoPlay={isActive}
         playsInline
+        // @ts-ignore
+        webkit-playsinline="true"
+        x5-playsinline="true"
+        controlsList="nodownload"
         muted={!isActive || isMuted}
         loop
         onError={handleMediaError}

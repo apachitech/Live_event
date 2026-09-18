@@ -201,7 +201,22 @@ export default function BroadcastStudio({
             : true,
         };
 
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        let stream: MediaStream | null = null;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (initialErr: any) {
+          console.warn('Initial camera constraints failed, attempting universal browser fallback:', initialErr.message);
+          try {
+            // Relaxed universal constraints for Safari iOS, Firefox, and mobile browsers
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: true,
+              audio: true,
+            });
+          } catch (audioVideoErr) {
+            // Fallback to video only if audio device is occupied or unavailable
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          }
+        }
         activeStream = stream;
         setMediaStream(stream);
 
@@ -305,9 +320,17 @@ export default function BroadcastStudio({
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         video.play().catch(() => {});
       });
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal && video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = externalUrl;
+          video.play().catch(() => {});
+        }
+      });
     } else if (isHls && video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = externalUrl;
-      video.play().catch(() => {});
+      const onLoaded = () => video.play().catch(() => {});
+      video.addEventListener('loadedmetadata', onLoaded, { once: true });
+      if (video.readyState >= 1) onLoaded();
     } else {
       if (video.src !== externalUrl) {
         video.src = externalUrl;
@@ -418,8 +441,8 @@ export default function BroadcastStudio({
     }
 
     try {
-      if (!navigator.mediaDevices?.getDisplayMedia) {
-        alert('Screen sharing is not supported in this browser.');
+      if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getDisplayMedia) {
+        alert('Screen sharing is not supported on this device/browser (e.g. mobile Safari, iOS, or mobile Chrome). Please use a desktop browser to share your screen.');
         return;
       }
 
@@ -881,6 +904,9 @@ export default function BroadcastStudio({
             ref={screenPreviewRef}
             autoPlay
             playsInline
+            // @ts-ignore
+            webkit-playsinline="true"
+            x5-playsinline="true"
             muted
             className="absolute inset-0 w-full h-full object-contain bg-black z-0"
           />
@@ -893,6 +919,9 @@ export default function BroadcastStudio({
               ref={videoPreviewRef}
               autoPlay
               playsInline
+              // @ts-ignore
+              webkit-playsinline="true"
+              x5-playsinline="true"
               muted
               className={`${videoFit === 'cover' ? 'object-cover' : 'object-contain'} transition-all duration-300 ${
                 isScreenSharing
@@ -959,6 +988,9 @@ export default function BroadcastStudio({
                 ref={externalPreviewRef}
                 autoPlay
                 playsInline
+                // @ts-ignore
+                webkit-playsinline="true"
+                x5-playsinline="true"
                 muted
                 loop
                 className={`absolute inset-0 w-full h-full ${videoFit === 'cover' ? 'object-cover' : 'object-contain'} transition-all duration-300`}
