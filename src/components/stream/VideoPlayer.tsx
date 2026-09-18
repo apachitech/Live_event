@@ -187,10 +187,9 @@ export default function VideoPlayer({
       }
     };
 
-    // Only play direct media for external HLS/MP4 streams or when an explicit external URL is present
-    if (currentSourceType !== 'WEBRTC' || Boolean(currentExternalUrl)) {
-      playDirectMedia(resolvedVideoUrl);
-    }
+    // Always start direct media playback immediately so the broadcast opens instantly on all devices.
+    // When live broadcaster camera frames connect via WebRTC, pc.ontrack seamlessly takes over the video surface.
+    playDirectMedia(resolvedVideoUrl);
 
     // Concurrently attempt LiveKit cloud connection for WebRTC if configured
     if (currentSourceType === 'WEBRTC') {

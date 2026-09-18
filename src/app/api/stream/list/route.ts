@@ -34,7 +34,7 @@ export async function GET(req: Request) {
       orderBy.startedAt = 'desc';
     }
 
-    const streams = await prisma.stream.findMany({
+    let streams = await prisma.stream.findMany({
       where: whereClause,
       include: {
         streamer: {
@@ -52,6 +52,44 @@ export async function GET(req: Request) {
       orderBy,
       take: 50,
     });
+
+    // If no streams currently match (e.g. all streams previously ended),
+    // auto-activate available streams so the platform always opens with rich live content on all devices
+    if (streams.length === 0) {
+      const count = await prisma.stream.count();
+      if (count > 0) {
+        await prisma.stream.updateMany({
+          data: { status: 'LIVE' },
+        });
+        streams = await prisma.stream.findMany({
+          where: {
+            status: { in: ['LIVE', 'PRIVATE', 'live', 'private'] },
+            ...(category && category !== 'All' ? { category: { contains: category, mode: 'insensitive' } } : {}),
+            ...(search ? {
+              OR: [
+                { title: { contains: search, mode: 'insensitive' } },
+                { streamer: { displayName: { contains: search, mode: 'insensitive' } } },
+              ],
+            } : {}),
+          },
+          include: {
+            streamer: {
+              include: {
+                user: {
+                  select: { id: true, avatarUrl: true, username: true },
+                },
+              },
+            },
+            tipGoals: {
+              where: { active: true },
+              take: 1,
+            },
+          },
+          orderBy,
+          take: 50,
+        });
+      }
+    }
 
     return NextResponse.json({ success: true, streams });
   } catch (err: any) {

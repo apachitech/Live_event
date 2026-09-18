@@ -134,7 +134,17 @@ async function seed() {
       where: { streamerId: streamer.streamerProfile.id },
     });
 
-    if (!existingStream) {
+    if (existingStream) {
+      await prisma.stream.update({
+        where: { id: existingStream.id },
+        data: {
+          status: 'LIVE',
+          title: '🔥 Friday Cyber Night - Chill Beats & Ranked Matches',
+          externalStreamUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+          viewerCount: 42,
+        },
+      });
+    } else {
       const stream = await prisma.stream.create({
         data: {
           streamerId: streamer.streamerProfile.id,
@@ -146,6 +156,7 @@ async function seed() {
           totalTokensEarned: 840,
           startedAt: new Date(),
           privateRatePerMin: 75,
+          externalStreamUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
         },
       });
 
@@ -174,7 +185,17 @@ async function seed() {
       where: { streamerId: streamer2.streamerProfile.id },
     });
 
-    if (!existingStream2) {
+    if (existingStream2) {
+      await prisma.stream.update({
+        where: { id: existingStream2.id },
+        data: {
+          status: 'LIVE',
+          title: '🎨 Digital Art Workshop: Sci-Fi Character Concept',
+          externalStreamUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
+          viewerCount: 24,
+        },
+      });
+    } else {
       const stream2 = await prisma.stream.create({
         data: {
           streamerId: streamer2.streamerProfile.id,
@@ -182,10 +203,11 @@ async function seed() {
           category: 'Creative Arts',
           status: 'LIVE',
           roomName: `room_${streamer2.streamerProfile.id}`,
-          viewerCount: 18,
+          viewerCount: 24,
           totalTokensEarned: 320,
           startedAt: new Date(),
           privateRatePerMin: 60,
+          externalStreamUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
         },
       });
 
