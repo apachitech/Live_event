@@ -75,16 +75,18 @@ export function Footer() {
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             {t('footer.health', 'System Health')}
           </a>
-
-          {/* Language Switcher Dropdown in Footer */}
-          <div className="ml-2">
-            <LanguageSwitcher variant="dropdown" />
-          </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto border-t border-slate-900 mt-6 pt-6 flex flex-col sm:flex-row items-center justify-between text-slate-600 gap-4 text-center">
+      <div className="max-w-7xl mx-auto border-t border-slate-900 mt-6 pt-6 flex flex-col sm:flex-row items-center justify-between text-slate-500 gap-4 text-center">
         <p>© {new Date().getFullYear()} {siteName} Media Inc. {t('footer.rights', 'All rights reserved.')}</p>
+
+        {/* Dedicated Language Switcher in Footer */}
+        <div className="flex items-center gap-2.5">
+          <span className="text-xs text-slate-400 font-medium">{t('lang.title', 'Language')}:</span>
+          <LanguageSwitcher variant="pill" />
+        </div>
+
         <p>{t('footer.policy', 'Zero tolerance policy for illegal or non-consensual content.')}</p>
       </div>
     </footer>

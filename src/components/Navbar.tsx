@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useSiteConfig } from '@/context/SiteConfigContext';
 import { useLanguage } from '@/context/LanguageContext';
-import LanguageSwitcher from '@/components/common/LanguageSwitcher';
 import { Radio, Coins, Plus, Video, Shield, User, LogOut, ChevronDown, CheckCircle2, Film } from 'lucide-react';
 
 export default function Navbar() {
@@ -67,11 +66,8 @@ export default function Navbar() {
           </nav>
         </div>
 
-        {/* Right: Actions, Wallet, Language, Studio, and User Menu */}
+        {/* Right: Actions, Wallet, Studio, and User Menu */}
         <div className="flex items-center gap-2.5 sm:gap-3.5">
-          {/* Language Switcher */}
-          <LanguageSwitcher variant="pill" />
-
           {user ? (
             <>
               {/* Wallet Balance Pill */}

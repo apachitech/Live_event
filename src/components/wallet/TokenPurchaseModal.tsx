@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useSiteConfig } from '@/context/SiteConfigContext';
 import { useLanguage } from '@/context/LanguageContext';
-import LanguageSwitcher from '@/components/common/LanguageSwitcher';
 import { TOKEN_PACKAGES as FALLBACK_PACKAGES, TokenPackage } from '@/types';
 import { SupportedPaymentMethod } from '@/lib/payment';
 import { SUPPORTED_CRYPTO_CURRENCIES } from '@/lib/payment/cryptoAdapter';
@@ -135,16 +134,13 @@ export default function TokenPurchaseModal() {
               <p className="text-[11px] sm:text-xs text-gray-400">{t('modal.subtitle', 'Tipping, tip menus, fan club subs & private 1:1 shows')}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <LanguageSwitcher variant="pill" />
-            <button
-              onClick={closePurchaseModal}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-surfaceLight transition"
-              aria-label="Close Modal"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+          <button
+            onClick={closePurchaseModal}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-surfaceLight transition"
+            aria-label="Close Modal"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* 2. Scrollable Body (Adaptive Proportions & Custom Scrollbar) */}
