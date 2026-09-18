@@ -537,7 +537,9 @@ export default function BroadcastStudio({
     if (!isLive || !streamId || !mediaStream) return;
 
     const socket: Socket = io();
+    // Map of active peer connections and their candidate queues
     const peerConnections = new Map<string, RTCPeerConnection>();
+    const pendingCandidates = new Map<string, RTCIceCandidateInit[]>();
 
     const ICE_CONFIG: RTCConfiguration = {
       iceServers: [
@@ -551,21 +553,32 @@ export default function BroadcastStudio({
       user: { id: `broadcaster_${streamId}`, username: 'Broadcaster', role: 'STREAMER' },
     });
 
-    // Announce broadcaster live camera availability
+    // Announce broadcaster live camera availability initially and periodically for new viewers
     socket.emit('webrtc_broadcaster_ready', { streamId });
     const readyInterval = setInterval(() => {
       socket.emit('webrtc_broadcaster_ready', { streamId });
-    }, 4000);
+    }, 8000);
 
     // When a viewer joins and requests the live camera feed:
     socket.on('webrtc_viewer_joined', async ({ viewerSocketId, streamId: targetStreamId }: any) => {
       if (targetStreamId !== streamId) return;
 
+      const existingPc = peerConnections.get(viewerSocketId);
+      // If already connected and streaming stably to this viewer, do not interrupt playback
+      if (
+        existingPc &&
+        (existingPc.connectionState === 'connected' || existingPc.iceConnectionState === 'connected') &&
+        existingPc.signalingState === 'stable'
+      ) {
+        return;
+      }
+
       try {
-        if (peerConnections.has(viewerSocketId)) {
-          peerConnections.get(viewerSocketId)?.close();
+        if (existingPc) {
+          existingPc.close();
           peerConnections.delete(viewerSocketId);
         }
+        pendingCandidates.delete(viewerSocketId);
 
         const pc = new RTCPeerConnection(ICE_CONFIG);
         peerConnections.set(viewerSocketId, pc);
@@ -582,6 +595,13 @@ export default function BroadcastStudio({
               candidate: event.candidate,
               streamId,
             });
+          }
+        };
+
+        pc.onconnectionstatechange = () => {
+          if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+            peerConnections.delete(viewerSocketId);
+            pendingCandidates.delete(viewerSocketId);
           }
         };
 
@@ -604,9 +624,16 @@ export default function BroadcastStudio({
     // When a viewer sends back SDP answer:
     socket.on('webrtc_signal_answer', async ({ viewerSocketId, answer }: any) => {
       const pc = peerConnections.get(viewerSocketId);
-      if (pc && pc.signalingState !== 'closed') {
+      if (pc && pc.signalingState === 'have-local-offer') {
         try {
           await pc.setRemoteDescription(new RTCSessionDescription(answer));
+
+          // Flush any pending ICE candidates queued before remote description was set
+          const queued = pendingCandidates.get(viewerSocketId) || [];
+          for (const cand of queued) {
+            await pc.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {});
+          }
+          pendingCandidates.delete(viewerSocketId);
         } catch (err) {
           console.warn('WebRTC setRemoteDescription error on broadcaster:', err);
         }
@@ -618,7 +645,13 @@ export default function BroadcastStudio({
       const pc = peerConnections.get(fromSocketId);
       if (pc && pc.signalingState !== 'closed' && candidate) {
         try {
-          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          if (pc.remoteDescription) {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          } else {
+            const list = pendingCandidates.get(fromSocketId) || [];
+            list.push(candidate);
+            pendingCandidates.set(fromSocketId, list);
+          }
         } catch (err) {
           console.warn('WebRTC addIceCandidate error on broadcaster:', err);
         }
@@ -629,6 +662,7 @@ export default function BroadcastStudio({
       clearInterval(readyInterval);
       peerConnections.forEach((pc) => pc.close());
       peerConnections.clear();
+      pendingCandidates.clear();
       socket.disconnect();
     };
   }, [isLive, streamId, mediaStream]);

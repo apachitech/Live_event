@@ -175,10 +175,12 @@ export default function VideoPlayer({
       }
     };
 
-    // Immediately start media playback from frame 0
-    playDirectMedia(resolvedVideoUrl);
+    // Only play direct media for external HLS/MP4 streams or when an explicit external URL is present
+    if (currentSourceType !== 'WEBRTC' || Boolean(currentExternalUrl)) {
+      playDirectMedia(resolvedVideoUrl);
+    }
 
-    // Concurrently attempt LiveKit cloud connection for WebRTC
+    // Concurrently attempt LiveKit cloud connection for WebRTC if configured
     if (currentSourceType === 'WEBRTC') {
       fetch('/api/stream/token', {
         method: 'POST',
@@ -218,6 +220,8 @@ export default function VideoPlayer({
     let directPc: RTCPeerConnection | null = null;
     const socket: Socket = io();
     let currentBroadcasterSocketId: string | null = null;
+    let pendingViewerCandidates: RTCIceCandidateInit[] = [];
+    let isTrackReceiving = false;
 
     const ICE_CONFIG: RTCConfiguration = {
       iceServers: [
@@ -232,30 +236,56 @@ export default function VideoPlayer({
         user: { id: `viewer_${Math.random().toString(36).substring(2, 8)}`, username: 'Viewer', role: 'VIEWER' },
       });
 
-      // Request stream from broadcaster
+      // Request stream from broadcaster initially
       socket.emit('webrtc_viewer_join', { streamId });
 
+      // When broadcaster announces readiness, only request join if we do not already have active streaming video
       socket.on('webrtc_broadcaster_available', () => {
+        if (
+          directPc &&
+          (directPc.connectionState === 'connected' || directPc.iceConnectionState === 'connected') &&
+          isTrackReceiving
+        ) {
+          return;
+        }
         socket.emit('webrtc_viewer_join', { streamId });
       });
 
       socket.on('webrtc_signal_offer', async ({ broadcasterSocketId, offer, streamId: targetStreamId }: any) => {
         if (targetStreamId !== streamId || isCancelled) return;
+
+        // If we already have a stable, actively flowing stream from this broadcaster, don't restart it
+        if (
+          directPc &&
+          (directPc.connectionState === 'connected' || directPc.iceConnectionState === 'connected') &&
+          directPc.signalingState === 'stable' &&
+          isTrackReceiving
+        ) {
+          return;
+        }
+
         currentBroadcasterSocketId = broadcasterSocketId;
 
         if (directPc) {
           directPc.close();
         }
+        pendingViewerCandidates = [];
 
         const pc = new RTCPeerConnection(ICE_CONFIG);
         directPc = pc;
 
         pc.ontrack = (event) => {
           if (event.streams && event.streams[0] && video) {
-            video.srcObject = event.streams[0];
-            video.play().catch(() => {});
-            setHasRemoteVideo(true);
-            setConnectionType('LIVEKIT_WEBRTC');
+            isTrackReceiving = true;
+            if (video.srcObject !== event.streams[0]) {
+              if (video.src) {
+                video.removeAttribute('src');
+              }
+              video.srcObject = event.streams[0];
+              video.play().catch(() => {});
+              setHasRemoteVideo(true);
+              setConnectionType('LIVEKIT_WEBRTC');
+            }
           }
         };
 
@@ -269,8 +299,23 @@ export default function VideoPlayer({
           }
         };
 
+        pc.onconnectionstatechange = () => {
+          if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+            isTrackReceiving = false;
+            // Attempt seamless reconnect
+            socket.emit('webrtc_viewer_join', { streamId });
+          }
+        };
+
         try {
           await pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+          // Flush any early arriving ICE candidates
+          while (pendingViewerCandidates.length > 0) {
+            const cand = pendingViewerCandidates.shift();
+            if (cand) await pc.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {});
+          }
+
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
 
@@ -287,7 +332,11 @@ export default function VideoPlayer({
       socket.on('webrtc_ice_candidate', async ({ candidate }: any) => {
         if (directPc && directPc.signalingState !== 'closed' && candidate) {
           try {
-            await directPc.addIceCandidate(new RTCIceCandidate(candidate));
+            if (directPc.remoteDescription) {
+              await directPc.addIceCandidate(new RTCIceCandidate(candidate));
+            } else {
+              pendingViewerCandidates.push(candidate);
+            }
           } catch (err) {
             console.warn('WebRTC viewer addIceCandidate error:', err);
           }
@@ -489,7 +538,6 @@ export default function VideoPlayer({
         {/* Video Surface */}
         <video
           ref={videoElementRef}
-          src={resolvedVideoUrl}
           autoPlay
           playsInline
           muted={muted}

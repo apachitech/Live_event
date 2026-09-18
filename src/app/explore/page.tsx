@@ -197,30 +197,58 @@ function ExploreSlidePlayer({
         user: { id: `explore_viewer_${Math.random().toString(36).substring(2, 7)}`, username: 'ExploreViewer', role: 'VIEWER' },
       });
 
+      let pendingExploreCandidates: RTCIceCandidateInit[] = [];
+      let isExploreTrackReceiving = false;
+
       socket.emit('webrtc_viewer_join', { streamId: stream.id });
 
       socket.on('webrtc_broadcaster_available', () => {
+        if (
+          directPc &&
+          (directPc.connectionState === 'connected' || directPc.iceConnectionState === 'connected') &&
+          isExploreTrackReceiving
+        ) {
+          return;
+        }
         socket.emit('webrtc_viewer_join', { streamId: stream.id });
       });
 
       socket.on('webrtc_signal_offer', async ({ broadcasterSocketId, offer, streamId: targetStreamId }: any) => {
         if (targetStreamId !== stream.id || isCancelled) return;
+
+        // If actively and stably receiving video from this broadcaster, don't interrupt playback
+        if (
+          directPc &&
+          (directPc.connectionState === 'connected' || directPc.iceConnectionState === 'connected') &&
+          directPc.signalingState === 'stable' &&
+          isExploreTrackReceiving
+        ) {
+          return;
+        }
+
         currentBroadcasterSocketId = broadcasterSocketId;
 
         if (directPc) {
           directPc.close();
         }
+        pendingExploreCandidates = [];
 
         const pc = new RTCPeerConnection(ICE_CONFIG);
         directPc = pc;
 
         pc.ontrack = (event) => {
           if (event.streams && event.streams[0] && videoRef.current) {
-            videoRef.current.srcObject = event.streams[0];
-            videoRef.current.play().catch(() => {});
-            setHasRemoteWebRtcTrack(true);
-            setIsLoaded(true);
-            setAutoplayBlocked(false);
+            isExploreTrackReceiving = true;
+            if (videoRef.current.srcObject !== event.streams[0]) {
+              if (videoRef.current.src) {
+                videoRef.current.removeAttribute('src');
+              }
+              videoRef.current.srcObject = event.streams[0];
+              videoRef.current.play().catch(() => {});
+              setHasRemoteWebRtcTrack(true);
+              setIsLoaded(true);
+              setAutoplayBlocked(false);
+            }
           }
         };
 
@@ -234,8 +262,22 @@ function ExploreSlidePlayer({
           }
         };
 
+        pc.onconnectionstatechange = () => {
+          if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+            isExploreTrackReceiving = false;
+            socket.emit('webrtc_viewer_join', { streamId: stream.id });
+          }
+        };
+
         try {
           await pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+          // Flush any pending ICE candidates
+          while (pendingExploreCandidates.length > 0) {
+            const cand = pendingExploreCandidates.shift();
+            if (cand) await pc.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {});
+          }
+
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
 
@@ -252,7 +294,11 @@ function ExploreSlidePlayer({
       socket.on('webrtc_ice_candidate', async ({ candidate }: any) => {
         if (directPc && directPc.signalingState !== 'closed' && candidate) {
           try {
-            await directPc.addIceCandidate(new RTCIceCandidate(candidate));
+            if (directPc.remoteDescription) {
+              await directPc.addIceCandidate(new RTCIceCandidate(candidate));
+            } else {
+              pendingExploreCandidates.push(candidate);
+            }
           } catch (err) {
             console.warn('WebRTC explore addIceCandidate error:', err);
           }
