@@ -123,7 +123,7 @@ export default function VideoPlayer({
   const resolvedVideoUrl =
     currentExternalUrl ||
     externalStreamUrl ||
-    'https://res.cloudinary.com/demo/video/upload/sample.mp4';
+    'https://vjs.zencdn.net/v/oceans.mp4';
 
   // Unified Stream Playback Engine (LiveKit WebRTC + HLS + MP4 Direct Ingest Fallback)
   useEffect(() => {

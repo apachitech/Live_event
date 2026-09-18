@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import Hls from 'hls.js';
+import { Room, RoomEvent, RemoteTrack } from 'livekit-client';
 import { useAuth } from '@/context/AuthContext';
 import {
   Radio,
@@ -20,6 +21,7 @@ import {
   Laptop,
   ArrowRight,
   Sparkles,
+  Play,
 } from 'lucide-react';
 import SendTipModal from '@/components/stream/SendTipModal';
 
@@ -44,6 +46,9 @@ interface ExploreStream {
 }
 
 const CATEGORIES = ['All', 'Gaming & Music', 'Creative Arts', 'Just Chatting', 'Interactive Shows'];
+
+const RELIABLE_FALLBACK_URL = 'https://vjs.zencdn.net/v/oceans.mp4';
+const RELIABLE_HLS_URL = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
 
 interface SlidePlayerProps {
   stream: ExploreStream;
@@ -74,24 +79,115 @@ function ExploreSlidePlayer({
 }: SlidePlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const livekitRoomRef = useRef<Room | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+  const [hasRemoteWebRtcTrack, setHasRemoteWebRtcTrack] = useState(false);
 
-  const videoSrc =
-    stream.externalStreamUrl ||
-    stream.recordingUrl ||
-    'https://res.cloudinary.com/demo/video/upload/sample.mp4';
+  // Compute clean initial media source with verified fallback
+  const computeInitialSrc = () => {
+    const raw = stream.externalStreamUrl || stream.recordingUrl;
+    if (raw && !raw.includes('sample.mp4')) {
+      return raw;
+    }
+    return stream.category === 'Gaming & Music' ? RELIABLE_HLS_URL : RELIABLE_FALLBACK_URL;
+  };
+
+  const [currentSrc, setCurrentSrc] = useState(computeInitialSrc);
 
   const streamerName = stream.streamer?.displayName || 'Streamer';
   const streamerAvatar =
     stream.streamer?.user?.avatarUrl ||
     'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80';
 
-  const isHls = videoSrc.includes('.m3u8');
+  const isHls = currentSrc.includes('.m3u8');
 
-  // Video attachment and playback effect
+  // Attempt playback and monitor browser autoplay policy
+  const triggerPlay = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || !isActive) return;
+
+    video.muted = isMuted;
+    const playPromise = video.play();
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          setAutoplayBlocked(false);
+          setIsLoaded(true);
+        })
+        .catch((err) => {
+          if (err.name === 'NotAllowedError') {
+            setAutoplayBlocked(true);
+          }
+        });
+    }
+  }, [isActive, isMuted]);
+
+  // Handle direct stream error (e.g. broken 3rd party URL) by switching to reliable backup
+  const handleMediaError = () => {
+    if (currentSrc !== RELIABLE_FALLBACK_URL) {
+      console.warn('Explore feed stream source error. Falling back to reliable media:', currentSrc);
+      setCurrentSrc(RELIABLE_FALLBACK_URL);
+    }
+  };
+
+  // 1. LiveKit WebRTC Connection (for live broadcasters streaming from studio)
+  useEffect(() => {
+    if (!isActive) {
+      if (livekitRoomRef.current) {
+        livekitRoomRef.current.disconnect();
+        livekitRoomRef.current = null;
+      }
+      setHasRemoteWebRtcTrack(false);
+      return;
+    }
+
+    let isCancelled = false;
+
+    if (stream.sourceType === 'WEBRTC') {
+      fetch('/api/stream/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ streamId: stream.id }),
+      })
+        .then((res) => res.json())
+        .then(async (data) => {
+          if (isCancelled) return;
+          const { serverUrl, participantToken } = data?.credentials || {};
+          if (serverUrl && (serverUrl.startsWith('wss://') || serverUrl.startsWith('ws://'))) {
+            const room = new Room({ adaptiveStream: true, dynacast: true });
+            livekitRoomRef.current = room;
+
+            room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
+              if (track.kind === 'video' && videoRef.current) {
+                track.attach(videoRef.current);
+                setHasRemoteWebRtcTrack(true);
+                setIsLoaded(true);
+                setAutoplayBlocked(false);
+              }
+            });
+
+            await room.connect(serverUrl, participantToken);
+          }
+        })
+        .catch((err) => {
+          console.warn('Explore WebRTC subscriber notice:', err);
+        });
+    }
+
+    return () => {
+      isCancelled = true;
+      if (livekitRoomRef.current) {
+        livekitRoomRef.current.disconnect();
+        livekitRoomRef.current = null;
+      }
+    };
+  }, [isActive, stream.id, stream.sourceType]);
+
+  // 2. Direct HLS or MP4 Media Playback Engine (when no active WebRTC track is attached)
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || hasRemoteWebRtcTrack) return;
 
     if (isHls && Hls.isSupported()) {
       if (hlsRef.current) {
@@ -99,29 +195,29 @@ function ExploreSlidePlayer({
       }
       const hls = new Hls({ enableWorker: true, lowLatencyMode: true });
       hlsRef.current = hls;
-      hls.loadSource(videoSrc);
+      hls.loadSource(currentSrc);
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         if (isActive) {
-          video.play().catch(() => {});
+          triggerPlay();
         }
       });
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) {
-          console.warn('HLS feed notice:', data.details);
+          handleMediaError();
         }
       });
     } else if (isHls && video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = videoSrc;
+      video.src = currentSrc;
       if (isActive) {
-        video.play().catch(() => {});
+        triggerPlay();
       }
     } else {
-      if (video.src !== videoSrc) {
-        video.src = videoSrc;
+      if (video.src !== currentSrc) {
+        video.src = currentSrc;
       }
       if (isActive) {
-        video.play().catch(() => {});
+        triggerPlay();
       }
     }
 
@@ -131,21 +227,21 @@ function ExploreSlidePlayer({
         hlsRef.current = null;
       }
     };
-  }, [videoSrc, isHls, isActive]);
+  }, [currentSrc, isHls, isActive, hasRemoteWebRtcTrack, triggerPlay]);
 
-  // Active state listener (play when active, pause when inactive)
+  // 3. Sync Active / Inactive playback
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     if (isActive) {
-      video.play().catch(() => {});
+      triggerPlay();
     } else {
       video.pause();
     }
-  }, [isActive]);
+  }, [isActive, triggerPlay]);
 
-  // Mute state sync
+  // 4. Sync Mute status
   useEffect(() => {
     const video = videoRef.current;
     if (video) {
@@ -182,16 +278,43 @@ function ExploreSlidePlayer({
         playsInline
         muted={isMuted}
         loop
+        onError={handleMediaError}
         onLoadedData={() => setIsLoaded(true)}
         onPlaying={() => setIsLoaded(true)}
         className="absolute inset-0 w-full h-full object-cover z-10"
       />
 
+      {/* Autoplay Blocked Interactivity Prompt */}
+      {autoplayBlocked && isActive && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 backdrop-blur-sm pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => {
+              const video = videoRef.current;
+              if (video) {
+                video.muted = isMuted;
+                video
+                  .play()
+                  .then(() => {
+                    setAutoplayBlocked(false);
+                    setIsLoaded(true);
+                  })
+                  .catch(() => {});
+              }
+            }}
+            className="px-6 py-3 rounded-2xl bg-gradient-to-r from-brandPurple to-pink-600 text-white font-extrabold text-sm shadow-2xl flex items-center gap-2 hover:scale-105 transition"
+          >
+            <Play className="w-5 h-5 fill-current" />
+            <span>Tap to Watch Live</span>
+          </button>
+        </div>
+      )}
+
       {/* Subtle Gradient Overlays for Controls Readability */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-transparent to-black/90 pointer-events-none z-10" />
 
       {/* Tap for Sound Banner when Muted */}
-      {isMuted && isActive && (
+      {isMuted && isActive && !autoplayBlocked && (
         <button
           type="button"
           onClick={onToggleMute}
