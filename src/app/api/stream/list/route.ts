@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { ensureStarterLiveStreams } from '@/lib/starterStreams';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,15 +9,6 @@ export async function GET(req: Request) {
     const category = searchParams.get('category');
     const search = searchParams.get('search');
     const sort = searchParams.get('sort') || 'trending';
-
-    // Check if initial streams should be populated
-    const totalActive = await prisma.stream.count({
-      where: { status: { in: ['LIVE', 'PRIVATE', 'live', 'private'] } },
-    });
-
-    if (totalActive === 0) {
-      await ensureStarterLiveStreams();
-    }
 
     const whereClause: any = {
       status: { in: ['LIVE', 'PRIVATE', 'live', 'private'] },
