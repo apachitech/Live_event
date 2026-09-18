@@ -150,12 +150,14 @@ npm run db:seed
 
 ---
 
-### 4.5. Streamer Payout Approval Queue
+### 4.5. Streamer Payout Approval Queue & SasPay Mobile Money
 - **Location:** `/admin` (or `/admin#payouts`)
 - **Capabilities:**
-  - Broadcasters with verified KYC submit cashout requests once they hit the minimum token threshold.
-  - Admin reviews requested token deductions and corresponding USD amounts.
-  - Single-click **Approve** (marks payout completed and generates payment reference) or **Reject** (refunds earned tokens back to the streamer's balance).
+  - Broadcasters submit cashout requests to **SasPay Mobile Money** (Wave, Orange Money, MTN MoMo, Moov Money), **Crypto** (USDT/SOL), or **VaultPay Card**.
+  - Admin reviews requested token deductions and corresponding USD/FCFA amounts.
+  - Single-click **Approve**: Dispatches the payout directly through SasPay's B2C API (`/payouts/initialize/`) to the streamer's phone or wallet in seconds.
+  - Single-click **Reject**: Refunds the earned tokens back to the streamer's wallet balance.
+  - *Full integration guide & server IP whitelisting rules:* See [SASPAY-INGEST.md](file:///c:/Users/XPRISTO/Desktop/tva/Live_event/SASPAY-INGEST.md).
 
 ---
 
@@ -181,6 +183,7 @@ npm run db:seed
 | **Advertisements Manager** | `/admin/ads` | Create, manage, and monitor sponsored banners and swipe ads |
 | **Moderation Queue** | `/admin/moderation` | Review flagged content, reports, and user compliance |
 | **Change Data Audit Logs** | `/admin/audit` | View immutable audit trail logs for all administrative actions |
+| **SasPay Mobile Money Guide** | `SASPAY-INGEST.md` | API credentials, operator codes, and IP whitelisting instructions |
 
 ---
 

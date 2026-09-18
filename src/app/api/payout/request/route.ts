@@ -65,6 +65,17 @@ export async function POST(req: Request) {
       }
     }
 
+    // Validate SasPay Mobile Money if selected
+    if (payoutMethod === 'SASPAY_MOBILE_MONEY' || payoutMethod === 'MOBILE_MONEY') {
+      const phone = payoutDetails?.phoneNumber || payoutDetails?.walletAddress || payoutDetails?.phone || '';
+      const cleanPhone = phone.replace(/\D/g, '');
+      if (cleanPhone.length < 8) {
+        return NextResponse.json({
+          error: 'Please provide a valid Mobile Money phone number (at least 8 digits) for SasPay payout.',
+        }, { status: 400 });
+      }
+    }
+
     // Cashout rate: 1 earned token = $0.05 USD = 5 cents
     const payoutAmountCents = tokens * 5;
 

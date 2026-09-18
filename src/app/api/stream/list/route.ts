@@ -61,17 +61,17 @@ export async function GET(req: Request) {
         await prisma.stream.updateMany({
           data: { status: 'LIVE' },
         });
-        streams = await prisma.stream.findMany({
+        streams = (await prisma.stream.findMany({
           where: {
             status: { in: ['LIVE', 'PRIVATE', 'live', 'private'] },
-            ...(category && category !== 'All' ? { category: { contains: category, mode: 'insensitive' } } : {}),
+            ...(category && category !== 'All' ? { category: { contains: category } } : {}),
             ...(search ? {
               OR: [
-                { title: { contains: search, mode: 'insensitive' } },
-                { streamer: { displayName: { contains: search, mode: 'insensitive' } } },
+                { title: { contains: search } },
+                { streamer: { displayName: { contains: search } } },
               ],
             } : {}),
-          },
+          } as any,
           include: {
             streamer: {
               include: {
@@ -87,7 +87,7 @@ export async function GET(req: Request) {
           },
           orderBy,
           take: 50,
-        });
+        })) as any;
       }
     }
 

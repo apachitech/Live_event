@@ -13,7 +13,9 @@ export async function POST(req: Request) {
 
     // Detect payment provider from webhook headers or payload attributes
     let providerMethod: SupportedPaymentMethod = 'CRYPTO';
-    if (headersObj['x-vaultpay-signature'] || rawBody.includes('vaultpay_') || rawBody.includes('vcard_')) {
+    if (headersObj['x-saspay-signature'] || rawBody.includes('saspay_') || rawBody.includes('checkout.session') || (rawBody.includes('payment.successful') && rawBody.includes('saspay'))) {
+      providerMethod = 'SASPAY';
+    } else if (headersObj['x-vaultpay-signature'] || rawBody.includes('vaultpay_') || rawBody.includes('vcard_')) {
       providerMethod = 'VAULTPAY';
     } else if (headersObj['x-nowpayments-sig'] || (rawBody.includes('payment_status') && rawBody.includes('pay_amount')) || rawBody.includes('crypto_')) {
       providerMethod = 'CRYPTO';

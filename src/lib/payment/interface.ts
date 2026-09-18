@@ -1,6 +1,13 @@
 import { TokenPackage } from '@/types';
 
-export type SupportedPaymentMethod = 'STRIPE' | 'CCBILL' | 'MOBILE_MONEY' | 'LEMON_SQUEEZY' | 'CRYPTO' | 'VAULTPAY' | 'MOCK';
+export type SupportedPaymentMethod = 'STRIPE' | 'CCBILL' | 'MOBILE_MONEY' | 'LEMON_SQUEEZY' | 'CRYPTO' | 'VAULTPAY' | 'SASPAY' | 'MOCK';
+
+export interface SasPayOptions {
+  phoneNumber?: string;
+  country?: string; // 'CI' | 'BJ' | 'SN' | 'CM' | 'TG' | 'BF'
+  operator?: string; // 'wave' | 'orange' | 'mtn' | 'moov' | 'djamo' | 'card'
+  currency?: string; // 'XOF' | 'XAF' | 'USD'
+}
 
 export interface MobileMoneyOptions {
   country: string; // 'KE' | 'NG' | 'GH' | 'CI' | 'SN' | 'UG' | 'CM' | 'ZA' | 'RW'
@@ -28,6 +35,7 @@ export interface CheckoutSessionResult {
   checkoutUrl: string;
   provider: string;
   mobileMoneyDetails?: MobileMoneyOptions;
+  sasPayDetails?: SasPayOptions;
   cryptoDetails?: {
     payAddress?: string;
     payAmount?: number;
@@ -57,7 +65,8 @@ export interface PaymentProcessor {
     cancelUrl: string,
     mobileMoneyOptions?: MobileMoneyOptions,
     cryptoOptions?: CryptoPaymentOptions,
-    vaultPayOptions?: VaultPayOptions
+    vaultPayOptions?: VaultPayOptions,
+    sasPayOptions?: SasPayOptions
   ): Promise<CheckoutSessionResult>;
   verifyWebhookEvent(body: string, headers: Record<string, string | string[] | undefined>): Promise<{
     verified: boolean;

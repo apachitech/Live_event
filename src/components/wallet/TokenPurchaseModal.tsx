@@ -7,6 +7,7 @@ import { TOKEN_PACKAGES as FALLBACK_PACKAGES, TokenPackage } from '@/types';
 import { SupportedPaymentMethod } from '@/lib/payment';
 import { SUPPORTED_CRYPTO_CURRENCIES } from '@/lib/payment/cryptoAdapter';
 import { SAMPLE_VAULTPAY_CARDS } from '@/lib/payment/vaultPayAdapter';
+import { SUPPORTED_SASPAY_NETWORKS } from '@/lib/payment/sasPayAdapter';
 import {
   Coins,
   X,
@@ -28,7 +29,7 @@ export default function TokenPurchaseModal() {
   const activePackages = dynamicPackages && dynamicPackages.length > 0 ? dynamicPackages : FALLBACK_PACKAGES;
 
   const [selectedPackage, setSelectedPackage] = useState<TokenPackage>(activePackages[1] || activePackages[0]);
-  const [paymentMethod, setPaymentMethod] = useState<SupportedPaymentMethod>('CRYPTO');
+  const [paymentMethod, setPaymentMethod] = useState<SupportedPaymentMethod>('SASPAY');
 
   // Keep selectedPackage synced if admin updates packages dynamically
   useEffect(() => {
@@ -39,6 +40,10 @@ export default function TokenPurchaseModal() {
       }
     }
   }, [activePackages]);
+
+  // SasPay Mobile Money state
+  const [sasPayNetwork, setSasPayNetwork] = useState('wave_ci');
+  const [sasPayPhone, setSasPayPhone] = useState('');
 
   // Cryptocurrency state
   const [selectedCrypto, setSelectedCrypto] = useState('usdttrc20');
@@ -61,12 +66,22 @@ export default function TokenPurchaseModal() {
   const handleCheckout = async () => {
     setLoading(true);
     try {
+      const selectedNet = SUPPORTED_SASPAY_NETWORKS.find((n) => n.code === sasPayNetwork);
       const res = await fetch('/api/wallet/purchase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           packageId: selectedPackage.id,
           paymentMethod,
+          sasPayOptions:
+            paymentMethod === 'SASPAY'
+              ? {
+                  phoneNumber: sasPayPhone ? sasPayPhone.replace(/\s+/g, '') : undefined,
+                  operator: sasPayNetwork,
+                  country: selectedNet?.country || 'CI',
+                  currency: selectedNet?.currency || 'XOF',
+                }
+              : undefined,
           cryptoOptions:
             paymentMethod === 'CRYPTO'
               ? {
@@ -188,7 +203,20 @@ export default function TokenPurchaseModal() {
             <label className="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-2">
               2. Choose Payment Method:
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <button
+                type="button"
+                onClick={() => setPaymentMethod('SASPAY')}
+                className={`p-2.5 sm:p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition transform hover:scale-[1.01] active:scale-95 ${
+                  paymentMethod === 'SASPAY'
+                    ? 'border-emerald-500 bg-emerald-500/20 text-white font-bold shadow-sm shadow-emerald-500/20 ring-1 ring-emerald-500/50'
+                    : 'border-surfaceBorder bg-surfaceLight/50 text-gray-400 hover:border-gray-600 hover:text-gray-200'
+                }`}
+              >
+                <Smartphone className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
+                <span className="text-[11px] sm:text-xs font-semibold text-center">Mobile Money (SasPay)</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setPaymentMethod('CRYPTO')}
@@ -199,7 +227,7 @@ export default function TokenPurchaseModal() {
                 }`}
               >
                 <Bitcoin className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
-                <span className="text-[11px] sm:text-xs font-semibold">Crypto (USDT/BTC)</span>
+                <span className="text-[11px] sm:text-xs font-semibold text-center">Crypto (USDT/BTC)</span>
               </button>
 
               <button
@@ -212,7 +240,7 @@ export default function TokenPurchaseModal() {
                 }`}
               >
                 <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
-                <span className="text-[11px] sm:text-xs font-semibold">Pay with Card (Visa | MC)</span>
+                <span className="text-[11px] sm:text-xs font-semibold text-center">Card (Visa | MC)</span>
               </button>
 
               <button
@@ -225,10 +253,84 @@ export default function TokenPurchaseModal() {
                 }`}
               >
                 <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-tokenGold" />
-                <span className="text-[11px] sm:text-xs font-semibold">Sandbox Test</span>
+                <span className="text-[11px] sm:text-xs font-semibold text-center">Sandbox Test</span>
               </button>
             </div>
           </div>
+
+          {/* 2.3 SasPay Mobile Money & Cards Panel */}
+          {paymentMethod === 'SASPAY' && (
+            <div className="p-3.5 sm:p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 space-y-3 animate-fade-in">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
+                  <Smartphone className="w-4 h-4" />
+                  <span>Mobile Money & Cards (saspay.me)</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] text-emerald-300 font-semibold">
+                  <span>${(selectedPackage.priceCents / 100).toFixed(2)} USD</span>
+                  <span>≈</span>
+                  <span className="font-bold text-white">
+                    {Math.round((selectedPackage.priceCents / 100) * 600).toLocaleString()} FCFA
+                  </span>
+                </div>
+              </div>
+
+              {/* Supported Networks Pills */}
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-300 mb-1.5">
+                  Select Mobile Money Operator or Card:
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-36 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-zinc-700">
+                  {SUPPORTED_SASPAY_NETWORKS.map((net) => {
+                    const isSelected = sasPayNetwork === net.code;
+                    return (
+                      <button
+                        key={net.code}
+                        type="button"
+                        onClick={() => setSasPayNetwork(net.code)}
+                        className={`px-2.5 py-2 rounded-xl border text-left flex items-center justify-between gap-1.5 transition transform hover:scale-[1.01] ${
+                          isSelected
+                            ? 'border-emerald-400 bg-emerald-500/20 text-white shadow-sm ring-1 ring-emerald-400/50'
+                            : 'border-surfaceBorder bg-surfaceLight/40 text-gray-300 hover:border-gray-500'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: net.badgeColor }}
+                          />
+                          <span className="text-[11px] font-medium truncate">{net.name}</span>
+                        </div>
+                        {isSelected && <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Direct Phone Number Prompt (Optional Push) */}
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-300 mb-1">
+                  Mobile Money Phone Number (Optional for Instant Push):
+                </label>
+                <div className="relative">
+                  <input
+                    type="tel"
+                    placeholder="e.g. +225 07 00 00 00 00 or 97505050"
+                    value={sasPayPhone}
+                    onChange={(e) => setSasPayPhone(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs tracking-wider font-mono focus:outline-none focus:border-emerald-400 placeholder:text-gray-500"
+                  />
+                  <span className="absolute right-3 top-2 text-[10px] text-gray-400 font-semibold">
+                    Wave • Orange • MTN • Moov
+                  </span>
+                </div>
+                <p className="mt-1 text-[10px] text-gray-400">
+                  Leave blank to complete payment on the official <strong>SasPay Hosted Checkout</strong> page.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* 2.3 Cryptocurrency Selection Panel & Mobile Money Helper */}
           {paymentMethod === 'CRYPTO' && (
@@ -492,7 +594,9 @@ export default function TokenPurchaseModal() {
                 <Coins className="w-4 h-4 text-black shrink-0" />
                 <span>
                   Buy {selectedPackage.tokens} Tokens with{' '}
-                  {paymentMethod === 'VAULTPAY'
+                  {paymentMethod === 'SASPAY'
+                    ? 'Mobile Money (SasPay)'
+                    : paymentMethod === 'VAULTPAY'
                     ? 'Card (Visa | MC)'
                     : paymentMethod === 'CRYPTO'
                     ? `Crypto (${selectedCrypto.toUpperCase().replace('TRC20', ' TRC-20').replace('ERC20', ' ERC-20')})`

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { TOKEN_PACKAGES as DEFAULT_PACKAGES, TokenPackage } from '@/types';
-import { getPaymentProcessor, SupportedPaymentMethod, MobileMoneyOptions, CryptoPaymentOptions, VaultPayOptions } from '@/lib/payment';
+import { getPaymentProcessor, SupportedPaymentMethod, MobileMoneyOptions, CryptoPaymentOptions, VaultPayOptions, SasPayOptions } from '@/lib/payment';
 
 export async function POST(req: Request) {
   try {
@@ -18,6 +18,7 @@ export async function POST(req: Request) {
       mobileMoneyOptions,
       cryptoOptions,
       vaultPayOptions,
+      sasPayOptions,
     }: {
       packageId: string;
       returnUrl?: string;
@@ -25,6 +26,7 @@ export async function POST(req: Request) {
       mobileMoneyOptions?: MobileMoneyOptions;
       cryptoOptions?: CryptoPaymentOptions;
       vaultPayOptions?: VaultPayOptions;
+      sasPayOptions?: SasPayOptions;
     } = await req.json();
 
     // Check dynamic packages from DB
@@ -59,7 +61,8 @@ export async function POST(req: Request) {
       returnUrl || defaultReturn,
       mobileMoneyOptions,
       cryptoOptions,
-      vaultPayOptions
+      vaultPayOptions,
+      sasPayOptions
     );
 
     return NextResponse.json({ success: true, checkout });

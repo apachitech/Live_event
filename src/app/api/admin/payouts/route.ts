@@ -48,12 +48,32 @@ export async function POST(req: Request) {
     }
 
     if (action === 'APPROVE') {
-      // Execute payout through processor (Stripe Connect / CCBill wire / Mock)
-      const execution = await paymentProcessor.processStreamerPayout(
+      const payoutDetails = payout.streamer.payoutDetails ? JSON.parse(payout.streamer.payoutDetails) : null;
+      const method = payout.streamer.payoutMethod || '';
+
+      const { getPaymentProcessor } = await import('@/lib/payment');
+      let processorToUse = paymentProcessor;
+
+      if (method.startsWith('SASPAY') || method === 'MOBILE_MONEY' || payoutDetails?.provider === 'SASPAY' || payoutDetails?.operator) {
+        processorToUse = getPaymentProcessor('SASPAY');
+      } else if (method.startsWith('CRYPTO') || payoutDetails?.network || payoutDetails?.walletAddress) {
+        processorToUse = getPaymentProcessor('CRYPTO');
+      } else if (method.startsWith('VAULTPAY') || payoutDetails?.isVirtualCard || payoutDetails?.cardNumber) {
+        processorToUse = getPaymentProcessor('VAULTPAY');
+      }
+
+      // Execute payout through selected processor
+      const execution = await processorToUse.processStreamerPayout(
         payout.streamerId,
         payout.payoutAmountCents,
-        payout.streamer.payoutDetails ? JSON.parse(payout.streamer.payoutDetails) : null
+        payoutDetails
       );
+
+      if (!execution.success) {
+        return NextResponse.json({
+          error: execution.error || 'Disbursement execution failed. Check provider logs or balance.',
+        }, { status: 400 });
+      }
 
       const updated = await prisma.payout.update({
         where: { id: payoutId },
