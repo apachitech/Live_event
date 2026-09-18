@@ -4,7 +4,16 @@ import Link from 'next/link';
 import { useSiteConfig } from '@/context/SiteConfigContext';
 
 export function Footer() {
-  const { siteName, siteDescription } = useSiteConfig();
+  const { siteName, siteDescription, contentRating } = useSiteConfig();
+
+  const isAdult = contentRating === 'ADULT';
+  const isKids = contentRating === 'KIDS';
+
+  const defaultDescription = isKids
+    ? 'Family & youth safe live broadcast platform. Encouraging creativity, learning, and fun for all ages.'
+    : isAdult
+    ? 'Global interactive live broadcast & content economy platform. All performers are verified adults aged 18 or older.'
+    : 'Global interactive live broadcast platform for gaming, creative arts, music, podcasts, and community.';
 
   return (
     <footer className="w-full border-t border-slate-800 bg-slate-950 text-slate-400 text-xs py-10 px-6 mt-auto">
@@ -14,19 +23,39 @@ export function Footer() {
             <span className="font-bold text-white text-base tracking-wider bg-gradient-to-r from-rose-500 to-indigo-500 bg-clip-text text-transparent uppercase">
               {siteName}
             </span>
-            <span className="bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-semibold px-2 py-0.5 rounded-full">
-              18+ ADULTS ONLY
-            </span>
+            {isAdult ? (
+              <span className="bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-black px-2 py-0.5 rounded-full">
+                18+ ADULTS ONLY
+              </span>
+            ) : isKids ? (
+              <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-black px-2 py-0.5 rounded-full">
+                KIDS & FAMILY SAFE
+              </span>
+            ) : (
+              <span className="bg-blue-500/20 text-blue-400 border border-blue-500/30 text-[10px] font-black px-2 py-0.5 rounded-full">
+                ALL AGES
+              </span>
+            )}
           </div>
           <p className="text-slate-500 max-w-md text-xs">
-            {siteDescription || 'Global interactive live broadcast & content economy platform. All performers are verified adults aged 18 or older.'}
+            {siteDescription || defaultDescription}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-6 font-medium">
-          <Link href="/compliance-2257" className="hover:text-white transition-colors">
-            18 U.S.C. 2257 Statement
-          </Link>
+          {isAdult ? (
+            <Link href="/compliance-2257" className="hover:text-white transition-colors">
+              18 U.S.C. 2257 Statement
+            </Link>
+          ) : isKids ? (
+            <Link href="/terms" className="hover:text-emerald-400 transition-colors">
+              Child Safety & Family Policy
+            </Link>
+          ) : (
+            <Link href="/terms" className="hover:text-blue-400 transition-colors">
+              Community Guidelines
+            </Link>
+          )}
           <Link href="/terms" className="hover:text-white transition-colors">
             Terms of Service
           </Link>

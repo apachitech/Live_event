@@ -8,7 +8,7 @@ import { Radio, Coins, Plus, Video, Shield, User, LogOut, ChevronDown, CheckCirc
 
 export default function Navbar() {
   const { user, logout, openPurchaseModal } = useAuth();
-  const { siteName, siteTagline } = useSiteConfig();
+  const { siteName, siteTagline, contentRating } = useSiteConfig();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   return (
@@ -23,10 +23,19 @@ export default function Navbar() {
             </div>
             <div className="flex flex-col">
               <span className="text-lg font-black tracking-tight text-white flex items-center gap-1.5 uppercase">
-                {siteName}
+                <span>{siteName}</span>
+                {contentRating === 'ADULT' ? (
+                  <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                    18+
+                  </span>
+                ) : contentRating === 'KIDS' ? (
+                  <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    Kids
+                  </span>
+                ) : null}
               </span>
               <span className="text-[9px] tracking-widest text-gray-400 uppercase -mt-1 font-bold truncate max-w-[160px]">
-                {siteTagline || 'Live Monetized Cam'}
+                {siteTagline || (contentRating === 'KIDS' ? 'Kids & Family Safe' : contentRating === 'GENERAL' ? 'Live Streaming' : 'Live Cam')}
               </span>
             </div>
           </Link>

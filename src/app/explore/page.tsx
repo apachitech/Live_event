@@ -6,6 +6,7 @@ import Hls from 'hls.js';
 import { Room, RoomEvent, RemoteTrack } from 'livekit-client';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/context/AuthContext';
+import { useSiteConfig } from '@/context/SiteConfigContext';
 import {
   Radio,
   Users,
@@ -58,7 +59,36 @@ interface ExploreStream {
   };
 }
 
-const CATEGORIES = ['All', 'Gaming & Music', 'Creative Arts', 'Just Chatting', 'Interactive Shows'];
+const ADULT_CATEGORIES = [
+  'All',
+  'Featured',
+  'Women',
+  'Men',
+  'Couples',
+  'Trans',
+  'VR Shows',
+  'VIP Private',
+];
+
+const KIDS_CATEGORIES = [
+  'All',
+  'Gaming & Fun',
+  'Cartoons & Anime',
+  'Arts & Crafts',
+  'Science & Nature',
+  'Storytime & Music',
+  'Family Fun',
+];
+
+const GENERAL_CATEGORIES = [
+  'All',
+  'Gaming & Esports',
+  'Creative & Art',
+  'Music & Concerts',
+  'Just Chatting',
+  'Podcasts & Tech',
+  'Fitness & Sports',
+];
 
 const RELIABLE_FALLBACK_URL = 'https://vjs.zencdn.net/v/oceans.mp4';
 const RELIABLE_HLS_URL = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
@@ -800,6 +830,15 @@ function ExploreAdSlide({
 
 export default function MobileExploreFeed() {
   const { user } = useAuth();
+  const { contentRating } = useSiteConfig();
+
+  const categories =
+    contentRating === 'KIDS'
+      ? KIDS_CATEGORIES
+      : contentRating === 'GENERAL'
+      ? GENERAL_CATEGORIES
+      : ADULT_CATEGORIES;
+
   const [streams, setStreams] = useState<ExploreStream[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -1010,7 +1049,7 @@ export default function MobileExploreFeed() {
       {/* Top Filter Ribbon (Category Pills - Scrollable Left-Right on Mobile & Laptops) */}
       <div className="absolute top-2 inset-x-0 z-30 flex items-center justify-between px-4 max-w-2xl mx-auto pointer-events-none">
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 flex-nowrap touch-pan-x pointer-events-auto bg-black/40 backdrop-blur-md p-1 rounded-2xl border border-white/10 shadow-lg">
-          {CATEGORIES.map((cat) => (
+          {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}

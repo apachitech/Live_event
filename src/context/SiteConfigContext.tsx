@@ -4,11 +4,14 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { io, Socket } from 'socket.io-client';
 import { TokenPackage, TOKEN_PACKAGES as DEFAULT_PACKAGES } from '@/types';
 
+export type ContentRatingMode = 'ADULT' | 'KIDS' | 'GENERAL';
+
 interface SiteConfigContextType {
   siteName: string;
   siteTagline: string;
   siteDescription: string;
   supportEmail: string;
+  contentRating: ContentRatingMode;
   tokenPackages: TokenPackage[];
   tokenExchangeRateCents: number;
   revenueSplitStreamerPercent: number;
@@ -23,6 +26,7 @@ const SiteConfigContext = createContext<SiteConfigContextType>({
   siteTagline: 'Live Interactive Monetized Streaming Platform',
   siteDescription: 'Public stream rooms, virtual currency economy, interactive tipping menus, and private shows.',
   supportEmail: 'support@pulsestream.live',
+  contentRating: 'ADULT',
   tokenPackages: DEFAULT_PACKAGES,
   tokenExchangeRateCents: 5,
   revenueSplitStreamerPercent: 70,
@@ -39,6 +43,7 @@ export function SiteConfigProvider({ children }: { children: React.ReactNode }) 
     'Public stream rooms, virtual currency economy, interactive tipping menus, and private shows.'
   );
   const [supportEmail, setSupportEmail] = useState<string>('support@pulsestream.live');
+  const [contentRating, setContentRating] = useState<ContentRatingMode>('ADULT');
   const [tokenPackages, setTokenPackages] = useState<TokenPackage[]>(DEFAULT_PACKAGES);
   const [tokenExchangeRateCents, setTokenExchangeRateCents] = useState<number>(5);
   const [revenueSplitStreamerPercent, setRevenueSplitStreamerPercent] = useState<number>(70);
@@ -92,10 +97,11 @@ export function SiteConfigProvider({ children }: { children: React.ReactNode }) 
         parseInt(settings.revenueSplitStreamerPercent || settings.REVENUE_SPLIT_STREAMER_PERCENT, 10) || 70
       );
     }
-    if (settings.minPayoutTokens || settings.MIN_PAYOUT_THRESHOLD_TOKENS) {
-      setMinPayoutTokens(
-        parseInt(settings.minPayoutTokens || settings.MIN_PAYOUT_THRESHOLD_TOKENS, 10) || 1000
-      );
+    if (settings.contentRating || settings.SITE_CONTENT_RATING || settings.CONTENT_RATING) {
+      const rating = String(settings.contentRating || settings.SITE_CONTENT_RATING || settings.CONTENT_RATING).toUpperCase();
+      if (['ADULT', 'KIDS', 'GENERAL'].includes(rating)) {
+        setContentRating(rating as any);
+      }
     }
   }, []);
 
@@ -135,6 +141,7 @@ export function SiteConfigProvider({ children }: { children: React.ReactNode }) 
         siteTagline,
         siteDescription,
         supportEmail,
+        contentRating,
         tokenPackages,
         tokenExchangeRateCents,
         revenueSplitStreamerPercent,

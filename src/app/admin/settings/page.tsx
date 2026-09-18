@@ -39,6 +39,7 @@ function AdminSettingsContent() {
     'Public stream rooms, virtual currency economy, interactive tipping menus, and private shows.'
   );
   const [supportEmail, setSupportEmail] = useState('support@pulsestream.live');
+  const [contentRating, setContentRating] = useState<'ADULT' | 'KIDS' | 'GENERAL'>('ADULT');
 
   // Economics & Rules State
   const [streamerSplit, setStreamerSplit] = useState('70');
@@ -81,6 +82,9 @@ function AdminSettingsContent() {
         setSiteTagline(data.settings.SITE_TAGLINE || '');
         setSiteDescription(data.settings.SITE_DESCRIPTION || '');
         setSupportEmail(data.settings.SUPPORT_EMAIL || '');
+        if (data.settings.SITE_CONTENT_RATING) {
+          setContentRating(data.settings.SITE_CONTENT_RATING as any);
+        }
         setStreamerSplit(data.settings.REVENUE_SPLIT_STREAMER_PERCENT || '70');
         setMinPayoutTokens(data.settings.MIN_PAYOUT_THRESHOLD_TOKENS || '1000');
         setChatRateLimit(data.settings.CHAT_RATE_LIMIT_MESSAGES || '5');
@@ -147,12 +151,13 @@ function AdminSettingsContent() {
             SITE_TAGLINE: siteTagline.trim(),
             SITE_DESCRIPTION: siteDescription.trim(),
             SUPPORT_EMAIL: supportEmail.trim(),
+            SITE_CONTENT_RATING: contentRating,
           },
         }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        showNotice('success', 'Site Branding saved! Applied across the platform immediately.');
+        showNotice('success', 'Site Branding & Content Rating saved! Applied platform-wide immediately.');
         reloadConfig();
       } else {
         showNotice('error', data.error || 'Failed to update branding');
@@ -172,6 +177,7 @@ function AdminSettingsContent() {
       'Public stream rooms, virtual currency economy, interactive tipping menus, and private shows.'
     );
     setSupportEmail('support@pulsestream.live');
+    setContentRating('ADULT');
   };
 
   // Save Token Packages & Pricing
@@ -490,6 +496,113 @@ function AdminSettingsContent() {
             />
           </div>
 
+          {/* Platform Audience & Content Classification */}
+          <div className="space-y-2 pt-2 border-t border-surfaceBorder">
+            <div>
+              <label className="text-xs font-bold text-white uppercase tracking-wider block">
+                Platform Audience & Content Classification Mode *
+              </label>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                Determine the regulatory posture, age gates, compliance badges, and safety rules for the entire site.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+              {/* ADULT ONLY 18+ */}
+              <div
+                onClick={() => setContentRating('ADULT')}
+                className={`p-4 rounded-xl border cursor-pointer transition flex flex-col justify-between gap-3 ${
+                  contentRating === 'ADULT'
+                    ? 'bg-rose-500/15 border-rose-500 text-white shadow-md'
+                    : 'bg-surfaceLight/40 border-surfaceBorder text-gray-400 hover:border-gray-600'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-lg">🔞</span>
+                    <span
+                      className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                        contentRating === 'ADULT' ? 'bg-rose-500 text-white' : 'bg-surfaceLight text-gray-400'
+                      }`}
+                    >
+                      18+ Adult
+                    </span>
+                  </div>
+                  <h4 className="text-xs font-black text-white">Adult Only (18+)</h4>
+                  <p className="text-[11px] text-gray-300 mt-1 leading-relaxed">
+                    Mandatory 18+ age verification gate, 18 U.S.C. § 2257 record-keeping statement, and adult economy disclaimers.
+                  </p>
+                </div>
+                <div className="text-[10px] font-semibold text-rose-400">
+                  • 18+ DOB Gate Active<br />
+                  • 2257 Record-Keeping Active
+                </div>
+              </div>
+
+              {/* KIDS & FAMILY SAFE */}
+              <div
+                onClick={() => setContentRating('KIDS')}
+                className={`p-4 rounded-xl border cursor-pointer transition flex flex-col justify-between gap-3 ${
+                  contentRating === 'KIDS'
+                    ? 'bg-emerald-500/15 border-emerald-500 text-white shadow-md'
+                    : 'bg-surfaceLight/40 border-surfaceBorder text-gray-400 hover:border-gray-600'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-lg">🧸</span>
+                    <span
+                      className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                        contentRating === 'KIDS' ? 'bg-emerald-500 text-white' : 'bg-surfaceLight text-gray-400'
+                      }`}
+                    >
+                      Kids Safe
+                    </span>
+                  </div>
+                  <h4 className="text-xs font-black text-white">Kids & Family Safe</h4>
+                  <p className="text-[11px] text-gray-300 mt-1 leading-relaxed">
+                    Child & family safe streaming (cartoons, gaming, arts, learning). COPPA compliant, no 18+ gate popup.
+                  </p>
+                </div>
+                <div className="text-[10px] font-semibold text-emerald-400">
+                  • 18+ Gate Bypassed<br />
+                  • Family Safety Rules Active
+                </div>
+              </div>
+
+              {/* GENERAL AUDIENCE */}
+              <div
+                onClick={() => setContentRating('GENERAL')}
+                className={`p-4 rounded-xl border cursor-pointer transition flex flex-col justify-between gap-3 ${
+                  contentRating === 'GENERAL'
+                    ? 'bg-blue-500/15 border-blue-500 text-white shadow-md'
+                    : 'bg-surfaceLight/40 border-surfaceBorder text-gray-400 hover:border-gray-600'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-lg">🎮</span>
+                    <span
+                      className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                        contentRating === 'GENERAL' ? 'bg-blue-500 text-white' : 'bg-surfaceLight text-gray-400'
+                      }`}
+                    >
+                      All Ages
+                    </span>
+                  </div>
+                  <h4 className="text-xs font-black text-white">General / Standard (All Ages)</h4>
+                  <p className="text-[11px] text-gray-300 mt-1 leading-relaxed">
+                    Twitch/YouTube style live broadcasts (gaming, music, podcasts, tech). Standard 13+ community guidelines.
+                  </p>
+                </div>
+                <div className="text-[10px] font-semibold text-blue-400">
+                  • Mainstream Live Stream<br />
+                  • Standard 13+ Community Rules
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Live Preview Card */}
           <div className="p-4 rounded-xl bg-surfaceLight/40 border border-surfaceBorder/80 space-y-2">
             <span className="text-[11px] font-bold text-purple-300 uppercase tracking-wider">
@@ -500,7 +613,24 @@ function AdminSettingsContent() {
                 {siteName.charAt(0) || 'P'}
               </div>
               <div>
-                <span className="text-base font-black text-white tracking-wide">{siteName}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-base font-black text-white tracking-wide">{siteName}</span>
+                  <span
+                    className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${
+                      contentRating === 'ADULT'
+                        ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                        : contentRating === 'KIDS'
+                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                        : 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                    }`}
+                  >
+                    {contentRating === 'ADULT'
+                      ? '18+ ADULTS ONLY'
+                      : contentRating === 'KIDS'
+                      ? 'KIDS & FAMILY SAFE'
+                      : 'ALL AGES'}
+                  </span>
+                </div>
                 <p className="text-[11px] text-gray-400">{siteTagline}</p>
               </div>
             </div>

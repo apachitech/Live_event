@@ -31,6 +31,7 @@ export async function GET() {
           map['SITE_DESCRIPTION'] ||
           'Public stream rooms, virtual currency economy, interactive tipping menus, and private shows.',
         supportEmail: map['SUPPORT_EMAIL'] || 'support@pulsestream.live',
+        contentRating: (map['SITE_CONTENT_RATING'] || map['CONTENT_RATING'] || 'ADULT').toUpperCase(),
         tokenPackages,
         tokenExchangeRateCents: parseInt(map['TOKEN_EXCHANGE_RATE_CENTS'] || '5', 10),
         revenueSplitStreamerPercent: parseInt(map['REVENUE_SPLIT_STREAMER_PERCENT'] || '70', 10),

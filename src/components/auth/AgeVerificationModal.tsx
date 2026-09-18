@@ -2,14 +2,19 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useSiteConfig } from '@/context/SiteConfigContext';
 import { ShieldAlert, CheckSquare, Square, Calendar, AlertCircle } from 'lucide-react';
 
 export default function AgeVerificationModal() {
   const { user, isAgeModalOpen, closeAgeModal, refreshUser } = useAuth();
+  const { contentRating } = useSiteConfig();
   const [birthDate, setBirthDate] = useState('');
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // If content rating is KIDS or GENERAL, 18+ gate is bypassed completely
+  if (contentRating !== 'ADULT') return null;
 
   // If user is already age verified or modal is closed, don't show
   if (!isAgeModalOpen && (!user || user.ageVerified)) return null;

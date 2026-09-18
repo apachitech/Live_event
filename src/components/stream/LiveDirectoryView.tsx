@@ -4,8 +4,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Radio, Users, Coins, Search, Sparkles, Play, RefreshCw, ExternalLink, Megaphone } from 'lucide-react';
 import LiveStreamCard, { LiveStreamItem } from './LiveStreamCard';
+import { useSiteConfig } from '@/context/SiteConfigContext';
 
-const CATEGORIES = ['All', 'Gaming & Music', 'Creative Arts', 'Just Chatting', 'Interactive Shows'];
+const ADULT_CATEGORIES = ['All', 'Gaming & Music', 'Creative Arts', 'Just Chatting', 'Interactive Shows'];
+const KIDS_CATEGORIES = ['All', 'Cartoons & Animation', 'Family Gaming', 'Learning & Crafts', 'Music & Fun'];
+const GENERAL_CATEGORIES = ['All', 'Gaming & Esports', 'Creative & Art', 'Music & Performance', 'Podcasts & Tech'];
 
 interface LiveDirectoryViewProps {
   initialCategory?: string;
@@ -20,6 +23,14 @@ interface AdItem {
 }
 
 export default function LiveDirectoryView({ initialCategory = 'All' }: LiveDirectoryViewProps) {
+  const { contentRating } = useSiteConfig();
+  const categories =
+    contentRating === 'KIDS'
+      ? KIDS_CATEGORIES
+      : contentRating === 'GENERAL'
+      ? GENERAL_CATEGORIES
+      : ADULT_CATEGORIES;
+
   const [streams, setStreams] = useState<LiveStreamItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -175,7 +186,7 @@ export default function LiveDirectoryView({ initialCategory = 'All' }: LiveDirec
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         {/* Category Pill Filters */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-none">
-          {CATEGORIES.map((cat) => {
+          {categories.map((cat) => {
             const isSelected = selectedCategory === cat;
             return (
               <button

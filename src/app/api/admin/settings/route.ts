@@ -37,6 +37,7 @@ export async function GET() {
           settingsMap['SITE_DESCRIPTION'] ||
           'Public stream rooms, virtual currency economy, interactive tipping menus, and private shows.',
         SUPPORT_EMAIL: settingsMap['SUPPORT_EMAIL'] || 'support@pulsestream.live',
+        SITE_CONTENT_RATING: settingsMap['SITE_CONTENT_RATING'] || settingsMap['CONTENT_RATING'] || 'ADULT',
         REVENUE_SPLIT_STREAMER_PERCENT: settingsMap['REVENUE_SPLIT_STREAMER_PERCENT'] || '70',
         MIN_PAYOUT_THRESHOLD_TOKENS: settingsMap['MIN_PAYOUT_THRESHOLD_TOKENS'] || '1000',
         CHAT_RATE_LIMIT_MESSAGES: settingsMap['CHAT_RATE_LIMIT_MESSAGES'] || '5',

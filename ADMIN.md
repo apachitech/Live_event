@@ -74,16 +74,33 @@ npm run db:seed
 
 ## 4. Admin Feature Suite & Operations
 
-### 4.1. Site Name & Branding CRUD
+### 4.1. Site Name, Branding & Audience Classification
 - **Location:** `/admin/settings?tab=branding`
 - **Capabilities:**
-  - **Site Name (Brand Title):** Update the brand name (e.g. from `PulseStream` to your company or project name).
+  - **Site Name (Brand Title):** Update the brand name (e.g. from `PulseStream` to your custom company, adult cam brand, or kids entertainment name).
   - **Site Tagline & Slogan:** Customize the platform tagline shown under logos and headers.
   - **Meta Description:** Set SEO descriptions for search engines and social cards.
   - **Support Email:** Update customer support and billing contact email.
+  - **Audience & Content Classification Mode (`SITE_CONTENT_RATING`):**
+    Allows the Admin to choose one of three platform operation modes with 1 click:
+    1. **Adult 18+ Cam & Economy (`ADULT`):**
+       - Enforces the 18+ Date-of-Birth Age Verification Modal (`AgeVerificationModal`) across visitor sessions.
+       - Navbar displays red `18+` pill next to brand.
+       - Footer renders compliance notices and 18 U.S.C. § 2257 Record-Keeping Compliance Statement links.
+       - Directory & Explore Feed categories adapt to adult cam categories (*Featured, Women, Men, Couples, Trans, VR Shows, VIP Private*).
+    2. **Kids & Family Safe (`KIDS`):**
+       - Completely silences and bypasses the 18+ Age Verification Modal.
+       - Navbar displays emerald `Kids` badge.
+       - Footer renders `KIDS & FAMILY SAFE` badge, links to Child Safety Guidelines, and hides adult 2257 statements.
+       - Directory & Explore Feed categories adapt to family-friendly categories (*Gaming & Fun, Cartoons & Anime, Arts & Crafts, Science & Nature, Storytime & Music, Family Fun*).
+    3. **General (All Ages / Mainstream) (`GENERAL`):**
+       - Standard streaming platform mode (Twitch/YouTube style).
+       - Silences the 18+ Age Verification Modal.
+       - Footer renders `ALL AGES` badge and links to Community Guidelines.
+       - Directory & Explore Feed categories adapt to mainstream genres (*Gaming & Esports, Creative & Art, Music & Concerts, Just Chatting, Podcasts & Tech, Fitness & Sports*).
 - **Global Real-Time Propagation:**
-  - Changes are stored in `PlatformSetting` and broadcast via real-time WebSockets (`site_settings_updated`).
-  - Automatically updates the **Navbar logo**, **Footer brand**, **Token Purchase Modals**, and **Browser Tab Title (`document.title`)** without requiring users to refresh the page.
+  - Changes are stored in `PlatformSetting` (`SITE_NAME`, `SITE_CONTENT_RATING`, etc.) and broadcast via real-time WebSockets (`site_settings_updated`).
+  - Automatically updates the **Navbar logo**, **Footer brand**, **Age Gate Modal**, **Category Ribbon**, **Token Purchase Modals**, and **Browser Tab Title (`document.title`)** without requiring users to refresh the page.
   - Includes a "Reset to Defaults" button to restore original branding anytime.
 
 ---
