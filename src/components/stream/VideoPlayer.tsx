@@ -4,7 +4,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Room, RoomEvent, RemoteTrack } from 'livekit-client';
 import { io, Socket } from 'socket.io-client';
 import Hls from 'hls.js';
-import { Volume2, VolumeX, Maximize, Maximize2, Radio, Users, Sparkles, Wifi, Play, Globe, Camera, CameraOff, Smartphone, Laptop } from 'lucide-react';
+import { Volume2, VolumeX, Maximize, Maximize2, Radio, Users, Sparkles, Wifi, Play, Globe, Camera, CameraOff, Smartphone, Laptop, Monitor } from 'lucide-react';
 
 interface VideoPlayerProps {
   streamId: string;
@@ -518,11 +518,17 @@ export default function VideoPlayer({
           </div>
 
           <div className="shrink-0 text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-gray-300 border border-white/10 flex items-center gap-1.5">
-            {connectionType === 'CLOUDINARY_EMBED' ? (
+            {currentSourceType === 'RTMP' ? (
+              <>
+                <Monitor className="w-3 h-3 text-amber-400 animate-pulse" />
+                <span className="text-amber-300 hidden sm:inline">OBS Studio Live</span>
+                <span className="text-amber-300 sm:hidden">OBS Live</span>
+              </>
+            ) : connectionType === 'CLOUDINARY_EMBED' || currentSourceType === 'EXTERNAL_EMBED' ? (
               <>
                 <Globe className="w-3 h-3 text-cyan-400 animate-pulse" />
-                <span className="text-cyan-300 hidden sm:inline">Cloudinary Stream</span>
-                <span className="text-cyan-300 sm:hidden">Cloudinary</span>
+                <span className="text-cyan-300 hidden sm:inline">External Feed</span>
+                <span className="text-cyan-300 sm:hidden">External</span>
               </>
             ) : connectionType === 'HLS_STREAM' ? (
               <>
@@ -533,8 +539,8 @@ export default function VideoPlayer({
             ) : connectionType === 'LIVEKIT_WEBRTC' ? (
               <>
                 <Wifi className="w-3 h-3 text-emerald-400" />
-                <span className="hidden sm:inline">LiveKit WebRTC</span>
-                <span className="sm:hidden">WebRTC</span>
+                <span className="hidden sm:inline">Live Studio WebRTC</span>
+                <span className="sm:hidden">Studio</span>
               </>
             ) : (
               <>

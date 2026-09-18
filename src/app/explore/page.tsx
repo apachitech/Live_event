@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import Hls from 'hls.js';
 import { Room, RoomEvent, RemoteTrack } from 'livekit-client';
+import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/context/AuthContext';
 import {
   Radio,
@@ -22,6 +23,9 @@ import {
   ArrowRight,
   Sparkles,
   Play,
+  Camera,
+  Globe,
+  Monitor,
 } from 'lucide-react';
 import SendTipModal from '@/components/stream/SendTipModal';
 
@@ -84,16 +88,47 @@ function ExploreSlidePlayer({
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [hasRemoteWebRtcTrack, setHasRemoteWebRtcTrack] = useState(false);
 
+  // Dynamic source type state (synced with real-time socket events)
+  const [effectiveSourceType, setEffectiveSourceType] = useState(stream.sourceType || 'WEBRTC');
+
   // Compute clean initial media source with verified fallback
-  const computeInitialSrc = () => {
+  const computeInitialSrc = useCallback(() => {
     const raw = stream.externalStreamUrl || stream.recordingUrl;
     if (raw && !raw.includes('sample.mp4')) {
       return raw;
     }
     return stream.category === 'Gaming & Music' ? RELIABLE_HLS_URL : RELIABLE_FALLBACK_URL;
-  };
+  }, [stream.externalStreamUrl, stream.recordingUrl, stream.category]);
 
   const [currentSrc, setCurrentSrc] = useState(computeInitialSrc);
+
+  // Real-time stream source synchronization via Socket.IO
+  useEffect(() => {
+    setEffectiveSourceType(stream.sourceType || 'WEBRTC');
+  }, [stream.sourceType]);
+
+  useEffect(() => {
+    const socket: Socket = io();
+    socket.emit('join_room', {
+      streamId: stream.id,
+      user: { id: 'explore_slide_viewer', username: 'ExploreViewer', role: 'VIEWER' },
+    });
+
+    socket.on('stream_source_changed', (payload: any) => {
+      if (payload.streamId === stream.id) {
+        if (payload.sourceType) {
+          setEffectiveSourceType(payload.sourceType);
+        }
+        if (payload.externalStreamUrl) {
+          setCurrentSrc(payload.externalStreamUrl);
+        }
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [stream.id]);
 
   const streamerName = stream.streamer?.displayName || 'Streamer';
   const streamerAvatar =
@@ -123,7 +158,7 @@ function ExploreSlidePlayer({
     }
   }, [isActive, isMuted]);
 
-  // Handle direct stream error (e.g. broken 3rd party URL) by switching to reliable backup
+  // Handle direct stream error by switching to reliable backup
   const handleMediaError = () => {
     if (currentSrc !== RELIABLE_FALLBACK_URL) {
       console.warn('Explore feed stream source error. Falling back to reliable media:', currentSrc);
@@ -131,7 +166,7 @@ function ExploreSlidePlayer({
     }
   };
 
-  // 1. LiveKit WebRTC Connection (for live broadcasters streaming from studio)
+  // 1. LiveKit WebRTC Connection (used for Studio Broadcast & OBS RTMP Ingress)
   useEffect(() => {
     if (!isActive) {
       if (livekitRoomRef.current) {
@@ -144,7 +179,8 @@ function ExploreSlidePlayer({
 
     let isCancelled = false;
 
-    if (stream.sourceType === 'WEBRTC') {
+    // Both WEBRTC Studio broadcast and OBS RTMP Ingress connect to LiveKit room
+    if (effectiveSourceType === 'WEBRTC' || effectiveSourceType === 'RTMP') {
       fetch('/api/stream/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -171,7 +207,7 @@ function ExploreSlidePlayer({
           }
         })
         .catch((err) => {
-          console.warn('Explore WebRTC subscriber notice:', err);
+          console.warn('Explore WebRTC/OBS subscriber notice:', err);
         });
     }
 
@@ -182,9 +218,9 @@ function ExploreSlidePlayer({
         livekitRoomRef.current = null;
       }
     };
-  }, [isActive, stream.id, stream.sourceType]);
+  }, [isActive, stream.id, effectiveSourceType]);
 
-  // 2. Direct HLS or MP4 Media Playback Engine (when no active WebRTC track is attached)
+  // 2. Direct HLS or MP4 Media Playback Engine (used for External Feed or fallback)
   useEffect(() => {
     const video = videoRef.current;
     if (!video || hasRemoteWebRtcTrack) return;
@@ -251,22 +287,48 @@ function ExploreSlidePlayer({
 
   return (
     <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden select-none">
-      {/* Background Poster Stage with Broadcaster Photo (Shows while loading) */}
+      {/* Background Poster Stage with Broadcaster Photo (Shows while connecting or buffering) */}
       <div className="absolute inset-0 w-full h-full bg-[#0a0a12] flex items-center justify-center z-0 overflow-hidden">
         <img
           src={streamerAvatar}
           alt={streamerName}
           className="w-full h-full object-cover blur-2xl opacity-35 scale-125 pointer-events-none"
         />
+
         {!isLoaded && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 z-10">
-            <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-brandPurple mb-3 shadow-2xl animate-pulse">
-              <img src={streamerAvatar} alt={streamerName} className="w-full h-full object-cover" />
-            </div>
-            <div className="text-xs font-bold text-white flex items-center gap-1.5 bg-black/70 px-3.5 py-1.5 rounded-full border border-white/10 shadow-lg">
-              <Radio className="w-3.5 h-3.5 text-red-500 animate-ping" />
-              <span>Live Broadcast Connected</span>
-            </div>
+            {/* Mode-Specific Standby Graphic */}
+            {effectiveSourceType === 'RTMP' ? (
+              <>
+                <div className="relative w-20 h-20 rounded-2xl overflow-hidden border-2 border-amber-500 mb-3 shadow-2xl animate-pulse bg-surfaceLight flex items-center justify-center">
+                  <Monitor className="w-10 h-10 text-amber-400" />
+                </div>
+                <div className="text-xs font-bold text-amber-300 flex items-center gap-1.5 bg-black/80 px-3.5 py-1.5 rounded-full border border-amber-500/30 shadow-lg">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                  <span>OBS Studio Ingest Live • Streaming from OBS</span>
+                </div>
+              </>
+            ) : effectiveSourceType === 'EXTERNAL_EMBED' ? (
+              <>
+                <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-cyan-500 mb-3 shadow-2xl animate-pulse">
+                  <img src={streamerAvatar} alt={streamerName} className="w-full h-full object-cover" />
+                </div>
+                <div className="text-xs font-bold text-cyan-300 flex items-center gap-1.5 bg-black/80 px-3.5 py-1.5 rounded-full border border-cyan-500/30 shadow-lg">
+                  <Globe className="w-3.5 h-3.5 animate-spin" />
+                  <span>External Feed Connected</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-brandPurple mb-3 shadow-2xl animate-pulse">
+                  <img src={streamerAvatar} alt={streamerName} className="w-full h-full object-cover" />
+                </div>
+                <div className="text-xs font-bold text-white flex items-center gap-1.5 bg-black/80 px-3.5 py-1.5 rounded-full border border-white/10 shadow-lg">
+                  <Radio className="w-3.5 h-3.5 text-red-500 animate-ping" />
+                  <span>Live Studio Broadcast Connected</span>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -325,13 +387,44 @@ function ExploreSlidePlayer({
         </button>
       )}
 
-      {/* Top Stream Header */}
+      {/* Top Stream Header: Shows Live Broadcast, External Feed, or OBS based on source */}
       <div className="absolute top-12 sm:top-14 left-4 right-4 flex items-center justify-between z-20 pointer-events-none">
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-nowrap touch-pan-x pointer-events-auto">
-          <div className="shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-600 text-white text-[11px] font-black uppercase shadow-lg shadow-red-600/40">
-            <Radio className="w-3 h-3 animate-ping" />
-            <span>LIVE</span>
-          </div>
+          {/* Source-specific Badges */}
+          {effectiveSourceType === 'RTMP' ? (
+            <>
+              <div className="shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500 text-black text-[11px] font-black uppercase shadow-lg shadow-amber-500/40">
+                <Monitor className="w-3.5 h-3.5 fill-current animate-pulse" />
+                <span>OBS STUDIO LIVE</span>
+              </div>
+              <div className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-950/80 backdrop-blur-md text-amber-300 text-xs font-semibold border border-amber-500/30 shadow">
+                <Radio className="w-3 h-3 text-amber-400" />
+                <span>RTMP Ingest</span>
+              </div>
+            </>
+          ) : effectiveSourceType === 'EXTERNAL_EMBED' ? (
+            <>
+              <div className="shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-600 text-white text-[11px] font-black uppercase shadow-lg shadow-cyan-600/40">
+                <Globe className="w-3.5 h-3.5 animate-pulse" />
+                <span>EXTERNAL FEED</span>
+              </div>
+              <div className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full bg-cyan-950/80 backdrop-blur-md text-cyan-300 text-xs font-semibold border border-cyan-500/30 shadow">
+                <span>{isHls ? 'HLS Adaptive' : 'Direct Embed'}</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-600 text-white text-[11px] font-black uppercase shadow-lg shadow-red-600/40">
+                <Radio className="w-3.5 h-3.5 animate-ping" />
+                <span>LIVE BROADCAST</span>
+              </div>
+              <div className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-950/80 backdrop-blur-md text-emerald-300 text-xs font-semibold border border-emerald-500/30 shadow">
+                <Camera className="w-3 h-3 text-emerald-400" />
+                <span>Studio WebRTC</span>
+              </div>
+            </>
+          )}
+
           <div className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-semibold border border-white/10 shadow">
             <Users className="w-3.5 h-3.5 text-brandPurple" />
             <span>{stream.viewerCount} Viewers</span>
