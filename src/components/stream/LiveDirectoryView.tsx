@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Radio, Users, Coins, Search, Sparkles, Play, RefreshCw, ExternalLink, Megaphone } from 'lucide-react';
+import { Radio, Users, Coins, Search, Sparkles, Play, RefreshCw, ExternalLink, Megaphone, Film } from 'lucide-react';
 import LiveStreamCard, { LiveStreamItem } from './LiveStreamCard';
 import { useSiteConfig } from '@/context/SiteConfigContext';
 
@@ -235,6 +235,16 @@ export default function LiveDirectoryView({ initialCategory = 'All' }: LiveDirec
           >
             <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-brandPurple' : ''}`} />
           </button>
+
+          {/* Direct VOD CRUD Button */}
+          <Link
+            href="/vods"
+            className="px-3.5 py-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-300 hover:text-white text-xs font-black flex items-center gap-1.5 transition shadow"
+            title="Manage and browse VOD recordings (CRUD)"
+          >
+            <Film className="w-4 h-4 text-brandPurple" />
+            <span className="whitespace-nowrap">VOD CRUD</span>
+          </Link>
         </div>
       </div>
 

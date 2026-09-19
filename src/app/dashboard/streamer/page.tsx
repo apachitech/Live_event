@@ -21,6 +21,7 @@ import {
   Trash2,
   Pin,
   AlertTriangle,
+  Film,
 } from 'lucide-react';
 import ChatContainer from '@/components/chat/ChatContainer';
 import PrivateShowMeterBanner from '@/components/stream/PrivateShowMeterBanner';
@@ -396,6 +397,15 @@ export default function StreamerStudioPage() {
               <span className="text-[11px] text-gray-400">Tokens Tipped</span>
             </div>
           )}
+
+          <Link
+            href="/dashboard/streamer/vods"
+            className="btn-glow-purple px-4 py-2 rounded-xl text-xs font-black text-white flex items-center gap-1.5 shadow hover:scale-105 transition"
+            title="Manage and CRUD your VOD recordings"
+          >
+            <Film className="w-4 h-4 text-purple-200" />
+            <span>VOD CRUD</span>
+          </Link>
 
           <Link
             href="/dashboard/streamer/payouts"

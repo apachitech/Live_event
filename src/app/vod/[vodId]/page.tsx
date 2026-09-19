@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Hls from 'hls.js';
 import { useAuth } from '@/context/AuthContext';
 import SendTipModal from '@/components/stream/SendTipModal';
+import VodCrudModal from '@/components/vod/VodCrudModal';
 import {
   Film,
   Play,
@@ -19,6 +20,8 @@ import {
   CheckCircle,
   AlertCircle,
   Sparkles,
+  Edit,
+  Trash2,
 } from 'lucide-react';
 
 export default function SingleVodWatchPage() {
@@ -35,6 +38,7 @@ export default function SingleVodWatchPage() {
   const [unlocking, setUnlocking] = useState(false);
   const [unlockSuccess, setUnlockSuccess] = useState(false);
   const [isTipModalOpen, setIsTipModalOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -247,7 +251,41 @@ export default function SingleVodWatchPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
+            {(isOwner || user?.role === 'ADMIN') && (
+              <>
+                <button
+                  onClick={() => setIsEditOpen(true)}
+                  className="px-3.5 py-2 rounded-xl bg-surfaceLight hover:bg-brandPurple text-white border border-surfaceBorder hover:border-brandPurple/60 text-xs font-bold flex items-center gap-1.5 transition shadow"
+                  title="Edit VOD details, price, stream URL (CRUD)"
+                >
+                  <Edit className="w-3.5 h-3.5" />
+                  <span>Edit VOD (CRUD)</span>
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!confirm(`Are you sure you want to delete "${vod.title}"?`)) return;
+                    try {
+                      const res = await fetch(`/api/vod/${vod.id}`, { method: 'DELETE' });
+                      if (res.ok) {
+                        router.push('/vods');
+                      } else {
+                        const d = await res.json();
+                        alert(d.error || 'Failed to delete VOD');
+                      }
+                    } catch (err: any) {
+                      alert(err.message);
+                    }
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-surfaceLight hover:bg-red-500/20 text-gray-300 hover:text-red-400 border border-surfaceBorder hover:border-red-500/30 text-xs font-bold flex items-center gap-1.5 transition"
+                  title="Delete VOD recording"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete</span>
+                </button>
+              </>
+            )}
+
             <button
               onClick={() => setIsTipModalOpen(true)}
               className="btn-glow-gold px-4 py-2.5 rounded-xl text-xs font-black text-black flex items-center gap-1.5"
@@ -256,7 +294,7 @@ export default function SingleVodWatchPage() {
               <span>Tip Broadcaster</span>
             </button>
 
-            {vod.streamer.streams?.length > 0 && (
+            {vod.streamer?.streams?.length > 0 && (
               <Link
                 href={`/watch/${vod.streamer.streams[0].id}`}
                 className="px-4 py-2.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 text-xs font-bold flex items-center gap-1.5 transition"
@@ -276,7 +314,7 @@ export default function SingleVodWatchPage() {
       </div>
 
       {/* Tip Modal */}
-      {vod.streamer.streams?.length > 0 && (
+      {vod.streamer?.streams?.length > 0 && (
         <SendTipModal
           streamId={vod.streamer.streams[0].id}
           streamerName={vod.streamer.displayName}
@@ -284,6 +322,19 @@ export default function SingleVodWatchPage() {
           onClose={() => setIsTipModalOpen(false)}
         />
       )}
+
+      {/* Edit VOD CRUD Modal */}
+      <VodCrudModal
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        vodToEdit={vod}
+        onSaved={(updatedVod) => {
+          setVod((prev: any) => ({ ...prev, ...updatedVod }));
+        }}
+        onDeleted={() => {
+          router.push('/vods');
+        }}
+      />
     </div>
   );
 }

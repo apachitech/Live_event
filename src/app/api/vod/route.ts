@@ -56,12 +56,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized: Streamer role required' }, { status: 401 });
     }
 
-    const streamerProfile = await prisma.streamerProfile.findUnique({
+    let streamerProfile = await prisma.streamerProfile.findUnique({
       where: { userId: session.userId },
     });
 
     if (!streamerProfile) {
-      return NextResponse.json({ error: 'Streamer profile not found' }, { status: 404 });
+      if (session.role === 'ADMIN') {
+        const user = await prisma.user.findUnique({ where: { id: session.userId } });
+        streamerProfile = await prisma.streamerProfile.create({
+          data: {
+            userId: session.userId,
+            displayName: user?.username || 'Platform Admin',
+            bio: 'Official Platform VOD Publisher',
+            kycStatus: 'VERIFIED',
+          },
+        });
+      } else {
+        return NextResponse.json({ error: 'Streamer profile not found' }, { status: 404 });
+      }
     }
 
     const {

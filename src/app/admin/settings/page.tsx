@@ -19,6 +19,7 @@ import {
   Sparkles,
   AlertCircle,
   RefreshCw,
+  Film,
 } from 'lucide-react';
 import { TokenPackage } from '@/types';
 import { useSiteConfig } from '@/context/SiteConfigContext';
@@ -342,6 +343,14 @@ function AdminSettingsContent() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Link
+            href="/vods"
+            className="btn-glow-purple px-3.5 py-2 rounded-xl text-xs font-black text-white flex items-center gap-1.5 transition shadow"
+          >
+            <Film className="w-3.5 h-3.5" />
+            <span>VOD CRUD</span>
+          </Link>
+
           <Link
             href="/admin/ads"
             className="px-3.5 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder hover:border-gray-600 text-xs font-bold text-gray-300 flex items-center gap-1.5 transition"

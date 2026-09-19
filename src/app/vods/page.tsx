@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Film, Play, Search, Coins, Clock, Eye, Sparkles, Filter } from 'lucide-react';
+import { Film, Play, Search, Coins, Clock, Eye, Sparkles, Filter, Plus, Edit, Trash2 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import VodCrudModal, { VodData } from '@/components/vod/VodCrudModal';
 
 interface VodItem {
   id: string;
@@ -14,10 +16,13 @@ interface VodItem {
   viewCount: number;
   priceTokens: number;
   sourceType: string;
+  isPublished?: boolean;
   createdAt: string;
   streamer: {
     displayName: string;
+    userId?: string;
     user: {
+      id?: string;
       username: string;
       avatarUrl?: string | null;
     };
@@ -25,10 +30,15 @@ interface VodItem {
 }
 
 export default function VodsDirectoryPage() {
+  const { user } = useAuth();
   const [vods, setVods] = useState<VodItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'free' | 'ppv'>('all');
+
+  // CRUD Modal State
+  const [crudModalOpen, setCrudModalOpen] = useState(false);
+  const [vodToEdit, setVodToEdit] = useState<VodData | null>(null);
 
   useEffect(() => {
     fetchVods();
@@ -48,6 +58,20 @@ export default function VodsDirectoryPage() {
     }
   };
 
+  const handleSaved = (savedVod: any) => {
+    setVods((prev) => {
+      const exists = prev.some((v) => v.id === savedVod.id);
+      if (exists) {
+        return prev.map((v) => (v.id === savedVod.id ? { ...v, ...savedVod } : v));
+      }
+      return [savedVod, ...prev];
+    });
+  };
+
+  const handleDeleted = (vodId: string) => {
+    setVods((prev) => prev.filter((v) => v.id !== vodId));
+  };
+
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -57,7 +81,7 @@ export default function VodsDirectoryPage() {
   const filteredVods = vods.filter((v) => {
     const matchesSearch =
       v.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      v.streamer.displayName.toLowerCase().includes(searchQuery.toLowerCase());
+      v.streamer?.displayName?.toLowerCase().includes(searchQuery.toLowerCase());
     if (!matchesSearch) return false;
     if (filterType === 'free') return v.priceTokens === 0;
     if (filterType === 'ppv') return v.priceTokens > 0;
@@ -67,7 +91,7 @@ export default function VodsDirectoryPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8 animate-fade-in">
       {/* Hero Header */}
-      <div className="rounded-3xl bg-gradient-to-r from-purple-950/40 via-surface to-surface border border-brandPurple/30 p-8 shadow-2xl relative overflow-hidden">
+      <div className="rounded-3xl bg-gradient-to-r from-purple-950/40 via-surface to-surface border border-brandPurple/30 p-8 shadow-2xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="absolute top-0 right-0 w-96 h-96 bg-brandPurple/10 rounded-full blur-3xl pointer-events-none" />
         <div className="max-w-2xl space-y-3 relative z-10">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brandPurple/20 border border-brandPurple/40 text-purple-300 text-xs font-black uppercase tracking-wider">
@@ -80,6 +104,21 @@ export default function VodsDirectoryPage() {
           <p className="text-sm text-gray-300 leading-relaxed">
             Missed a live broadcast? Watch high-definition replays, Cloudinary video streams, and exclusive pay-per-view creator specials on-demand.
           </p>
+        </div>
+
+        {/* CRUD Action Button */}
+        <div className="relative z-10 flex-shrink-0 flex items-center gap-3">
+          <button
+            onClick={() => {
+              setVodToEdit(null);
+              setCrudModalOpen(true);
+            }}
+            className="btn-glow-purple px-6 py-3.5 rounded-2xl text-sm font-black text-white flex items-center gap-2 shadow-2xl hover:scale-105 transition"
+            title="Create and publish a new VOD or edit existing catalog"
+          >
+            <Plus className="w-4 h-4 text-purple-200 stroke-[3]" />
+            <span>+ VOD CRUD</span>
+          </button>
         </div>
       </div>
 
@@ -97,38 +136,52 @@ export default function VodsDirectoryPage() {
           />
         </div>
 
-        {/* Filter Pills */}
-        <div className="flex items-center gap-2 p-1 rounded-xl bg-surfaceLight border border-surfaceBorder text-xs font-semibold">
+        {/* Filter Pills & Toolbar CRUD Button */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 p-1 rounded-xl bg-surfaceLight border border-surfaceBorder text-xs font-semibold">
+            <button
+              onClick={() => setFilterType('all')}
+              className={`px-3 py-1.5 rounded-lg transition ${
+                filterType === 'all'
+                  ? 'bg-brandPurple text-white shadow'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              All Recordings
+            </button>
+            <button
+              onClick={() => setFilterType('free')}
+              className={`px-3 py-1.5 rounded-lg transition ${
+                filterType === 'free'
+                  ? 'bg-brandPurple text-white shadow'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Free Replays
+            </button>
+            <button
+              onClick={() => setFilterType('ppv')}
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-1 transition ${
+                filterType === 'ppv'
+                  ? 'bg-amber-500 text-black font-extrabold shadow'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Coins className="w-3.5 h-3.5" />
+              <span>Pay-Per-View</span>
+            </button>
+          </div>
+
           <button
-            onClick={() => setFilterType('all')}
-            className={`px-3 py-1.5 rounded-lg transition ${
-              filterType === 'all'
-                ? 'bg-brandPurple text-white shadow'
-                : 'text-gray-400 hover:text-white'
-            }`}
+            onClick={() => {
+              setVodToEdit(null);
+              setCrudModalOpen(true);
+            }}
+            className="btn-glow-purple px-4 py-2 rounded-xl text-xs font-black text-white flex items-center gap-1.5 shadow-md hover:scale-105 transition"
+            title="Launch VOD CRUD Modal"
           >
-            All Recordings
-          </button>
-          <button
-            onClick={() => setFilterType('free')}
-            className={`px-3 py-1.5 rounded-lg transition ${
-              filterType === 'free'
-                ? 'bg-brandPurple text-white shadow'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            Free Replays
-          </button>
-          <button
-            onClick={() => setFilterType('ppv')}
-            className={`px-3 py-1.5 rounded-lg flex items-center gap-1 transition ${
-              filterType === 'ppv'
-                ? 'bg-amber-500 text-black font-extrabold shadow'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            <Coins className="w-3.5 h-3.5" />
-            <span>Pay-Per-View</span>
+            <Plus className="w-3.5 h-3.5 stroke-[3]" />
+            <span>VOD CRUD</span>
           </button>
         </div>
       </div>
@@ -151,12 +204,20 @@ export default function VodsDirectoryPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredVods.map((vod) => {
             const isPpv = vod.priceTokens > 0;
+            const canManage = Boolean(
+              user && (
+                user.role === 'ADMIN' ||
+                user.id === vod.streamer?.userId ||
+                user.id === vod.streamer?.user?.id ||
+                user.username === vod.streamer?.user?.username
+              )
+            );
 
             return (
               <Link
                 key={vod.id}
                 href={`/vod/${vod.id}`}
-                className="group rounded-2xl glass-panel border border-surfaceBorder hover:border-brandPurple/50 overflow-hidden transition-all duration-300 hover:-translate-y-1 shadow-lg hover:shadow-purple-900/20 flex flex-col"
+                className="group rounded-2xl glass-panel border border-surfaceBorder hover:border-brandPurple/50 overflow-hidden transition-all duration-300 hover:-translate-y-1 shadow-lg hover:shadow-purple-900/20 flex flex-col relative"
               >
                 {/* Thumbnail Surface */}
                 <div className="relative aspect-video bg-black overflow-hidden">
@@ -175,6 +236,48 @@ export default function VodsDirectoryPage() {
                       <Play className="w-5 h-5 fill-current ml-0.5" />
                     </div>
                   </div>
+
+                  {/* Owner/Admin CRUD Controls Overlay */}
+                  {canManage && (
+                    <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1.5 opacity-90 group-hover:opacity-100 transition">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setVodToEdit(vod);
+                          setCrudModalOpen(true);
+                        }}
+                        className="p-1.5 rounded-lg bg-black/80 hover:bg-brandPurple text-white transition shadow backdrop-blur-md"
+                        title="Edit VOD (CRUD)"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (!confirm(`Are you sure you want to delete "${vod.title}"?`)) return;
+                          try {
+                            const res = await fetch(`/api/vod/${vod.id}`, { method: 'DELETE' });
+                            if (res.ok) {
+                              handleDeleted(vod.id);
+                            } else {
+                              const d = await res.json();
+                              alert(d.error || 'Failed to delete');
+                            }
+                          } catch (err: any) {
+                            alert(err.message);
+                          }
+                        }}
+                        className="p-1.5 rounded-lg bg-black/80 hover:bg-red-600 text-white transition shadow backdrop-blur-md"
+                        title="Delete VOD (CRUD)"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
 
                   {/* Pricing Badge */}
                   <div className="absolute top-2.5 right-2.5">
@@ -212,7 +315,7 @@ export default function VodsDirectoryPage() {
 
                   <div className="pt-2 border-t border-surfaceBorder/60 flex items-center justify-between text-xs text-gray-400">
                     <span className="font-bold text-gray-300 truncate max-w-[120px]">
-                      {vod.streamer.displayName}
+                      {vod.streamer?.displayName}
                     </span>
                     <span className="flex items-center gap-1 text-[11px]">
                       <Eye className="w-3 h-3" />
@@ -225,6 +328,30 @@ export default function VodsDirectoryPage() {
           })}
         </div>
       )}
+
+      {/* Floating VOD CRUD Action Button */}
+      <div className="fixed bottom-6 right-6 z-40">
+        <button
+          onClick={() => {
+            setVodToEdit(null);
+            setCrudModalOpen(true);
+          }}
+          className="btn-glow-purple px-5 py-3 rounded-2xl text-xs font-black text-white flex items-center gap-2 shadow-2xl hover:scale-110 transition border border-purple-400/40 backdrop-blur-md"
+          title="Open VOD CRUD Creator"
+        >
+          <Film className="w-4 h-4 text-purple-200 stroke-[2.5]" />
+          <span>VOD CRUD</span>
+        </button>
+      </div>
+
+      {/* CRUD Modal for Create / Edit / Delete */}
+      <VodCrudModal
+        isOpen={crudModalOpen}
+        onClose={() => setCrudModalOpen(false)}
+        vodToEdit={vodToEdit}
+        onSaved={handleSaved}
+        onDeleted={handleDeleted}
+      />
     </div>
   );
 }

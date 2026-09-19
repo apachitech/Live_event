@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { Shield, DollarSign, Users, Video, Clock, Check, X, AlertCircle, Settings, Flag, Megaphone, Coins, Gift, Globe } from 'lucide-react';
+import { Shield, DollarSign, Users, Video, Clock, Check, X, AlertCircle, Settings, Flag, Megaphone, Coins, Gift, Globe, Film } from 'lucide-react';
 
 export default function AdminOverviewPage() {
   const { user } = useAuth();
@@ -70,6 +70,14 @@ export default function AdminOverviewPage() {
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
+          <Link
+            href="/vods"
+            className="px-3.5 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder hover:border-brandPurple/60 text-xs font-bold text-gray-300 hover:text-white flex items-center gap-1.5 transition shadow"
+            title="Manage and CRUD all platform VOD recordings"
+          >
+            <Film className="w-3.5 h-3.5 text-purple-400" />
+            <span>VOD Media (CRUD)</span>
+          </Link>
           <Link
             href="/admin/ads"
             className="px-3.5 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder hover:border-gray-600 text-xs font-bold text-gray-300 flex items-center gap-1.5 transition"
@@ -152,18 +160,18 @@ export default function AdminOverviewPage() {
         </Link>
 
         <Link
-          href="/admin/ads"
-          className="p-5 rounded-2xl glass-panel border border-surfaceBorder hover:border-pink-500/60 transition group block"
+          href="/vods"
+          className="p-5 rounded-2xl glass-panel border border-surfaceBorder hover:border-purple-500/60 transition group block"
         >
           <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 rounded-xl bg-pink-500/10 text-pink-400 flex items-center justify-center group-hover:scale-110 transition">
-              <Megaphone className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center group-hover:scale-110 transition">
+              <Film className="w-5 h-5" />
             </div>
-            <span className="text-[10px] uppercase font-bold tracking-wider text-pink-400">Campaigns</span>
+            <span className="text-[10px] uppercase font-bold tracking-wider text-purple-400">Media CRUD</span>
           </div>
-          <h3 className="text-sm font-black text-white group-hover:text-pink-400 transition">Advertisements</h3>
+          <h3 className="text-sm font-black text-white group-hover:text-purple-400 transition">VOD Library</h3>
           <p className="text-[11px] text-gray-400 mt-1">
-            Create sponsored swipe cards & directory banners, and monitor real-time impressions & CTR.
+            Publish, edit, price, or delete on-demand replays, Pay-Per-View video streams and HLS archives.
           </p>
         </Link>
       </div>

@@ -14,12 +14,16 @@ import {
   Check,
   UploadCloud,
   Globe,
+  Edit,
 } from 'lucide-react';
+import VodCrudModal from '@/components/vod/VodCrudModal';
 
 export default function StreamerVodsManagerPage() {
   const [vods, setVods] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [crudModalOpen, setCrudModalOpen] = useState(false);
+  const [vodToEdit, setVodToEdit] = useState<any>(null);
 
   // Form states
   const [title, setTitle] = useState('');
@@ -251,6 +255,17 @@ export default function StreamerVodsManagerPage() {
             <h2 className="text-sm font-bold text-white uppercase tracking-wider">
               Your Published Recordings ({vods.length})
             </h2>
+            <button
+              type="button"
+              onClick={() => {
+                setVodToEdit(null);
+                setCrudModalOpen(true);
+              }}
+              className="btn-glow-purple px-3 py-1.5 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 shadow"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ Quick CRUD Modal</span>
+            </button>
           </div>
 
           {loading ? (
@@ -303,6 +318,18 @@ export default function StreamerVodsManagerPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVodToEdit(vod);
+                        setCrudModalOpen(true);
+                      }}
+                      className="p-2 rounded-xl bg-surfaceLight hover:bg-brandPurple text-gray-300 hover:text-white transition shadow"
+                      title="Edit / Update VOD (CRUD)"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+
                     <Link
                       href={`/vod/${vod.id}`}
                       target="_blank"
@@ -326,6 +353,27 @@ export default function StreamerVodsManagerPage() {
           )}
         </div>
       </div>
+
+      {/* Reusable CRUD Modal */}
+      <VodCrudModal
+        isOpen={crudModalOpen}
+        onClose={() => setCrudModalOpen(false)}
+        vodToEdit={vodToEdit}
+        onSaved={(saved) => {
+          setVods((prev) => {
+            const idx = prev.findIndex((v) => v.id === saved.id);
+            if (idx >= 0) {
+              const updated = [...prev];
+              updated[idx] = { ...updated[idx], ...saved };
+              return updated;
+            }
+            return [saved, ...prev];
+          });
+        }}
+        onDeleted={(deletedId) => {
+          setVods((prev) => prev.filter((v) => v.id !== deletedId));
+        }}
+      />
     </div>
   );
 }
