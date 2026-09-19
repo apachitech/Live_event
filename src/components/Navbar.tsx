@@ -6,14 +6,12 @@ import { useAuth } from '@/context/AuthContext';
 import { useSiteConfig } from '@/context/SiteConfigContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { Radio, Coins, Plus, Video, Shield, User, LogOut, ChevronDown, CheckCircle2, Film } from 'lucide-react';
-import VodCrudModal from '@/components/vod/VodCrudModal';
 
 export default function Navbar() {
   const { user, logout, openPurchaseModal } = useAuth();
   const { siteName, siteTagline, contentRating } = useSiteConfig();
   const { t } = useLanguage();
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [vodCrudOpen, setVodCrudOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-surfaceBorder/80 glass-panel">
@@ -54,7 +52,7 @@ export default function Navbar() {
             </Link>
             <Link href="/vods" className="text-purple-300 hover:text-white flex items-center gap-1.5 transition font-semibold">
               <Film className="w-3.5 h-3.5 text-brandPurple" />
-              <span>VOD (CRUD)</span>
+              <span>{t('nav.vods', 'VODs & Replays')}</span>
             </Link>
             <Link href="/?category=Gaming" className="text-gray-400 hover:text-gray-200 transition">
               {t('nav.gaming', 'Gaming')}
@@ -69,23 +67,7 @@ export default function Navbar() {
         </div>
 
         {/* Right: Actions, Wallet, Studio, and User Menu */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Universal VOD CRUD Button */}
-          <button
-            onClick={() => {
-              if (!user) {
-                window.location.href = '/vods';
-              } else {
-                setVodCrudOpen(true);
-              }
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-black transition shadow-md shadow-purple-900/30 hover:scale-105 border border-purple-400/30"
-            title="VOD CRUD - Create, Read, Update, Delete video on demand"
-          >
-            <Film className="w-3.5 h-3.5 text-purple-200" />
-            <span>VOD CRUD</span>
-          </button>
-
+        <div className="flex items-center gap-2.5 sm:gap-3.5">
           {user ? (
             <>
               {/* Wallet Balance Pill */}
@@ -245,15 +227,6 @@ export default function Navbar() {
           )}
         </div>
       </div>
-
-      {/* Global VOD CRUD Modal */}
-      <VodCrudModal
-        isOpen={vodCrudOpen}
-        onClose={() => setVodCrudOpen(false)}
-        onSaved={() => {
-          window.location.href = '/vods';
-        }}
-      />
     </header>
   );
 }
