@@ -119,58 +119,29 @@ export class SasPayProcessor implements PaymentProcessor {
 
     const idempotencyKey = `saspay_cs_${Date.now()}_${userId}`;
 
-    if (this.isConfigured()) {
+    if (!this.isConfigured()) {
+      throw new Error(
+        'SasPay gateway is not configured: SASPAY_SECRET_KEY is missing in your server environment variables. Please add SASPAY_SECRET_KEY in your Render Dashboard > Environment to process live payments.'
+      );
+    }
+
+    // 1. Direct Softpay Push (if phone number is specified)
+    if (sasPayOptions?.phoneNumber && sasPayOptions?.operator && sasPayOptions.operator !== 'card') {
       try {
-        // Direct Softpay push if phone number and method are specified
-        if (sasPayOptions?.phoneNumber && sasPayOptions?.operator && sasPayOptions.operator !== 'card') {
-          const softpayRes = await fetch(`${this.baseUrl}/payments/softpay/`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${this.apiKey}`,
-              'Content-Type': 'application/json',
-              'Idempotency-Key': idempotencyKey,
-            },
-            signal: AbortSignal.timeout(7000),
-            body: JSON.stringify({
-              amount: amountStr,
-              currency,
-              method: sasPayOptions.operator,
-              phone: sasPayOptions.phoneNumber,
-              description: `Live Stream ${pkg.tokens} Tokens (${pkg.label})`,
-              metadata: {
-                userId,
-                packageId: pkg.id,
-                tokens: pkg.tokens,
-                fiatAmountCents: pkg.priceCents,
-              },
-            }),
-          });
-
-          if (softpayRes.ok) {
-            const data = await softpayRes.json();
-            return {
-              sessionId: data.id || data.reference || idempotencyKey,
-              checkoutUrl: data.checkout_url || `${successUrl}?session_id=${data.id || idempotencyKey}&package_id=${pkg.id}&tokens=${pkg.tokens}&provider=saspay`,
-              provider: 'SASPAY_SOFTPAY',
-              sasPayDetails: sasPayOptions,
-            };
-          }
-        }
-
-        // Default: SasPay Hosted Checkout Session
-        const sessionRes = await fetch(`${this.baseUrl}/checkout-sessions/`, {
+        const softpayRes = await fetch(`${this.baseUrl}/payments/softpay/`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${this.apiKey}`,
             'Content-Type': 'application/json',
             'Idempotency-Key': idempotencyKey,
           },
-          signal: AbortSignal.timeout(7000),
+          signal: AbortSignal.timeout(10000),
           body: JSON.stringify({
             amount: amountStr,
             currency,
+            method: sasPayOptions.operator,
+            phone: sasPayOptions.phoneNumber,
             description: `Live Stream ${pkg.tokens} Tokens (${pkg.label})`,
-            return_url: `${successUrl}?session_id={id}&package_id=${pkg.id}&tokens=${pkg.tokens}&fiat_cents=${pkg.priceCents}&provider=saspay`,
             metadata: {
               userId,
               packageId: pkg.id,
@@ -180,35 +151,81 @@ export class SasPayProcessor implements PaymentProcessor {
           }),
         });
 
-        if (sessionRes.ok) {
-          const sessionData = await sessionRes.json();
-          if (sessionData.checkout_url) {
+        if (softpayRes.ok) {
+          const data = await softpayRes.json();
+          if (data.checkout_url) {
             return {
-              sessionId: sessionData.id || idempotencyKey,
-              checkoutUrl: sessionData.checkout_url,
-              provider: 'SASPAY',
+              sessionId: data.id || data.reference || idempotencyKey,
+              checkoutUrl: data.checkout_url,
+              provider: 'SASPAY_SOFTPAY',
               sasPayDetails: sasPayOptions,
             };
           }
         } else {
-          const errData = await sessionRes.json().catch(() => ({}));
-          console.warn('[SasPay Adapter] API responded with error:', errData);
+          const softErr = await softpayRes.text().catch(() => '');
+          console.warn('[SasPay Adapter] Softpay direct push failed, proceeding to hosted checkout:', softErr);
         }
-      } catch (err) {
-        console.error('[SasPay Adapter] Network exception initiating checkout session:', err);
+      } catch (err: any) {
+        console.warn('[SasPay Adapter] Softpay push exception, proceeding to hosted checkout:', err.message);
       }
     }
 
-    // Sandbox / Simulation fallback when API key is not yet configured
-    const simulatedSessionId = `saspay_sim_${Date.now()}_${userId}`;
-    const simulatedUrl = `${successUrl}?session_id=${simulatedSessionId}&package_id=${pkg.id}&tokens=${pkg.tokens}&fiat_cents=${pkg.priceCents}&provider=saspay_sandbox`;
+    // 2. SasPay Hosted Checkout Session (pay.saspay.me)
+    try {
+      const sessionRes = await fetch(`${this.baseUrl}/checkout-sessions/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+          'Idempotency-Key': idempotencyKey,
+        },
+        signal: AbortSignal.timeout(10000),
+        body: JSON.stringify({
+          amount: amountStr,
+          currency,
+          description: `Live Stream ${pkg.tokens} Tokens (${pkg.label})`,
+          return_url: `${successUrl}?session_id={id}&package_id=${pkg.id}&tokens=${pkg.tokens}&fiat_cents=${pkg.priceCents}&provider=saspay`,
+          metadata: {
+            userId,
+            packageId: pkg.id,
+            tokens: pkg.tokens,
+            fiatAmountCents: pkg.priceCents,
+          },
+        }),
+      });
 
-    return {
-      sessionId: simulatedSessionId,
-      checkoutUrl: simulatedUrl,
-      provider: 'SASPAY_SANDBOX',
-      sasPayDetails: sasPayOptions,
-    };
+      if (sessionRes.ok) {
+        const sessionData = await sessionRes.json();
+        if (sessionData.checkout_url) {
+          return {
+            sessionId: sessionData.id || idempotencyKey,
+            checkoutUrl: sessionData.checkout_url,
+            provider: 'SASPAY',
+            sasPayDetails: sasPayOptions,
+          };
+        }
+        throw new Error(`SasPay did not return a valid checkout URL: ${JSON.stringify(sessionData)}`);
+      } else {
+        const errText = await sessionRes.text().catch(() => '');
+        let errMsg = errText;
+        try {
+          const parsed = JSON.parse(errText);
+          errMsg = parsed.message || parsed.error || parsed.detail || errText;
+        } catch {}
+        console.error(`[SasPay Adapter] API responded with error (${sessionRes.status}):`, errMsg);
+
+        if (sessionRes.status === 401) {
+          throw new Error('SasPay authentication failed (HTTP 401). Please check that your SASPAY_SECRET_KEY in Render environment is correct.');
+        }
+        if (sessionRes.status === 403) {
+          throw new Error(`SasPay access denied (HTTP 403). Ensure your server outbound IP is whitelisted on your SasPay dashboard (${errMsg}).`);
+        }
+        throw new Error(`SasPay API error (${sessionRes.status}): ${errMsg || 'Unable to create checkout session.'}`);
+      }
+    } catch (err: any) {
+      console.error('[SasPay Adapter] Communication error with SasPay:', err);
+      throw new Error(err.message || 'Failed to communicate with SasPay payment gateway.');
+    }
   }
 
   /**
