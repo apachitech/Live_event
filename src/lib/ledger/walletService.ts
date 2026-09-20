@@ -21,7 +21,7 @@ export class WalletService {
    * Credit tokens to user wallet upon package purchase (logged in Transaction ledger)
    */
   static async creditPurchasedTokens(userId: string, tokens: number, fiatAmountCents: number, paymentRef: string) {
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const wallet = await tx.wallet.upsert({
         where: { userId },
         create: { userId, balance: tokens, earnedBalance: 0 },
@@ -53,6 +53,22 @@ export class WalletService {
 
       return { wallet, transaction };
     });
+
+    // Asynchronously dispatch payment slip to customer and admin messaging addresses
+    try {
+      const { ReceiptService } = await import('@/lib/messaging/receiptService');
+      ReceiptService.sendPurchaseSlip({
+        userId,
+        tokens,
+        fiatAmountCents,
+        paymentRef,
+        transactionId: result.transaction.id,
+      }).catch((err) => console.warn('[ReceiptService] Non-blocking dispatch error:', err));
+    } catch (e) {
+      console.warn('[ReceiptService] Failed to load receipt service:', e);
+    }
+
+    return result;
   }
 
   /**

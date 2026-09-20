@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Radio, Users, Coins, Search, Sparkles, Play, RefreshCw, ExternalLink, Megaphone, Film } from 'lucide-react';
+import { Radio, Users, Coins, Search, Sparkles, Play, RefreshCw, ExternalLink, Megaphone, Film, CheckCircle2, FileText, X } from 'lucide-react';
 import LiveStreamCard, { LiveStreamItem } from './LiveStreamCard';
 import { useSiteConfig } from '@/context/SiteConfigContext';
 
@@ -12,6 +12,8 @@ const GENERAL_CATEGORIES = ['All', 'Gaming & Esports', 'Creative & Art', 'Music 
 
 interface LiveDirectoryViewProps {
   initialCategory?: string;
+  purchasedTokens?: number;
+  txId?: string;
 }
 
 interface AdItem {
@@ -22,7 +24,7 @@ interface AdItem {
   placement: string;
 }
 
-export default function LiveDirectoryView({ initialCategory = 'All' }: LiveDirectoryViewProps) {
+export default function LiveDirectoryView({ initialCategory = 'All', purchasedTokens, txId }: LiveDirectoryViewProps) {
   const { contentRating } = useSiteConfig();
   const categories =
     contentRating === 'KIDS'
@@ -38,6 +40,7 @@ export default function LiveDirectoryView({ initialCategory = 'All' }: LiveDirec
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('trending');
   const [featuredAd, setFeaturedAd] = useState<AdItem | null>(null);
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(Boolean(purchasedTokens));
 
   // Fetch active directory advertisements
   useEffect(() => {
@@ -105,6 +108,46 @@ export default function LiveDirectoryView({ initialCategory = 'All' }: LiveDirec
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      {/* Transaction Success & Official Payment Slip Banner */}
+      {showPaymentSuccess && purchasedTokens && (
+        <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-950/80 via-surfaceCard to-emerald-950/50 border border-emerald-500/40 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0 text-emerald-400">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                <span>Payment Confirmed</span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-bold">
+                  +{purchasedTokens.toLocaleString()} Tokens
+                </span>
+              </h3>
+              <p className="text-xs text-gray-300 mt-0.5">
+                Your tokens have been credited to your wallet. An official electronic payment slip and message have been dispatched to your registered address.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+            {txId && (
+              <Link
+                href={`/receipt/${txId}`}
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-lg shadow-emerald-600/20"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>View Payment Slip</span>
+              </Link>
+            )}
+            <button
+              onClick={() => setShowPaymentSuccess(false)}
+              className="p-2 text-gray-400 hover:text-white hover:bg-surfaceLight rounded-xl transition"
+              title="Dismiss"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Hero Welcome Banner */}
       <div className="relative rounded-3xl overflow-hidden glass-panel p-8 sm:p-12 mb-10 border border-surfaceBorder shadow-2xl">
         <div className="absolute top-0 right-0 -mr-16 -mt-16 w-96 h-96 bg-brandPurple/15 rounded-full blur-3xl pointer-events-none" />

@@ -99,6 +99,21 @@ export async function POST(req: Request) {
         },
       });
 
+      // Dispatch remittance payment slip to streamer and administrator
+      try {
+        const { ReceiptService } = await import('@/lib/messaging/receiptService');
+        ReceiptService.sendPayoutSlip({
+          streamerId: payout.streamerId,
+          payoutId: payout.id,
+          tokensDeducted: payout.tokensDeducted,
+          payoutAmountCents: payout.payoutAmountCents,
+          paymentReference: execution.referenceId || 'DISB-COMPLETED',
+          method: method || 'Mobile Money Disbursement',
+        }).catch((err) => console.warn('[ReceiptService] Payout slip dispatch error:', err));
+      } catch (err) {
+        console.warn('[ReceiptService] Could not load receipt service for payout:', err);
+      }
+
       return NextResponse.json({ success: true, payout: updated });
     }
 

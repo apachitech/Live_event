@@ -7,8 +7,16 @@ import LiveDirectoryView from '@/components/stream/LiveDirectoryView';
 function DirectoryContent() {
   const searchParams = useSearchParams();
   const initialCategory = searchParams.get('category') || 'All';
+  const purchasedTokens = searchParams.get('purchased_tokens');
+  const txId = searchParams.get('tx_id');
 
-  return <LiveDirectoryView initialCategory={initialCategory} />;
+  return (
+    <LiveDirectoryView
+      initialCategory={initialCategory}
+      purchasedTokens={purchasedTokens ? parseInt(purchasedTokens, 10) : undefined}
+      txId={txId || undefined}
+    />
+  );
 }
 
 export default function HomePage() {

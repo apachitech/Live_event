@@ -16,16 +16,19 @@ export async function GET(req: Request) {
       return NextResponse.redirect(new URL('/login', req.url));
     }
 
-    await WalletService.creditPurchasedTokens(
+    const result = await WalletService.creditPurchasedTokens(
       session.userId,
       tokens,
       fiatCents,
       sessionId
     );
 
-    // Redirect to home or referrer with purchase success flag
+    // Redirect to home with purchase success flag and transaction slip id
     const redirectUrl = new URL('/', req.url);
     redirectUrl.searchParams.set('purchased_tokens', String(tokens));
+    if (result?.transaction?.id) {
+      redirectUrl.searchParams.set('tx_id', result.transaction.id);
+    }
     return NextResponse.redirect(redirectUrl);
   } catch (err: any) {
     console.error('Error completing purchase:', err);

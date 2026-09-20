@@ -328,20 +328,107 @@ https://quiet-river-42.loca.lt/api/wallet/webhook
 
 ---
 
-## 8. Code Architecture & File Map
+---
+
+## 8. Automated Messaging & Electronic Payment Slips
+
+Every completed transaction (Token Purchase via SasPay/Card/Crypto, or Streamer Payout Disbursement) automatically generates an official digital payment slip (*Bordereau / Reçu de Paiement*) and sends notifications to the relevant parties.
+
+```
+       [ Transaction Completed (Webhook / Checkout / Admin) ]
+                                 │
+                                 ▼
+                     [ ReceiptService Dispatch ]
+            ┌────────────────────┼────────────────────┐
+            ▼                    ▼                    ▼
+     [ Buyer / Payer ]    [ Streamer / Payee ]  [ Platform Admin ]
+    - Token Credit Slip   - Payout Disbursement - Merchant Settlement
+    - Fiat (USD + FCFA)   - Mobile Money / IBAN - Platform Ledger Log
+    - Printable PDF Link  - Deduction Summary   - Anti-Fraud Record
+```
+
+---
+
+### 8.1. Who Receives What?
+
+1. **Buyer / Payer (Token Purchase)**:
+   - **Notification**: Instant confirmation that their payment was received and tokens have been credited.
+   - **Electronic Slip**: Itemized details including Slip Number, Gateway Reference (SasPay, Wave, Orange, MTN, Crypto), Token Quantity, Amount in USD ($) and FCFA (XOF/XAF), Timestamp, and Authenticity Verification code.
+   - **Online Slip**: Direct link to the responsive, printable web receipt at `/receipt/[txId]`.
+
+2. **Streamer / Creator (Payout Disbursement)**:
+   - **Notification**: Alert confirming that their requested cashout has been approved and disbursed.
+   - **Electronic Slip**: Shows Gross Tokens redeemed, Platform Commission, Net Amount paid out in Fiat, and destination Mobile Money number or Bank IBAN.
+
+3. **Platform Administrator**:
+   - Merchant audit slip delivered to `ADMIN_EMAIL` to maintain compliance and cross-verification against SasPay merchant settlement logs.
+
+---
+
+### 8.2. Electronic Slip Web Page (`/receipt/[txId]`)
+
+Every transaction generates a permanent, tamper-resistant digital slip viewable directly in the browser:
+- **URL**: `https://<your-domain>/receipt/<transaction_id>`
+- **Features**:
+  - Official Watermarked Header with Company Branding.
+  - Distinct status badges: `VERIFIED & SETTLED`, `FUNDS CREDITED`, or `PROCESSED`.
+  - Dual Currency Display (USD and FCFA converted at active exchange rates).
+  - Print & PDF Export: Native `window.print()` styling optimized for A4 / Letter paper with no UI clutter.
+  - Return to Live Streams shortcut.
+
+---
+
+### 8.3. Mail & Messaging Setup in Render
+
+To enable live email delivery on your Render production environment, set up one of the two supported providers:
+
+#### Option A: Resend (Recommended for Modern Cloud Apps)
+1. Create a free account at [https://resend.com](https://resend.com).
+2. Generate an API Key under **API Keys**.
+3. In your **Render Dashboard** > **Web Service** > **Environment**, add:
+   ```env
+   RESEND_API_KEY=re_123456789abcdef
+   MAIL_FROM=Live Streams <billing@yourdomain.com>
+   ADMIN_EMAIL=admin@yourdomain.com
+   NEXT_PUBLIC_APP_URL=https://<your-render-app>.onrender.com
+   ```
+
+#### Option B: Standard SMTP (Gmail, Zoho, SendGrid, Amazon SES, etc.)
+If using standard SMTP, set these variables in Render:
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+SMTP_FROM="Live Events Billing" <your-email@gmail.com>
+ADMIN_EMAIL=admin@yourdomain.com
+NEXT_PUBLIC_APP_URL=https://<your-render-app>.onrender.com
+```
+
+> [!NOTE]
+> **Fail-Safe Operation**: If email credentials are not yet configured in Render, transactions will **still proceed and credit successfully without errors**. The system securely stores the slip data and logs the receipt to the server console as a fallback.
+
+---
+
+## 9. Code Architecture & File Map
 
 | Component | Path | Description |
 | :--- | :--- | :--- |
+| **Receipt Service** | [`src/lib/messaging/receiptService.ts`](file:///c:/Users/XPRISTO/Desktop/tva/Live_event/src/lib/messaging/receiptService.ts) | Slip template engine, Resend/SMTP email dispatcher, dual-currency calculator. |
+| **Receipt Web Page** | [`src/app/receipt/[txId]/page.tsx`](file:///c:/Users/XPRISTO/Desktop/tva/Live_event/src/app/receipt/[txId]/page.tsx) | Printable electronic voucher with slip reference, token details, and verification badge. |
+| **Receipt API** | [`src/app/api/receipt/[txId]/route.ts`](file:///c:/Users/XPRISTO/Desktop/tva/Live_event/src/app/api/receipt/[txId]/route.ts) | JSON endpoint returning validated transaction details for slips. |
 | **SasPay Adapter** | [`src/lib/payment/sasPayAdapter.ts`](file:///c:/Users/XPRISTO/Desktop/tva/Live_event/src/lib/payment/sasPayAdapter.ts) | Implements checkout creation, webhook HMAC verification, and B2C payout execution. |
 | **Purchase Route** | [`src/app/api/wallet/purchase/route.ts`](file:///c:/Users/XPRISTO/Desktop/tva/Live_event/src/app/api/wallet/purchase/route.ts) | Receives purchase intent, initializes checkout session, and returns payment URL. |
 | **Webhook Route** | [`src/app/api/wallet/webhook/route.ts`](file:///c:/Users/XPRISTO/Desktop/tva/Live_event/src/app/api/wallet/webhook/route.ts) | Verifies incoming webhooks, ensures idempotency, and credits user wallet ledger. |
+| **Wallet Service** | [`src/lib/ledger/walletService.ts`](file:///c:/Users/XPRISTO/Desktop/tva/Live_event/src/lib/ledger/walletService.ts) | Double-entry ledger; triggers asynchronous receipt slip dispatch upon token crediting. |
+| **Admin Payouts** | [`src/app/api/admin/payouts/route.ts`](file:///c:/Users/XPRISTO/Desktop/tva/Live_event/src/app/api/admin/payouts/route.ts) | Approves streamer payouts and automatically dispatches streamer disbursement slip. |
 | **Outbound IP API** | [`src/app/api/admin/outbound-ip/route.ts`](file:///c:/Users/XPRISTO/Desktop/tva/Live_event/src/app/api/admin/outbound-ip/route.ts) | Diagnostic route to detect and display live server outbound IP for whitelisting. |
 | **Admin Settings** | [`src/app/admin/settings/page.tsx`](file:///c:/Users/XPRISTO/Desktop/tva/Live_event/src/app/admin/settings/page.tsx) | UI for inspecting and copying the live outbound IP directly from the Admin Panel. |
 | **Token Purchase UI** | [`src/components/wallet/TokenPurchaseModal.tsx`](file:///c:/Users/XPRISTO/Desktop/tva/Live_event/src/components/wallet/TokenPurchaseModal.tsx) | Client modal with Mobile Money (Wave, Orange, MTN, Moov) and SasPay checkout UI. |
 
 ---
 
-## 9. Troubleshooting & Common Issues
+## 10. Troubleshooting & Common Issues
 
 | Issue | Cause | Resolution |
 | :--- | :--- | :--- |
@@ -349,4 +436,6 @@ https://quiet-river-42.loca.lt/api/wallet/webhook
 | **`SIGNATURE_MISMATCH` in Webhook** | `SASPAY_WEBHOOK_SECRET` does not match the secret key generated in the SasPay portal. | Copy the Webhook Secret from SasPay and update `SASPAY_WEBHOOK_SECRET` in your Render Environment settings. |
 | **Webhook Returns 404** | Webhook URL was typed incorrectly in the SasPay dashboard. | Ensure the endpoint path is strictly `/api/wallet/webhook` (e.g. `https://your-service.onrender.com/api/wallet/webhook`). |
 | **Tokens Not Credited After Payment** | Webhook was not received or failed validation. | Check your server logs in Render (`Dashboard > Logs`) for `[Webhook]` entries to inspect the payload. |
+| **Receipt Email Not Delivered** | `RESEND_API_KEY` or SMTP credentials missing or invalid in Render. | Check Render Environment variables. In all cases, users can still view and print their receipt slip at `/receipt/<txId>`. |
 | **Invalid Operator Code** | The country/network code does not match SasPay specs. | Use the exact codes listed in **Section 2** (e.g. `wave_ci`, `orange_ci`, `mtn_bj`). |
+
