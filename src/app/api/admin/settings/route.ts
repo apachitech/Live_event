@@ -43,6 +43,12 @@ export async function GET() {
         CHAT_RATE_LIMIT_MESSAGES: settingsMap['CHAT_RATE_LIMIT_MESSAGES'] || '5',
         TOKEN_EXCHANGE_RATE_CENTS: settingsMap['TOKEN_EXCHANGE_RATE_CENTS'] || '5',
         TOKEN_PACKAGES: tokenPackages,
+        PAYMENT_METHODS_CONFIG: settingsMap['PAYMENT_METHODS_CONFIG'] || JSON.stringify({
+          SASPAY: true,
+          VAULTPAY: true,
+          CRYPTO: true,
+          MOCK: false,
+        }),
       },
     });
   } catch (err: any) {

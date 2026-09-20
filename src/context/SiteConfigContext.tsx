@@ -6,6 +6,20 @@ import { TokenPackage, TOKEN_PACKAGES as DEFAULT_PACKAGES } from '@/types';
 
 export type ContentRatingMode = 'ADULT' | 'KIDS' | 'GENERAL';
 
+export interface PaymentMethodsState {
+  SASPAY: boolean;
+  VAULTPAY: boolean;
+  CRYPTO: boolean;
+  MOCK: boolean;
+}
+
+export const DEFAULT_PAYMENT_METHODS: PaymentMethodsState = {
+  SASPAY: true,
+  VAULTPAY: true,
+  CRYPTO: true,
+  MOCK: false,
+};
+
 interface SiteConfigContextType {
   siteName: string;
   siteTagline: string;
@@ -13,6 +27,7 @@ interface SiteConfigContextType {
   supportEmail: string;
   contentRating: ContentRatingMode;
   tokenPackages: TokenPackage[];
+  paymentMethods: PaymentMethodsState;
   tokenExchangeRateCents: number;
   revenueSplitStreamerPercent: number;
   minPayoutTokens: number;
@@ -28,6 +43,7 @@ const SiteConfigContext = createContext<SiteConfigContextType>({
   supportEmail: 'support@pulsestream.live',
   contentRating: 'ADULT',
   tokenPackages: DEFAULT_PACKAGES,
+  paymentMethods: DEFAULT_PAYMENT_METHODS,
   tokenExchangeRateCents: 5,
   revenueSplitStreamerPercent: 70,
   minPayoutTokens: 1000,
@@ -45,6 +61,7 @@ export function SiteConfigProvider({ children }: { children: React.ReactNode }) 
   const [supportEmail, setSupportEmail] = useState<string>('support@pulsestream.live');
   const [contentRating, setContentRating] = useState<ContentRatingMode>('ADULT');
   const [tokenPackages, setTokenPackages] = useState<TokenPackage[]>(DEFAULT_PACKAGES);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodsState>(DEFAULT_PAYMENT_METHODS);
   const [tokenExchangeRateCents, setTokenExchangeRateCents] = useState<number>(5);
   const [revenueSplitStreamerPercent, setRevenueSplitStreamerPercent] = useState<number>(70);
   const [minPayoutTokens, setMinPayoutTokens] = useState<number>(1000);
@@ -103,6 +120,19 @@ export function SiteConfigProvider({ children }: { children: React.ReactNode }) 
         setContentRating(rating as any);
       }
     }
+    if (settings.paymentMethods || settings.PAYMENT_METHODS_CONFIG) {
+      const pm = settings.paymentMethods || settings.PAYMENT_METHODS_CONFIG;
+      if (typeof pm === 'object') {
+        setPaymentMethods((prev) => ({ ...prev, ...pm }));
+      } else if (typeof pm === 'string') {
+        try {
+          const parsed = JSON.parse(pm);
+          if (parsed && typeof parsed === 'object') {
+            setPaymentMethods((prev) => ({ ...prev, ...parsed }));
+          }
+        } catch {}
+      }
+    }
   }, []);
 
   const refreshConfig = useCallback(async () => {
@@ -143,6 +173,7 @@ export function SiteConfigProvider({ children }: { children: React.ReactNode }) 
         supportEmail,
         contentRating,
         tokenPackages,
+        paymentMethods,
         tokenExchangeRateCents,
         revenueSplitStreamerPercent,
         minPayoutTokens,

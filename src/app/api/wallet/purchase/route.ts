@@ -50,6 +50,33 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid token package selected' }, { status: 400 });
     }
 
+    // Validate that the requested payment method is enabled by administrator
+    const paymentMethodsSetting = await prisma.platformSetting.findUnique({
+      where: { key: 'PAYMENT_METHODS_CONFIG' },
+    });
+    let activeMethods: Record<string, boolean> = {
+      SASPAY: true,
+      VAULTPAY: true,
+      CRYPTO: true,
+      MOCK: false,
+    };
+    if (paymentMethodsSetting?.value) {
+      try {
+        const parsed = JSON.parse(paymentMethodsSetting.value);
+        if (parsed && typeof parsed === 'object') {
+          activeMethods = { ...activeMethods, ...parsed };
+        }
+      } catch {}
+    }
+
+    const isAllowed = paymentMethod === 'MOCK' ? activeMethods.MOCK === true : activeMethods[paymentMethod] !== false;
+    if (!isAllowed) {
+      return NextResponse.json(
+        { error: `The payment method (${paymentMethod}) is currently disabled by administrator.` },
+        { status: 403 }
+      );
+    }
+
     const baseUrl = getPublicBaseUrl(req);
     const defaultReturn = `${baseUrl}/api/wallet/complete`;
 

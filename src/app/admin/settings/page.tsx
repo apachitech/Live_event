@@ -21,6 +21,12 @@ import {
   RefreshCw,
   Film,
   Shield,
+  CreditCard,
+  Smartphone,
+  Bitcoin,
+  Zap,
+  Check,
+  X,
 } from 'lucide-react';
 import { TokenPackage } from '@/types';
 import { useSiteConfig } from '@/context/SiteConfigContext';
@@ -28,7 +34,7 @@ import { useSiteConfig } from '@/context/SiteConfigContext';
 function AdminSettingsContent() {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get('tab') || 'branding';
-  const [activeTab, setActiveTab] = useState<'branding' | 'pricing' | 'distribute' | 'rules'>(
+  const [activeTab, setActiveTab] = useState<'branding' | 'pricing' | 'distribute' | 'rules' | 'payments'>(
     (initialTab as any) || 'branding'
   );
 
@@ -51,6 +57,14 @@ function AdminSettingsContent() {
 
   // Token Packages State
   const [tokenPackages, setTokenPackages] = useState<TokenPackage[]>([]);
+
+  // Payment Gateways & Methods State
+  const [paymentMethods, setPaymentMethods] = useState<Record<string, boolean>>({
+    SASPAY: true,
+    VAULTPAY: true,
+    CRYPTO: true,
+    MOCK: false,
+  });
 
   // Token Distribution State
   const [distTarget, setDistTarget] = useState<'SPECIFIC' | 'ALL'>('SPECIFIC');
@@ -110,6 +124,23 @@ function AdminSettingsContent() {
         setExchangeRateCents(data.settings.TOKEN_EXCHANGE_RATE_CENTS || '5');
         if (Array.isArray(data.settings.TOKEN_PACKAGES)) {
           setTokenPackages(data.settings.TOKEN_PACKAGES);
+        }
+        if (data.settings.PAYMENT_METHODS_CONFIG) {
+          let parsed: any = data.settings.PAYMENT_METHODS_CONFIG;
+          if (typeof parsed === 'string') {
+            try {
+              parsed = JSON.parse(parsed);
+            } catch {}
+          }
+          if (typeof parsed === 'object' && parsed !== null) {
+            setPaymentMethods((prev) => ({
+              ...prev,
+              SASPAY: parsed.SASPAY !== false,
+              VAULTPAY: parsed.VAULTPAY !== false,
+              CRYPTO: parsed.CRYPTO !== false,
+              MOCK: parsed.MOCK === true,
+            }));
+          }
         }
       }
     } catch {
@@ -336,6 +367,41 @@ function AdminSettingsContent() {
     }
   };
 
+  // Toggle and Save Payment Methods
+  const togglePaymentMethod = (key: string) => {
+    setPaymentMethods((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  const handleSavePayments = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          settings: {
+            PAYMENT_METHODS_CONFIG: paymentMethods,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showNotice('success', 'Payment gateway availability saved! Changes applied platform-wide instantly.');
+        reloadConfig();
+      } else {
+        showNotice('error', data.error || 'Failed to update payment gateways');
+      }
+    } catch (err: any) {
+      showNotice('error', err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const platformSplit = 100 - (parseInt(streamerSplit, 10) || 70);
 
   return (
@@ -445,6 +511,18 @@ function AdminSettingsContent() {
         >
           <Sliders className="w-4 h-4" />
           <span>Economics & Rules</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('payments')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition whitespace-nowrap ${
+            activeTab === 'payments'
+              ? 'bg-brandPurple text-white shadow-lg shadow-brandPurple/20'
+              : 'text-gray-400 hover:text-white hover:bg-surfaceLight'
+          }`}
+        >
+          <CreditCard className="w-4 h-4" />
+          <span>Payment Gateways</span>
         </button>
       </div>
 
@@ -1228,6 +1306,349 @@ function AdminSettingsContent() {
             >
               <Save className="w-4 h-4" />
               <span>{saving ? 'Saving Changes...' : 'Save Platform Rules'}</span>
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* TAB 5: PAYMENT GATEWAYS & METHODS */}
+      {activeTab === 'payments' && (
+        <form onSubmit={handleSavePayments} className="p-6 rounded-2xl glass-panel border border-surfaceBorder space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-surfaceBorder">
+            <div>
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-brandPurple" />
+                <span>Payment Gateways & Methods Management</span>
+              </h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Enable or disable payment options in real-time. Deactivated methods are immediately hidden on user purchase modals and blocked at the API level.
+              </p>
+            </div>
+
+            {/* Quick Status Pill */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surfaceLight border border-surfaceBorder shrink-0">
+              <span className="text-[11px] text-gray-400 font-medium">Active Channels:</span>
+              <span className="text-xs font-bold text-emerald-400 font-mono">
+                {Object.values(paymentMethods).filter(Boolean).length} / 4
+              </span>
+            </div>
+          </div>
+
+          {/* Gateway Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 1. SASPAY (Mobile Money) */}
+            <div
+              className={`p-5 rounded-2xl border transition flex flex-col justify-between gap-4 ${
+                paymentMethods.SASPAY
+                  ? 'bg-emerald-950/20 border-emerald-500/40 shadow-lg shadow-emerald-500/5'
+                  : 'bg-surfaceLight/30 border-surfaceBorder opacity-75'
+              }`}
+            >
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                      <Smartphone className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        <span>SasPay Mobile Money</span>
+                        {paymentMethods.SASPAY ? (
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">
+                            ACTIVE
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-md bg-zinc-700/50 text-gray-400 text-[10px] font-bold">
+                            DISABLED
+                          </span>
+                        )}
+                      </h3>
+                      <p className="text-[11px] text-emerald-400/80 font-mono">Gateway: saspay.me</p>
+                    </div>
+                  </div>
+
+                  {/* Toggle Switch */}
+                  <button
+                    type="button"
+                    onClick={() => togglePaymentMethod('SASPAY')}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      paymentMethods.SASPAY ? 'bg-emerald-500' : 'bg-gray-700'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out flex items-center justify-center ${
+                        paymentMethods.SASPAY ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    >
+                      {paymentMethods.SASPAY ? (
+                        <Check className="w-3 h-3 text-emerald-600" />
+                      ) : (
+                        <X className="w-3 h-3 text-gray-400" />
+                      )}
+                    </span>
+                  </button>
+                </div>
+
+                <p className="text-xs text-gray-300 leading-relaxed">
+                  African mobile money aggregator with instant STK push and payment links. Supports Côte d&apos;Ivoire, Sénégal, Bénin, Cameroun, Togo, Mali, Burkina Faso, Gabon, and DR Congo.
+                </p>
+
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {['Wave', 'Orange Money', 'MTN MoMo', 'Moov Money', 'Djamo', 'Airtel Money'].map((op) => (
+                    <span
+                      key={op}
+                      className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300/90 text-[10px] font-semibold border border-emerald-500/20"
+                    >
+                      {op}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-emerald-500/10 flex items-center justify-between text-[11px]">
+                <span className="text-gray-400">Supported Currencies:</span>
+                <span className="font-mono text-gray-200 font-medium">XOF, XAF, GNF, CDF</span>
+              </div>
+            </div>
+
+            {/* 2. VAULTPAY (Credit & Debit Cards) */}
+            <div
+              className={`p-5 rounded-2xl border transition flex flex-col justify-between gap-4 ${
+                paymentMethods.VAULTPAY
+                  ? 'bg-cyan-950/20 border-cyan-500/40 shadow-lg shadow-cyan-500/5'
+                  : 'bg-surfaceLight/30 border-surfaceBorder opacity-75'
+              }`}
+            >
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                      <CreditCard className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        <span>VaultPay Card Processing</span>
+                        {paymentMethods.VAULTPAY ? (
+                          <span className="px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 text-[10px] font-bold">
+                            ACTIVE
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-md bg-zinc-700/50 text-gray-400 text-[10px] font-bold">
+                            DISABLED
+                          </span>
+                        )}
+                      </h3>
+                      <p className="text-[11px] text-cyan-400/80 font-mono">Gateway: vaultpay.me</p>
+                    </div>
+                  </div>
+
+                  {/* Toggle Switch */}
+                  <button
+                    type="button"
+                    onClick={() => togglePaymentMethod('VAULTPAY')}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      paymentMethods.VAULTPAY ? 'bg-cyan-500' : 'bg-gray-700'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out flex items-center justify-center ${
+                        paymentMethods.VAULTPAY ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    >
+                      {paymentMethods.VAULTPAY ? (
+                        <Check className="w-3 h-3 text-cyan-600" />
+                      ) : (
+                        <X className="w-3 h-3 text-gray-400" />
+                      )}
+                    </span>
+                  </button>
+                </div>
+
+                <p className="text-xs text-gray-300 leading-relaxed">
+                  International credit & debit card processing with 3D Secure verification. Allows global users from North America, Europe, and worldwide to purchase tokens smoothly.
+                </p>
+
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {['Visa', 'Mastercard', 'Virtual Cards', '3D Secure 2.0'].map((op) => (
+                    <span
+                      key={op}
+                      className="px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-300/90 text-[10px] font-semibold border border-cyan-500/20"
+                    >
+                      {op}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-cyan-500/10 flex items-center justify-between text-[11px]">
+                <span className="text-gray-400">Supported Currencies:</span>
+                <span className="font-mono text-gray-200 font-medium">USD, EUR, GBP, CAD</span>
+              </div>
+            </div>
+
+            {/* 3. CRYPTO (NOWPayments) */}
+            <div
+              className={`p-5 rounded-2xl border transition flex flex-col justify-between gap-4 ${
+                paymentMethods.CRYPTO
+                  ? 'bg-amber-950/20 border-amber-500/40 shadow-lg shadow-amber-500/5'
+                  : 'bg-surfaceLight/30 border-surfaceBorder opacity-75'
+              }`}
+            >
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                      <Bitcoin className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        <span>NOWPayments Crypto</span>
+                        {paymentMethods.CRYPTO ? (
+                          <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 text-[10px] font-bold">
+                            ACTIVE
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-md bg-zinc-700/50 text-gray-400 text-[10px] font-bold">
+                            DISABLED
+                          </span>
+                        )}
+                      </h3>
+                      <p className="text-[11px] text-amber-400/80 font-mono">Gateway: nowpayments.io</p>
+                    </div>
+                  </div>
+
+                  {/* Toggle Switch */}
+                  <button
+                    type="button"
+                    onClick={() => togglePaymentMethod('CRYPTO')}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      paymentMethods.CRYPTO ? 'bg-amber-500' : 'bg-gray-700'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out flex items-center justify-center ${
+                        paymentMethods.CRYPTO ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    >
+                      {paymentMethods.CRYPTO ? (
+                        <Check className="w-3 h-3 text-amber-600" />
+                      ) : (
+                        <X className="w-3 h-3 text-gray-400" />
+                      )}
+                    </span>
+                  </button>
+                </div>
+
+                <p className="text-xs text-gray-300 leading-relaxed">
+                  Decentralized cryptocurrency payment gateway. Non-custodial token settlement with automated on-chain transaction confirmation and instant wallet crediting.
+                </p>
+
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {['USDT (TRC20)', 'USDT (ERC20)', 'Bitcoin (BTC)', 'Ethereum (ETH)', 'Solana (SOL)', 'USDC'].map((op) => (
+                    <span
+                      key={op}
+                      className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300/90 text-[10px] font-semibold border border-amber-500/20"
+                    >
+                      {op}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-amber-500/10 flex items-center justify-between text-[11px]">
+                <span className="text-gray-400">Confirmation Speed:</span>
+                <span className="font-mono text-gray-200 font-medium">1 - 5 mins (On-chain)</span>
+              </div>
+            </div>
+
+            {/* 4. MOCK SANDBOX SIMULATOR */}
+            <div
+              className={`p-5 rounded-2xl border transition flex flex-col justify-between gap-4 ${
+                paymentMethods.MOCK
+                  ? 'bg-purple-950/20 border-purple-500/40 shadow-lg shadow-purple-500/5'
+                  : 'bg-surfaceLight/30 border-surfaceBorder opacity-75'
+              }`}
+            >
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                      <Zap className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        <span>Sandbox Test Simulator</span>
+                        {paymentMethods.MOCK ? (
+                          <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 text-[10px] font-bold">
+                            ACTIVE
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-md bg-zinc-700/50 text-gray-400 text-[10px] font-bold">
+                            DISABLED
+                          </span>
+                        )}
+                      </h3>
+                      <p className="text-[11px] text-purple-400/80 font-mono">Environment: Local QA / Mock</p>
+                    </div>
+                  </div>
+
+                  {/* Toggle Switch */}
+                  <button
+                    type="button"
+                    onClick={() => togglePaymentMethod('MOCK')}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      paymentMethods.MOCK ? 'bg-brandPurple' : 'bg-gray-700'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out flex items-center justify-center ${
+                        paymentMethods.MOCK ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    >
+                      {paymentMethods.MOCK ? (
+                        <Check className="w-3 h-3 text-brandPurple" />
+                      ) : (
+                        <X className="w-3 h-3 text-gray-400" />
+                      )}
+                    </span>
+                  </button>
+                </div>
+
+                <p className="text-xs text-gray-300 leading-relaxed">
+                  Virtual checkout simulator for development and staging testing. Users can test token crediting with zero real money. Keep disabled in production unless conducting QA testing.
+                </p>
+
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {['Zero Cost', 'Instant Credit', 'Test Environment', 'Staging QA'].map((op) => (
+                    <span
+                      key={op}
+                      className="px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-300/90 text-[10px] font-semibold border border-purple-500/20"
+                    >
+                      {op}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-purple-500/10 flex items-center justify-between text-[11px]">
+                <span className="text-gray-400">Safety Recommendation:</span>
+                <span className="font-mono text-amber-400 font-medium">{paymentMethods.MOCK ? '⚠️ Keep off in live production' : '✅ Disabled (Safe)'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Submit Action */}
+          <div className="pt-4 border-t border-surfaceBorder flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <p className="text-xs text-gray-400">
+              Saving updates the database configuration and broadcasts a <code className="text-brandPurple font-mono font-bold">site_settings_updated</code> event immediately.
+            </p>
+            <button
+              type="submit"
+              disabled={saving}
+              className="btn-glow-purple px-6 py-2.5 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-2 shadow"
+            >
+              <Save className="w-4 h-4" />
+              <span>{saving ? 'Saving Gateways...' : 'Save Payment Gateways'}</span>
             </button>
           </div>
         </form>

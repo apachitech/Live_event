@@ -285,3 +285,22 @@ Pour vous assurer que tout fonctionne correctement :
    * Cliquez sur **"View Payment Slip"** sur le bandeau ou rendez-vous sur `/receipt/<tx_id>`.
    * Le reçu officiel s'affiche avec le statut **`VERIFIED & SETTLED`**, les montants en USD et FCFA.
    * Cliquez sur **"Print / Save as PDF"** pour vérifier la mise en page d'impression.
+
+---
+
+## 8. Contrôle Administrateur : Activation / Désactivation Dynamique des Passerelles
+
+L'administrateur peut à tout moment activer ou désactiver n'importe quelle méthode de paiement directement depuis le tableau de bord :
+
+1. Rendez-vous dans **`/admin/settings`** et cliquez sur l'onglet **"Payment Gateways"**.
+2. Vous visualisez les 4 canaux de paiement configurables :
+   * 📱 **SasPay Mobile Money** (Wave, Orange, MTN, Moov, Djamo, etc.)
+   * 💳 **VaultPay Card Processing** (Cartes Bancaires Visa & Mastercard 3D Secure)
+   * 🪙 **NOWPayments Crypto** (USDT TRC-20/ERC-20, BTC, ETH, SOL, USDC)
+   * ⚡ **Sandbox Test Simulator** (Simulateur de test instantané sans argent réel)
+3. Cliquez sur le **toggle switch** (interrupteur vert/gris) de la méthode souhaitée pour l'activer ou la désactiver.
+4. Cliquez sur **"Save Payment Gateways"** :
+   * La configuration est immédiatement enregistrée dans la table `PlatformSetting` sous la clé `PAYMENT_METHODS_CONFIG`.
+   * Un événement WebSocket `site_settings_updated` est diffusé en direct à tous les utilisateurs connectés.
+   * L'onglet de paiement correspondant disparaît automatiquement du modal d'achat des utilisateurs sans nécessiter de rafraîchissement de page.
+   * Tout appel direct à l'API (`/api/wallet/purchase`) demandant une méthode désactivée est immédiatement rejeté avec le code HTTP **`403 Forbidden`**.

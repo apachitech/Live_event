@@ -22,6 +22,7 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronUp,
+  AlertCircle,
 } from 'lucide-react';
 
 function CountryFlagBadge({
@@ -49,12 +50,38 @@ function CountryFlagBadge({
 
 export default function TokenPurchaseModal() {
   const { isPurchaseModalOpen, closePurchaseModal } = useAuth();
-  const { tokenPackages: dynamicPackages, siteName } = useSiteConfig();
+  const { tokenPackages: dynamicPackages, siteName, paymentMethods } = useSiteConfig();
   const { t } = useLanguage();
   const activePackages = dynamicPackages && dynamicPackages.length > 0 ? dynamicPackages : FALLBACK_PACKAGES;
 
   const [selectedPackage, setSelectedPackage] = useState<TokenPackage>(activePackages[1] || activePackages[0]);
   const [paymentMethod, setPaymentMethod] = useState<SupportedPaymentMethod>('SASPAY');
+
+  const isSasPayActive = paymentMethods?.SASPAY !== false;
+  const isVaultPayActive = paymentMethods?.VAULTPAY !== false;
+  const isCryptoActive = paymentMethods?.CRYPTO !== false;
+  const isMockActive = paymentMethods?.MOCK === true;
+  const hasAnyPaymentMethod = isSasPayActive || isVaultPayActive || isCryptoActive || isMockActive;
+
+  // Auto-switch payment method if current method is deactivated by administrator
+  useEffect(() => {
+    if (!paymentMethods) return;
+    const isMethodActive = (m: SupportedPaymentMethod) => {
+      if (m === 'MOCK') return paymentMethods.MOCK === true;
+      if (m === 'SASPAY') return paymentMethods.SASPAY !== false;
+      if (m === 'VAULTPAY') return paymentMethods.VAULTPAY !== false;
+      if (m === 'CRYPTO') return paymentMethods.CRYPTO !== false;
+      return false;
+    };
+
+    if (!isMethodActive(paymentMethod)) {
+      const priorityOrder: SupportedPaymentMethod[] = ['SASPAY', 'VAULTPAY', 'CRYPTO', 'MOCK'];
+      const nextActive = priorityOrder.find((m) => isMethodActive(m));
+      if (nextActive) {
+        setPaymentMethod(nextActive);
+      }
+    }
+  }, [paymentMethods, paymentMethod]);
 
   // Keep selectedPackage synced if admin updates packages dynamically
   useEffect(() => {
@@ -242,63 +269,79 @@ export default function TokenPurchaseModal() {
             <label className="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-2">
               {t('modal.step2', '2. Choose Payment Method:')}
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('SASPAY')}
-                className={`p-2.5 sm:p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition transform hover:scale-[1.01] active:scale-95 ${
-                  paymentMethod === 'SASPAY'
-                    ? 'border-emerald-500 bg-emerald-500/20 text-white font-bold shadow-sm shadow-emerald-500/20 ring-1 ring-emerald-500/50'
-                    : 'border-surfaceBorder bg-surfaceLight/50 text-gray-400 hover:border-gray-600 hover:text-gray-200'
-                }`}
-              >
-                <Smartphone className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
-                <span className="text-[11px] sm:text-xs font-semibold text-center">{t('modal.saspayTab', 'Mobile Money (SasPay)')}</span>
-              </button>
 
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('CRYPTO')}
-                className={`p-2.5 sm:p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition transform hover:scale-[1.01] active:scale-95 ${
-                  paymentMethod === 'CRYPTO'
-                    ? 'border-amber-500 bg-amber-500/20 text-white font-bold shadow-sm shadow-amber-500/20 ring-1 ring-amber-500/50'
-                    : 'border-surfaceBorder bg-surfaceLight/50 text-gray-400 hover:border-gray-600 hover:text-gray-200'
-                }`}
-              >
-                <Bitcoin className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
-                <span className="text-[11px] sm:text-xs font-semibold text-center">{t('modal.cryptoTab', 'Crypto (USDT/BTC)')}</span>
-              </button>
+            {!hasAnyPaymentMethod ? (
+              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold flex items-center gap-2.5">
+                <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />
+                <span>Token purchases are temporarily paused by platform administration. Please try again shortly.</span>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {isSasPayActive && (
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('SASPAY')}
+                    className={`p-2.5 sm:p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition transform hover:scale-[1.01] active:scale-95 ${
+                      paymentMethod === 'SASPAY'
+                        ? 'border-emerald-500 bg-emerald-500/20 text-white font-bold shadow-sm shadow-emerald-500/20 ring-1 ring-emerald-500/50'
+                        : 'border-surfaceBorder bg-surfaceLight/50 text-gray-400 hover:border-gray-600 hover:text-gray-200'
+                    }`}
+                  >
+                    <Smartphone className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
+                    <span className="text-[11px] sm:text-xs font-semibold text-center">{t('modal.saspayTab', 'Mobile Money (SasPay)')}</span>
+                  </button>
+                )}
 
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('VAULTPAY')}
-                className={`p-2.5 sm:p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition transform hover:scale-[1.01] active:scale-95 ${
-                  paymentMethod === 'VAULTPAY'
-                    ? 'border-cyan-400 bg-cyan-500/20 text-white font-bold shadow-sm shadow-cyan-500/20 ring-1 ring-cyan-400/50'
-                    : 'border-surfaceBorder bg-surfaceLight/50 text-gray-400 hover:border-gray-600 hover:text-gray-200'
-                }`}
-              >
-                <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
-                <span className="text-[11px] sm:text-xs font-semibold text-center">{t('modal.cardTab', 'Card (Visa | MC)')}</span>
-              </button>
+                {isCryptoActive && (
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('CRYPTO')}
+                    className={`p-2.5 sm:p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition transform hover:scale-[1.01] active:scale-95 ${
+                      paymentMethod === 'CRYPTO'
+                        ? 'border-amber-500 bg-amber-500/20 text-white font-bold shadow-sm shadow-amber-500/20 ring-1 ring-amber-500/50'
+                        : 'border-surfaceBorder bg-surfaceLight/50 text-gray-400 hover:border-gray-600 hover:text-gray-200'
+                    }`}
+                  >
+                    <Bitcoin className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
+                    <span className="text-[11px] sm:text-xs font-semibold text-center">{t('modal.cryptoTab', 'Crypto (USDT/BTC)')}</span>
+                  </button>
+                )}
 
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('MOCK')}
-                className={`p-2.5 sm:p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition transform hover:scale-[1.01] active:scale-95 ${
-                  paymentMethod === 'MOCK'
-                    ? 'border-purple-500 bg-purple-500/20 text-white font-bold ring-1 ring-purple-500/50'
-                    : 'border-surfaceBorder bg-surfaceLight/50 text-gray-400 hover:border-gray-600 hover:text-gray-200'
-                }`}
-              >
-                <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-tokenGold" />
-                <span className="text-[11px] sm:text-xs font-semibold text-center">{t('modal.sandboxTab', 'Sandbox Test')}</span>
-              </button>
-            </div>
+                {isVaultPayActive && (
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('VAULTPAY')}
+                    className={`p-2.5 sm:p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition transform hover:scale-[1.01] active:scale-95 ${
+                      paymentMethod === 'VAULTPAY'
+                        ? 'border-cyan-400 bg-cyan-500/20 text-white font-bold shadow-sm shadow-cyan-500/20 ring-1 ring-cyan-400/50'
+                        : 'border-surfaceBorder bg-surfaceLight/50 text-gray-400 hover:border-gray-600 hover:text-gray-200'
+                    }`}
+                  >
+                    <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
+                    <span className="text-[11px] sm:text-xs font-semibold text-center">{t('modal.cardTab', 'Card (Visa | MC)')}</span>
+                  </button>
+                )}
+
+                {isMockActive && (
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('MOCK')}
+                    className={`p-2.5 sm:p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition transform hover:scale-[1.01] active:scale-95 ${
+                      paymentMethod === 'MOCK'
+                        ? 'border-purple-500 bg-purple-500/20 text-white font-bold ring-1 ring-purple-500/50'
+                        : 'border-surfaceBorder bg-surfaceLight/50 text-gray-400 hover:border-gray-600 hover:text-gray-200'
+                    }`}
+                  >
+                    <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-tokenGold" />
+                    <span className="text-[11px] sm:text-xs font-semibold text-center">{t('modal.sandboxTab', 'Sandbox Test')}</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* 2.3 SasPay Mobile Money & Cards Panel */}
-          {paymentMethod === 'SASPAY' && (
+          {paymentMethod === 'SASPAY' && isSasPayActive && (
             <div className="p-3.5 sm:p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 space-y-3 animate-fade-in">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
@@ -421,7 +464,7 @@ export default function TokenPurchaseModal() {
           )}
 
           {/* 2.3 Cryptocurrency Selection Panel & Mobile Money Helper */}
-          {paymentMethod === 'CRYPTO' && (
+          {paymentMethod === 'CRYPTO' && isCryptoActive && (
             <div className="p-3.5 sm:p-4 rounded-xl bg-amber-950/20 border border-amber-500/30 space-y-3 animate-fade-in">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-bold text-amber-400">
@@ -516,7 +559,7 @@ export default function TokenPurchaseModal() {
           )}
 
           {/* 2.4 Virtual Card (Visa & Mastercard) Input Panel */}
-          {paymentMethod === 'VAULTPAY' && (
+          {paymentMethod === 'VAULTPAY' && isVaultPayActive && (
             <div className="p-3.5 sm:p-4 rounded-xl bg-cyan-950/20 border border-cyan-500/30 space-y-3 animate-fade-in">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-bold text-cyan-400">
@@ -672,14 +715,20 @@ export default function TokenPurchaseModal() {
           </button>
           <button
             onClick={handleCheckout}
-            disabled={loading}
-            className="btn-glow-gold px-5 sm:px-7 py-2.5 rounded-xl text-xs sm:text-sm font-black text-black flex items-center gap-2 shadow transition transform active:scale-95"
+            disabled={loading || !hasAnyPaymentMethod}
+            className={`px-5 sm:px-7 py-2.5 rounded-xl text-xs sm:text-sm font-black flex items-center gap-2 shadow transition transform ${
+              !hasAnyPaymentMethod
+                ? 'bg-zinc-800 text-gray-500 cursor-not-allowed border border-zinc-700'
+                : 'btn-glow-gold text-black active:scale-95'
+            }`}
           >
             {loading ? (
               <span className="flex items-center gap-2">
                 <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin shrink-0" />
                 <span>{loadingStep || t('modal.connecting', 'Connecting to Gateway...')}</span>
               </span>
+            ) : !hasAnyPaymentMethod ? (
+              <span>{t('modal.purchasesPaused', 'Purchases Temporarily Unavailable')}</span>
             ) : (
               <>
                 <Coins className="w-4 h-4 text-black shrink-0" />

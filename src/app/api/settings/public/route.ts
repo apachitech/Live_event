@@ -22,6 +22,21 @@ export async function GET() {
       } catch {}
     }
 
+    let paymentMethods = {
+      SASPAY: true,
+      VAULTPAY: true,
+      CRYPTO: true,
+      MOCK: false,
+    };
+    if (map['PAYMENT_METHODS_CONFIG']) {
+      try {
+        const parsedMethods = JSON.parse(map['PAYMENT_METHODS_CONFIG']);
+        if (parsedMethods && typeof parsedMethods === 'object') {
+          paymentMethods = { ...paymentMethods, ...parsedMethods };
+        }
+      } catch {}
+    }
+
     return NextResponse.json({
       success: true,
       settings: {
@@ -33,6 +48,7 @@ export async function GET() {
         supportEmail: map['SUPPORT_EMAIL'] || 'support@pulsestream.live',
         contentRating: (map['SITE_CONTENT_RATING'] || map['CONTENT_RATING'] || 'ADULT').toUpperCase(),
         tokenPackages,
+        paymentMethods,
         tokenExchangeRateCents: parseInt(map['TOKEN_EXCHANGE_RATE_CENTS'] || '5', 10),
         revenueSplitStreamerPercent: parseInt(map['REVENUE_SPLIT_STREAMER_PERCENT'] || '70', 10),
         minPayoutTokens: parseInt(map['MIN_PAYOUT_THRESHOLD_TOKENS'] || '1000', 10),
