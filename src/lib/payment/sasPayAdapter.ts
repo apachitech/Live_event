@@ -14,24 +14,65 @@ export interface SasPayNetwork {
   code: string;
   name: string;
   country: string;
-  currency: 'XOF' | 'XAF' | 'USD';
+  countryName: string;
+  flag: string;
+  currency: 'XOF' | 'XAF' | 'USD' | 'GNF' | string;
   badgeColor: string;
 }
 
 export const SUPPORTED_SASPAY_NETWORKS: SasPayNetwork[] = [
-  { code: 'wave_ci', name: 'Wave (Côte d\'Ivoire)', country: 'CI', currency: 'XOF', badgeColor: '#1dc4e9' },
-  { code: 'wave_sn', name: 'Wave (Sénégal)', country: 'SN', currency: 'XOF', badgeColor: '#1dc4e9' },
-  { code: 'orange_ci', name: 'Orange Money (Côte d\'Ivoire)', country: 'CI', currency: 'XOF', badgeColor: '#ff7900' },
-  { code: 'orange_sn', name: 'Orange Money (Sénégal)', country: 'SN', currency: 'XOF', badgeColor: '#ff7900' },
-  { code: 'orange_cm', name: 'Orange Money (Cameroun)', country: 'CM', currency: 'XAF', badgeColor: '#ff7900' },
-  { code: 'mtn_bj', name: 'MTN Mobile Money (Bénin)', country: 'BJ', currency: 'XOF', badgeColor: '#ffcc00' },
-  { code: 'mtn_ci', name: 'MTN MoMo (Côte d\'Ivoire)', country: 'CI', currency: 'XOF', badgeColor: '#ffcc00' },
-  { code: 'mtn_cm', name: 'MTN MoMo (Cameroun)', country: 'CM', currency: 'XAF', badgeColor: '#ffcc00' },
-  { code: 'moov_bj', name: 'Moov Money (Bénin)', country: 'BJ', currency: 'XOF', badgeColor: '#005baa' },
-  { code: 'moov_ci', name: 'Moov Money (Côte d\'Ivoire)', country: 'CI', currency: 'XOF', badgeColor: '#005baa' },
-  { code: 'moov_tg', name: 'Moov Money (Togo)', country: 'TG', currency: 'XOF', badgeColor: '#005baa' },
-  { code: 'djamo_ci', name: 'Djamo (Côte d\'Ivoire)', country: 'CI', currency: 'XOF', badgeColor: '#5334eb' },
-  { code: 'card', name: 'Visa & Mastercard (International)', country: 'ALL', currency: 'XOF', badgeColor: '#3b82f6' },
+  // Côte d'Ivoire
+  { code: 'wave_ci', name: 'Wave', country: 'CI', countryName: "Côte d'Ivoire", flag: '🇨🇮', currency: 'XOF', badgeColor: '#1dc4e9' },
+  { code: 'orange_ci', name: 'Orange Money', country: 'CI', countryName: "Côte d'Ivoire", flag: '🇨🇮', currency: 'XOF', badgeColor: '#ff7900' },
+  { code: 'mtn_ci', name: 'MTN MoMo', country: 'CI', countryName: "Côte d'Ivoire", flag: '🇨🇮', currency: 'XOF', badgeColor: '#ffcc00' },
+  { code: 'moov_ci', name: 'Moov Money', country: 'CI', countryName: "Côte d'Ivoire", flag: '🇨🇮', currency: 'XOF', badgeColor: '#005baa' },
+  { code: 'djamo_ci', name: 'Djamo', country: 'CI', countryName: "Côte d'Ivoire", flag: '🇨🇮', currency: 'XOF', badgeColor: '#5334eb' },
+
+  // Sénégal
+  { code: 'wave_sn', name: 'Wave', country: 'SN', countryName: 'Sénégal', flag: '🇸🇳', currency: 'XOF', badgeColor: '#1dc4e9' },
+  { code: 'orange_sn', name: 'Orange Money', country: 'SN', countryName: 'Sénégal', flag: '🇸🇳', currency: 'XOF', badgeColor: '#ff7900' },
+  { code: 'free_sn', name: 'Free Money', country: 'SN', countryName: 'Sénégal', flag: '🇸🇳', currency: 'XOF', badgeColor: '#e1000f' },
+
+  // Bénin
+  { code: 'mtn_bj', name: 'MTN Mobile Money', country: 'BJ', countryName: 'Bénin', flag: '🇧🇯', currency: 'XOF', badgeColor: '#ffcc00' },
+  { code: 'moov_bj', name: 'Moov Money', country: 'BJ', countryName: 'Bénin', flag: '🇧🇯', currency: 'XOF', badgeColor: '#005baa' },
+  { code: 'celtiis_bj', name: 'Celtiis Cash', country: 'BJ', countryName: 'Bénin', flag: '🇧🇯', currency: 'XOF', badgeColor: '#008080' },
+
+  // Cameroun
+  { code: 'orange_cm', name: 'Orange Money', country: 'CM', countryName: 'Cameroun', flag: '🇨🇲', currency: 'XAF', badgeColor: '#ff7900' },
+  { code: 'mtn_cm', name: 'MTN MoMo', country: 'CM', countryName: 'Cameroun', flag: '🇨🇲', currency: 'XAF', badgeColor: '#ffcc00' },
+
+  // Togo
+  { code: 'tmoney_tg', name: 'T-Money (Togocom)', country: 'TG', countryName: 'Togo', flag: '🇹🇬', currency: 'XOF', badgeColor: '#00a859' },
+  { code: 'moov_tg', name: 'Moov Money', country: 'TG', countryName: 'Togo', flag: '🇹🇬', currency: 'XOF', badgeColor: '#005baa' },
+
+  // Mali
+  { code: 'orange_ml', name: 'Orange Money', country: 'ML', countryName: 'Mali', flag: '🇲🇱', currency: 'XOF', badgeColor: '#ff7900' },
+  { code: 'moov_ml', name: 'Moov Money (Malitel)', country: 'ML', countryName: 'Mali', flag: '🇲🇱', currency: 'XOF', badgeColor: '#005baa' },
+
+  // Burkina Faso
+  { code: 'orange_bf', name: 'Orange Money', country: 'BF', countryName: 'Burkina Faso', flag: '🇧🇫', currency: 'XOF', badgeColor: '#ff7900' },
+  { code: 'moov_bf', name: 'Moov Money (Onatel)', country: 'BF', countryName: 'Burkina Faso', flag: '🇧🇫', currency: 'XOF', badgeColor: '#005baa' },
+
+  // Gabon
+  { code: 'airtel_ga', name: 'Airtel Money', country: 'GA', countryName: 'Gabon', flag: '🇬🇦', currency: 'XAF', badgeColor: '#e60000' },
+  { code: 'moov_ga', name: 'Moov Money', country: 'GA', countryName: 'Gabon', flag: '🇬🇦', currency: 'XAF', badgeColor: '#005baa' },
+
+  // RDC (Congo Kinshasa)
+  { code: 'mpesa_cd', name: 'Vodacom M-Pesa', country: 'CD', countryName: 'RDC', flag: '🇨🇩', currency: 'USD', badgeColor: '#e60000' },
+  { code: 'airtel_cd', name: 'Airtel Money', country: 'CD', countryName: 'RDC', flag: '🇨🇩', currency: 'USD', badgeColor: '#e60000' },
+  { code: 'orange_cd', name: 'Orange Money', country: 'CD', countryName: 'RDC', flag: '🇨🇩', currency: 'USD', badgeColor: '#ff7900' },
+
+  // Guinée
+  { code: 'orange_gn', name: 'Orange Money', country: 'GN', countryName: 'Guinée', flag: '🇬🇳', currency: 'GNF', badgeColor: '#ff7900' },
+  { code: 'mtn_gn', name: 'MTN MoMo', country: 'GN', countryName: 'Guinée', flag: '🇬🇳', currency: 'GNF', badgeColor: '#ffcc00' },
+
+  // Congo Brazzaville
+  { code: 'mtn_cg', name: 'MTN MoMo', country: 'CG', countryName: 'Congo', flag: '🇨🇬', currency: 'XAF', badgeColor: '#ffcc00' },
+  { code: 'airtel_cg', name: 'Airtel Money', country: 'CG', countryName: 'Congo', flag: '🇨🇬', currency: 'XAF', badgeColor: '#e60000' },
+
+  // International / Pan-African Cards
+  { code: 'card', name: 'Carte Bancaire (Visa / Mastercard)', country: 'ALL', countryName: 'International', flag: '💳', currency: 'XOF', badgeColor: '#3b82f6' },
 ];
 
 export class SasPayProcessor implements PaymentProcessor {

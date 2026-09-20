@@ -50,23 +50,39 @@ SasPay connects digital platforms to West and Central African telecom operators 
 
 ## 2. Supported Networks & Currencies
 
-SasPay supports all major telecom operators across West and Central Africa:
+SasPay supports all major telecom operators across West and Central Africa, as well as Pan-African and international bank cards:
 
-| Operator | Country | Code | Currency | Supported Actions |
-| :--- | :--- | :--- | :--- | :--- |
-| **Wave** | Côte d'Ivoire | `wave_ci` | `XOF` | Payin & Payout |
-| **Wave** | Sénégal | `wave_sn` | `XOF` | Payin & Payout |
-| **Orange Money** | Côte d'Ivoire | `orange_ci` | `XOF` | Payin & Payout |
-| **Orange Money** | Sénégal | `orange_sn` | `XOF` | Payin & Payout |
-| **Orange Money** | Cameroun | `orange_cm` | `XAF` | Payin & Payout |
-| **MTN Mobile Money** | Bénin | `mtn_bj` | `XOF` | Payin & Payout |
-| **MTN MoMo** | Côte d'Ivoire | `mtn_ci` | `XOF` | Payin & Payout |
-| **MTN MoMo** | Cameroun | `mtn_cm` | `XAF` | Payin & Payout |
-| **Moov Money** | Bénin | `moov_bj` | `XOF` | Payin & Payout |
-| **Moov Money** | Côte d'Ivoire | `moov_ci` | `XOF` | Payin & Payout |
-| **Moov Money** | Togo | `moov_tg` | `XOF` | Payin & Payout |
-| **Djamo** | Côte d'Ivoire | `djamo_ci` | `XOF` | Payin |
-| **Cards (Visa / Mastercard)** | Pan-African / Global | `card` | `XOF` / `USD` | Payin |
+| Flag | Operator | Country | Code | Currency | Supported Actions |
+| :---: | :--- | :--- | :--- | :--- | :--- |
+| 🇨🇮 | **Wave** | Côte d'Ivoire | `wave_ci` | `XOF` | Payin & Payout |
+| 🇨🇮 | **Orange Money** | Côte d'Ivoire | `orange_ci` | `XOF` | Payin & Payout |
+| 🇨🇮 | **MTN MoMo** | Côte d'Ivoire | `mtn_ci` | `XOF` | Payin & Payout |
+| 🇨🇮 | **Moov Money** | Côte d'Ivoire | `moov_ci` | `XOF` | Payin & Payout |
+| 🇨🇮 | **Djamo** | Côte d'Ivoire | `djamo_ci` | `XOF` | Payin |
+| 🇸🇳 | **Wave** | Sénégal | `wave_sn` | `XOF` | Payin & Payout |
+| 🇸🇳 | **Orange Money** | Sénégal | `orange_sn` | `XOF` | Payin & Payout |
+| 🇸🇳 | **Free Money** | Sénégal | `free_sn` | `XOF` | Payin & Payout |
+| 🇧🇯 | **MTN Mobile Money** | Bénin | `mtn_bj` | `XOF` | Payin & Payout |
+| 🇧🇯 | **Moov Money** | Bénin | `moov_bj` | `XOF` | Payin & Payout |
+| 🇧🇯 | **Celtiis Cash** | Bénin | `celtiis_bj` | `XOF` | Payin & Payout |
+| 🇨🇲 | **Orange Money** | Cameroun | `orange_cm` | `XAF` | Payin & Payout |
+| 🇨🇲 | **MTN MoMo** | Cameroun | `mtn_cm` | `XAF` | Payin & Payout |
+| 🇹🇬 | **T-Money (Togocom)** | Togo | `tmoney_tg` | `XOF` | Payin & Payout |
+| 🇹🇬 | **Moov Money** | Togo | `moov_tg` | `XOF` | Payin & Payout |
+| 🇲🇱 | **Orange Money** | Mali | `orange_ml` | `XOF` | Payin & Payout |
+| 🇲🇱 | **Moov Money (Malitel)** | Mali | `moov_ml` | `XOF` | Payin & Payout |
+| 🇧🇫 | **Orange Money** | Burkina Faso | `orange_bf` | `XOF` | Payin & Payout |
+| 🇧🇫 | **Moov Money (Onatel)** | Burkina Faso | `moov_bf` | `XOF` | Payin & Payout |
+| 🇬🇦 | **Airtel Money** | Gabon | `airtel_ga` | `XAF` | Payin & Payout |
+| 🇬🇦 | **Moov Money** | Gabon | `moov_ga` | `XAF` | Payin & Payout |
+| 🇨🇩 | **Vodacom M-Pesa** | RDC (Congo Kinshasa) | `mpesa_cd` | `USD` | Payin & Payout |
+| 🇨🇩 | **Airtel Money** | RDC (Congo Kinshasa) | `airtel_cd` | `USD` | Payin & Payout |
+| 🇨🇩 | **Orange Money** | RDC (Congo Kinshasa) | `orange_cd` | `USD` | Payin & Payout |
+| 🇬🇳 | **Orange Money** | Guinée | `orange_gn` | `GNF` | Payin & Payout |
+| 🇬🇳 | **MTN MoMo** | Guinée | `mtn_gn` | `GNF` | Payin & Payout |
+| 🇨🇬 | **MTN MoMo** | Congo Brazzaville | `mtn_cg` | `XAF` | Payin & Payout |
+| 🇨🇬 | **Airtel Money** | Congo Brazzaville | `airtel_cg` | `XAF` | Payin & Payout |
+| 💳 | **Cartes Bancaires (Visa / Mastercard)** | International / Global | `card` | `XOF` / `USD` | Payin |
 
 ---
 

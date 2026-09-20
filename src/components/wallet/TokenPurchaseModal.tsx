@@ -46,6 +46,7 @@ export default function TokenPurchaseModal() {
   // SasPay Mobile Money state
   const [sasPayNetwork, setSasPayNetwork] = useState('wave_ci');
   const [sasPayPhone, setSasPayPhone] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState('ALL');
 
   // Cryptocurrency state
   const [selectedCrypto, setSelectedCrypto] = useState('usdttrc20');
@@ -290,36 +291,81 @@ export default function TokenPurchaseModal() {
                 </div>
               </div>
 
-              {/* Supported Networks Pills */}
-              <div>
-                <label className="block text-[11px] font-semibold text-gray-300 mb-1.5">
-                  Select Mobile Money Operator or Card:
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-36 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-zinc-700">
-                  {SUPPORTED_SASPAY_NETWORKS.map((net) => {
-                    const isSelected = sasPayNetwork === net.code;
-                    return (
-                      <button
-                        key={net.code}
-                        type="button"
-                        onClick={() => setSasPayNetwork(net.code)}
-                        className={`px-2.5 py-2 rounded-xl border text-left flex items-center justify-between gap-1.5 transition transform hover:scale-[1.01] ${
-                          isSelected
-                            ? 'border-emerald-400 bg-emerald-500/20 text-white shadow-sm ring-1 ring-emerald-400/50'
-                            : 'border-surfaceBorder bg-surfaceLight/40 text-gray-300 hover:border-gray-500'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span
-                            className="w-2.5 h-2.5 rounded-full shrink-0"
-                            style={{ backgroundColor: net.badgeColor }}
-                          />
-                          <span className="text-[11px] font-medium truncate">{net.name}</span>
-                        </div>
-                        {isSelected && <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
-                      </button>
-                    );
-                  })}
+              {/* Supported Networks Pills with Country Filter */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[11px] font-semibold text-gray-300">
+                    Select Country & Operator / Card:
+                  </label>
+                  <span className="text-[10px] text-emerald-400 font-mono">
+                    {SUPPORTED_SASPAY_NETWORKS.filter((n) => selectedCountry === 'ALL' || n.country === selectedCountry).length} operators
+                  </span>
+                </div>
+
+                {/* Country Filter Chips */}
+                <div className="flex items-center gap-1 overflow-x-auto pb-1.5 scrollbar-thin scrollbar-thumb-zinc-700">
+                  {[
+                    { code: 'ALL', label: 'All', flag: '🌍' },
+                    { code: 'CI', label: "Côte d'Ivoire", flag: '🇨🇮' },
+                    { code: 'SN', label: 'Sénégal', flag: '🇸🇳' },
+                    { code: 'BJ', label: 'Bénin', flag: '🇧🇯' },
+                    { code: 'CM', label: 'Cameroun', flag: '🇨🇲' },
+                    { code: 'TG', label: 'Togo', flag: '🇹🇬' },
+                    { code: 'ML', label: 'Mali', flag: '🇲🇱' },
+                    { code: 'BF', label: 'Burkina Faso', flag: '🇧🇫' },
+                    { code: 'GA', label: 'Gabon', flag: '🇬🇦' },
+                    { code: 'CD', label: 'RDC', flag: '🇨🇩' },
+                    { code: 'GN', label: 'Guinée', flag: '🇬🇳' },
+                    { code: 'CG', label: 'Congo', flag: '🇨🇬' },
+                  ].map((c) => (
+                    <button
+                      key={c.code}
+                      type="button"
+                      onClick={() => setSelectedCountry(c.code)}
+                      className={`px-2 py-1 rounded-lg text-[10px] font-medium whitespace-nowrap transition flex items-center gap-1 border shrink-0 ${
+                        selectedCountry === c.code
+                          ? 'border-emerald-400 bg-emerald-500/25 text-emerald-300 font-bold shadow-sm ring-1 ring-emerald-400/50'
+                          : 'border-surfaceBorder bg-surfaceLight/40 text-gray-400 hover:border-gray-500 hover:text-gray-200'
+                      }`}
+                    >
+                      <span>{c.flag}</span>
+                      <span>{c.label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Operators Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-zinc-700">
+                  {SUPPORTED_SASPAY_NETWORKS
+                    .filter((net) => selectedCountry === 'ALL' || net.country === selectedCountry)
+                    .map((net) => {
+                      const isSelected = sasPayNetwork === net.code;
+                      return (
+                        <button
+                          key={net.code}
+                          type="button"
+                          onClick={() => setSasPayNetwork(net.code)}
+                          className={`px-2.5 py-2 rounded-xl border text-left flex items-center justify-between gap-1.5 transition transform hover:scale-[1.01] ${
+                            isSelected
+                              ? 'border-emerald-400 bg-emerald-500/20 text-white shadow-sm ring-1 ring-emerald-400/50'
+                              : 'border-surfaceBorder bg-surfaceLight/40 text-gray-300 hover:border-gray-500'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-base shrink-0">{net.flag}</span>
+                            <div className="min-w-0">
+                              <div className="text-[11px] font-bold text-white truncate flex items-center gap-1">
+                                <span>{net.name}</span>
+                              </div>
+                              <div className="text-[9px] text-gray-400 truncate">
+                                {net.countryName} • <span className="text-emerald-400 font-mono font-medium">{net.currency}</span>
+                              </div>
+                            </div>
+                          </div>
+                          {isSelected && <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                        </button>
+                      );
+                    })}
                 </div>
               </div>
 
