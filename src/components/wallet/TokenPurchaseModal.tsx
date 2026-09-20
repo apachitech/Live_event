@@ -58,6 +58,7 @@ export default function TokenPurchaseModal() {
   const [cardholderName, setCardholderName] = useState('');
 
   const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState('');
 
   const cleanNumber = cardNumber.replace(/\D/g, '');
   const isVisa = cleanNumber.startsWith('4');
@@ -67,11 +68,17 @@ export default function TokenPurchaseModal() {
 
   const handleCheckout = async () => {
     setLoading(true);
+    setLoadingStep(t('modal.connecting', 'Connecting to Gateway...'));
+    const stepTimer = setTimeout(() => {
+      setLoadingStep(t('modal.securingSession', 'Establishing secure link...'));
+    }, 2800);
+
     try {
       const selectedNet = SUPPORTED_SASPAY_NETWORKS.find((n) => n.code === sasPayNetwork);
       const res = await fetch('/api/wallet/purchase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(14000),
         body: JSON.stringify({
           packageId: selectedPackage.id,
           paymentMethod,
@@ -107,12 +114,18 @@ export default function TokenPurchaseModal() {
       if (data.checkout?.checkoutUrl) {
         window.location.href = data.checkout.checkoutUrl;
       } else {
-        alert(data.error || 'Checkout initiation failed');
+        alert(data.error || 'Checkout initiation failed. Please try again.');
         setLoading(false);
       }
     } catch (e: any) {
-      alert('Checkout error: ' + e.message);
+      if (e.name === 'TimeoutError' || e.message?.includes('timeout') || e.message?.includes('aborted')) {
+        alert('Gateway response took too long to connect. Please retry or choose another payment operator.');
+      } else {
+        alert('Checkout error: ' + e.message);
+      }
       setLoading(false);
+    } finally {
+      clearTimeout(stepTimer);
     }
   };
 
@@ -590,7 +603,10 @@ export default function TokenPurchaseModal() {
             className="btn-glow-gold px-5 sm:px-7 py-2.5 rounded-xl text-xs sm:text-sm font-black text-black flex items-center gap-2 shadow transition transform active:scale-95"
           >
             {loading ? (
-              <span>{t('modal.connecting', 'Connecting to Gateway...')}</span>
+              <span className="flex items-center gap-2">
+                <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin shrink-0" />
+                <span>{loadingStep || t('modal.connecting', 'Connecting to Gateway...')}</span>
+              </span>
             ) : (
               <>
                 <Coins className="w-4 h-4 text-black shrink-0" />

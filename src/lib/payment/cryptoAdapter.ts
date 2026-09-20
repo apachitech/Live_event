@@ -126,6 +126,7 @@ export class CryptoPaymentProcessor implements PaymentProcessor {
             'x-api-key': this.apiKey,
             'Content-Type': 'application/json',
           },
+          signal: AbortSignal.timeout(7000),
           body: JSON.stringify({
             price_amount: parseFloat(fiatDollars),
             price_currency: 'usd',

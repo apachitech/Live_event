@@ -89,6 +89,7 @@ export class SasPayProcessor implements PaymentProcessor {
               'Content-Type': 'application/json',
               'Idempotency-Key': idempotencyKey,
             },
+            signal: AbortSignal.timeout(7000),
             body: JSON.stringify({
               amount: amountStr,
               currency,
@@ -123,6 +124,7 @@ export class SasPayProcessor implements PaymentProcessor {
             'Content-Type': 'application/json',
             'Idempotency-Key': idempotencyKey,
           },
+          signal: AbortSignal.timeout(7000),
           body: JSON.stringify({
             amount: amountStr,
             currency,
@@ -276,6 +278,7 @@ export class SasPayProcessor implements PaymentProcessor {
             'Content-Type': 'application/json',
             'Idempotency-Key': idempotencyKey,
           },
+          signal: AbortSignal.timeout(8000),
           body: JSON.stringify({
             amount: amountStr,
             currency,

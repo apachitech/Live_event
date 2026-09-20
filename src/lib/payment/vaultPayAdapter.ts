@@ -140,6 +140,7 @@ export class VaultPayProcessor implements PaymentProcessor {
             Authorization: `Bearer ${this.apiKey}`,
             'Content-Type': 'application/json',
           },
+          signal: AbortSignal.timeout(7000),
           body: JSON.stringify(payload),
         });
 
