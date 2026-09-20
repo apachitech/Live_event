@@ -139,12 +139,23 @@ export class SasPayProcessor implements PaymentProcessor {
       cleanReturnUrl = `${successUrl}?package_id=${pkg.id}&tokens=${pkg.tokens}&fiat_cents=${pkg.priceCents}&provider=saspay`;
     }
 
-    const customerEmail = (sasPayOptions?.customerEmail || `user_${userId.slice(0, 8)}@pulsestream.live`).trim();
-    const customerName = (sasPayOptions?.customerName || 'PulseStream Viewer').trim();
-    const customerPhone = sasPayOptions?.phoneNumber || undefined;
+    // Ensure customer email is strictly valid and contains no spaces
+    let customerEmail = (sasPayOptions?.customerEmail || '').trim();
+    if (!customerEmail || !customerEmail.includes('@') || !customerEmail.includes('.') || customerEmail.includes(' ')) {
+      const cleanUserTag = userId.replace(/[^a-zA-Z0-9]/g, '').toLowerCase().slice(0, 10) || 'viewer';
+      customerEmail = `customer_${cleanUserTag}@gmail.com`;
+    }
 
-    // 1. Direct Softpay Push (if phone number is specified)
-    if (sasPayOptions?.phoneNumber && sasPayOptions?.operator && sasPayOptions.operator !== 'card') {
+    // Ensure customer name is non-empty and clean
+    let customerName = (sasPayOptions?.customerName || '').trim().replace(/[^\w\s-]/gi, '');
+    if (!customerName) {
+      customerName = 'PulseStream Viewer';
+    }
+
+    const customerPhone = sasPayOptions?.phoneNumber ? sasPayOptions.phoneNumber.trim().replace(/\s+/g, '') : undefined;
+
+    // 1. Direct Softpay Push (if phone number is explicitly specified by the user)
+    if (customerPhone && sasPayOptions?.operator && sasPayOptions.operator !== 'card') {
       try {
         const softpayRes = await fetch(`${this.baseUrl}/payments/softpay/`, {
           method: 'POST',
@@ -158,15 +169,9 @@ export class SasPayProcessor implements PaymentProcessor {
             amount: amountVal,
             currency,
             method: sasPayOptions.operator,
-            phone: sasPayOptions.phoneNumber,
+            phone: customerPhone,
             customer_email: customerEmail,
             customer_name: customerName,
-            customer_phone: customerPhone,
-            customer: {
-              email: customerEmail,
-              name: customerName,
-              phone: customerPhone,
-            },
             description: `Live Stream ${pkg.tokens} Tokens (${pkg.label})`,
             metadata: {
               userId,
@@ -198,6 +203,7 @@ export class SasPayProcessor implements PaymentProcessor {
 
     // 2. SasPay Hosted Checkout Session (pay.saspay.me)
     try {
+      // Standard hosted checkout payload conformant to SasPay API specification
       const sessionPayload: Record<string, any> = {
         amount: amountVal,
         currency,
@@ -207,11 +213,6 @@ export class SasPayProcessor implements PaymentProcessor {
         return_url: cleanReturnUrl,
         success_url: cleanReturnUrl,
         cancel_url: cancelUrl || cleanReturnUrl,
-        customer: {
-          email: customerEmail,
-          name: customerName,
-          phone: customerPhone,
-        },
         metadata: {
           userId,
           packageId: pkg.id,
@@ -222,15 +223,9 @@ export class SasPayProcessor implements PaymentProcessor {
 
       if (customerPhone) {
         sessionPayload.customer_phone = customerPhone;
-        sessionPayload.phone = customerPhone;
       }
 
-      if (sasPayOptions?.operator && sasPayOptions.operator !== 'card') {
-        sessionPayload.method = sasPayOptions.operator;
-        sessionPayload.country = sasPayOptions.country || 'CI';
-      }
-
-      const sessionRes = await fetch(`${this.baseUrl}/checkout-sessions/`, {
+      let sessionRes = await fetch(`${this.baseUrl}/checkout-sessions/`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
@@ -240,6 +235,36 @@ export class SasPayProcessor implements PaymentProcessor {
         signal: AbortSignal.timeout(10000),
         body: JSON.stringify(sessionPayload),
       });
+
+      // Self-healing fallback: If primary payload is rejected with 400 (e.g. metadata or phone format issue),
+      // retry with the minimalist schema accepted by all SasPay gateway versions
+      if (!sessionRes.ok && sessionRes.status === 400) {
+        console.warn('[SasPay Adapter] Primary checkout-session rejected with 400. Attempting minimalist fallback...');
+        try {
+          const fallbackRes = await fetch(`${this.baseUrl}/checkout-sessions/`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${this.apiKey}`,
+              'Content-Type': 'application/json',
+              'Idempotency-Key': `${idempotencyKey}_fb`,
+            },
+            signal: AbortSignal.timeout(8000),
+            body: JSON.stringify({
+              amount: String(amountVal),
+              currency,
+              customer_email: customerEmail,
+              customer_name: customerName,
+              description: `Tokens - ${pkg.tokens}`,
+              return_url: cleanReturnUrl,
+            }),
+          });
+          if (fallbackRes.ok) {
+            sessionRes = fallbackRes;
+          }
+        } catch (fbErr: any) {
+          console.warn('[SasPay Adapter] Minimalist fallback attempt failed:', fbErr.message);
+        }
+      }
 
       if (sessionRes.ok) {
         const sessionData = await sessionRes.json();

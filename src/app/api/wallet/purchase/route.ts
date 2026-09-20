@@ -85,11 +85,24 @@ export async function POST(req: Request) {
       select: { email: true, username: true },
     });
 
+    let safeEmail = (user?.email || '').trim();
+    if (!safeEmail || !safeEmail.includes('@') || !safeEmail.includes('.') || safeEmail.includes(' ')) {
+      const cleanUserTag = (user?.username || session.userId || 'viewer')
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .toLowerCase()
+        .slice(0, 15) || 'viewer';
+      safeEmail = `user_${cleanUserTag}@gmail.com`;
+    }
+
+    const safeName = (user?.username || 'PulseStream Viewer').trim().replace(/[^\w\s-]/gi, '') || 'PulseStream Viewer';
+
     const enrichedSasPayOptions = sasPayOptions
       ? {
           ...sasPayOptions,
-          customerEmail: user?.email || `${user?.username || session.userId}@users.live`,
-          customerName: user?.username || 'PulseStream Viewer',
+          customerEmail: (sasPayOptions.customerEmail && sasPayOptions.customerEmail.includes('@'))
+            ? sasPayOptions.customerEmail.trim()
+            : safeEmail,
+          customerName: sasPayOptions.customerName?.trim() || safeName,
         }
       : undefined;
 
@@ -107,6 +120,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, checkout });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error('[POST /api/wallet/purchase] Purchase processing error:', err);
+    return NextResponse.json(
+      { 
+        error: err.message || 'Payment initiation failed. Please try again.',
+        details: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+      },
+      { status: 400 }
+    );
   }
 }

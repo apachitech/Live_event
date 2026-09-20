@@ -49,7 +49,7 @@ function CountryFlagBadge({
 }
 
 export default function TokenPurchaseModal() {
-  const { isPurchaseModalOpen, closePurchaseModal } = useAuth();
+  const { user, isPurchaseModalOpen, closePurchaseModal } = useAuth();
   const { tokenPackages: dynamicPackages, siteName, paymentMethods } = useSiteConfig();
   const { t } = useLanguage();
   const activePackages = dynamicPackages && dynamicPackages.length > 0 ? dynamicPackages : FALLBACK_PACKAGES;
@@ -96,7 +96,15 @@ export default function TokenPurchaseModal() {
   // SasPay Mobile Money state
   const [sasPayNetwork, setSasPayNetwork] = useState('wave_ci');
   const [sasPayPhone, setSasPayPhone] = useState('');
+  const [sasPayEmail, setSasPayEmail] = useState('');
   const [selectedCountry, setSelectedCountry] = useState('ALL');
+
+  // Prepopulate email from logged-in user if available
+  useEffect(() => {
+    if (user?.email && !sasPayEmail) {
+      setSasPayEmail(user.email);
+    }
+  }, [user, sasPayEmail]);
 
   // Cryptocurrency state
   const [selectedCrypto, setSelectedCrypto] = useState('usdttrc20');
@@ -110,6 +118,7 @@ export default function TokenPurchaseModal() {
 
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   const cleanNumber = cardNumber.replace(/\D/g, '');
   const isVisa = cleanNumber.startsWith('4');
@@ -119,6 +128,7 @@ export default function TokenPurchaseModal() {
 
   const handleCheckout = async () => {
     setLoading(true);
+    setCheckoutError(null);
     setLoadingStep(t('modal.connecting', 'Connecting to Gateway...'));
     const stepTimer = setTimeout(() => {
       setLoadingStep(t('modal.securingSession', 'Establishing secure link...'));
@@ -136,6 +146,7 @@ export default function TokenPurchaseModal() {
           sasPayOptions:
             paymentMethod === 'SASPAY'
               ? {
+                  customerEmail: sasPayEmail.trim() || undefined,
                   phoneNumber: sasPayPhone ? sasPayPhone.replace(/\s+/g, '') : undefined,
                   operator: sasPayNetwork,
                   country: selectedNet?.country || 'CI',
@@ -162,17 +173,18 @@ export default function TokenPurchaseModal() {
       });
 
       const data = await res.json();
-      if (data.checkout?.checkoutUrl) {
+      if (res.ok && data.checkout?.checkoutUrl) {
         window.location.href = data.checkout.checkoutUrl;
       } else {
-        alert(data.error || 'Checkout initiation failed. Please try again.');
+        const errorMsg = data.error || 'Payment gateway connection failed. Please check your details or try another method.';
+        setCheckoutError(errorMsg);
         setLoading(false);
       }
     } catch (e: any) {
       if (e.name === 'TimeoutError' || e.message?.includes('timeout') || e.message?.includes('aborted')) {
-        alert('Gateway response took too long to connect. Please retry or choose another payment operator.');
+        setCheckoutError('Gateway response took too long to connect. Please retry or choose another payment operator.');
       } else {
-        alert('Checkout error: ' + e.message);
+        setCheckoutError(e.message || 'Checkout initiation failed.');
       }
       setLoading(false);
     } finally {
@@ -209,6 +221,27 @@ export default function TokenPurchaseModal() {
 
         {/* 2. Scrollable Body (Adaptive Proportions & Custom Scrollbar) */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-4 space-y-4 text-xs scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-zinc-900/40">
+          {/* Prominent Gateway Error Banner */}
+          {checkoutError && (
+            <div className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs flex items-start gap-3 animate-fade-in shadow-lg shadow-rose-950/20">
+              <AlertCircle className="w-5 h-5 shrink-0 text-rose-400 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <p className="font-bold text-rose-200">{t('modal.paymentFailed', 'Payment Gateway Error')}</p>
+                  <button
+                    type="button"
+                    onClick={() => setCheckoutError(null)}
+                    className="text-rose-400 hover:text-white p-0.5 transition rounded hover:bg-rose-500/20"
+                    aria-label="Dismiss error"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <p className="text-[11px] text-rose-300/90 mt-1 leading-relaxed break-words">{checkoutError}</p>
+              </div>
+            </div>
+          )}
+
           {/* 2.1 Package Selection Grid (Proportional 2x2 on Mobile, 4 Columns on Tablet/Desktop) */}
           <div>
             <label className="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-2">
@@ -220,7 +253,10 @@ export default function TokenPurchaseModal() {
                 return (
                   <div
                     key={pkg.id}
-                    onClick={() => setSelectedPackage(pkg)}
+                    onClick={() => {
+                      setSelectedPackage(pkg);
+                      if (checkoutError) setCheckoutError(null);
+                    }}
                     className={`relative cursor-pointer rounded-xl p-3 transition-all duration-200 border flex flex-col justify-between hover:scale-[1.02] active:scale-95 ${
                       isSelected
                         ? 'border-amber-500 bg-amber-500/10 shadow-lg shadow-amber-500/10 ring-1 ring-amber-500/40'
@@ -280,7 +316,10 @@ export default function TokenPurchaseModal() {
                 {isSasPayActive && (
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod('SASPAY')}
+                    onClick={() => {
+                      setPaymentMethod('SASPAY');
+                      if (checkoutError) setCheckoutError(null);
+                    }}
                     className={`p-2.5 sm:p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition transform hover:scale-[1.01] active:scale-95 ${
                       paymentMethod === 'SASPAY'
                         ? 'border-emerald-500 bg-emerald-500/20 text-white font-bold shadow-sm shadow-emerald-500/20 ring-1 ring-emerald-500/50'
@@ -295,7 +334,10 @@ export default function TokenPurchaseModal() {
                 {isCryptoActive && (
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod('CRYPTO')}
+                    onClick={() => {
+                      setPaymentMethod('CRYPTO');
+                      if (checkoutError) setCheckoutError(null);
+                    }}
                     className={`p-2.5 sm:p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition transform hover:scale-[1.01] active:scale-95 ${
                       paymentMethod === 'CRYPTO'
                         ? 'border-amber-500 bg-amber-500/20 text-white font-bold shadow-sm shadow-amber-500/20 ring-1 ring-amber-500/50'
@@ -310,7 +352,10 @@ export default function TokenPurchaseModal() {
                 {isVaultPayActive && (
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod('VAULTPAY')}
+                    onClick={() => {
+                      setPaymentMethod('VAULTPAY');
+                      if (checkoutError) setCheckoutError(null);
+                    }}
                     className={`p-2.5 sm:p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition transform hover:scale-[1.01] active:scale-95 ${
                       paymentMethod === 'VAULTPAY'
                         ? 'border-cyan-400 bg-cyan-500/20 text-white font-bold shadow-sm shadow-cyan-500/20 ring-1 ring-cyan-400/50'
@@ -325,7 +370,10 @@ export default function TokenPurchaseModal() {
                 {isMockActive && (
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod('MOCK')}
+                    onClick={() => {
+                      setPaymentMethod('MOCK');
+                      if (checkoutError) setCheckoutError(null);
+                    }}
                     className={`p-2.5 sm:p-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition transform hover:scale-[1.01] active:scale-95 ${
                       paymentMethod === 'MOCK'
                         ? 'border-purple-500 bg-purple-500/20 text-white font-bold ring-1 ring-purple-500/50'
@@ -439,27 +487,44 @@ export default function TokenPurchaseModal() {
                 </div>
               </div>
 
-              {/* Direct Phone Number Prompt (Optional Push) */}
-              <div>
-                <label className="block text-[11px] font-semibold text-gray-300 mb-1">
-                  Mobile Money Phone Number (Optional for Instant Push):
-                </label>
-                <div className="relative">
+              {/* Customer Email & Phone Number Inputs */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">
+                    Email Address (for receipt & validation):
+                  </label>
                   <input
-                    type="tel"
-                    placeholder="e.g. +225 07 00 00 00 00 or 97505050"
-                    value={sasPayPhone}
-                    onChange={(e) => setSasPayPhone(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs tracking-wider font-mono focus:outline-none focus:border-emerald-400 placeholder:text-gray-500"
+                    type="email"
+                    placeholder="e.g. your-email@gmail.com"
+                    value={sasPayEmail}
+                    onChange={(e) => {
+                      setSasPayEmail(e.target.value);
+                      if (checkoutError) setCheckoutError(null);
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs focus:outline-none focus:border-emerald-400 placeholder:text-gray-500"
                   />
-                  <span className="absolute right-3 top-2 text-[10px] text-gray-400 font-semibold">
-                    Wave • Orange • MTN • Moov
-                  </span>
                 </div>
-                <p className="mt-1 text-[10px] text-gray-400">
-                  Leave blank to complete payment on the official <strong>SasPay Hosted Checkout</strong> page.
-                </p>
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">
+                    Mobile Money Phone (Optional):
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      placeholder="e.g. +225 07 00 00 00 00"
+                      value={sasPayPhone}
+                      onChange={(e) => {
+                        setSasPayPhone(e.target.value);
+                        if (checkoutError) setCheckoutError(null);
+                      }}
+                      className="w-full px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs tracking-wider font-mono focus:outline-none focus:border-emerald-400 placeholder:text-gray-500"
+                    />
+                  </div>
+                </div>
               </div>
+              <p className="text-[10px] text-gray-400">
+                Leave phone blank to complete payment on the official <strong>SasPay Hosted Checkout</strong> page.
+              </p>
             </div>
           )}
 
