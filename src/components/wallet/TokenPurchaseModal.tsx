@@ -24,6 +24,29 @@ import {
   ChevronUp,
 } from 'lucide-react';
 
+function CountryFlagBadge({
+  country,
+  className = 'w-4 h-3 object-cover rounded-sm shrink-0 shadow-sm',
+}: {
+  country: string;
+  className?: string;
+}) {
+  if (country === 'ALL') {
+    return <span className="text-xs shrink-0">🌍</span>;
+  }
+  if (country === 'card' || country === 'ALL_CARD') {
+    return <CreditCard className="w-3.5 h-3.5 text-cyan-400 shrink-0" />;
+  }
+  return (
+    <img
+      src={`https://flagcdn.com/w40/${country.toLowerCase()}.png`}
+      alt={country}
+      className={className}
+      loading="lazy"
+    />
+  );
+}
+
 export default function TokenPurchaseModal() {
   const { isPurchaseModalOpen, closePurchaseModal } = useAuth();
   const { tokenPackages: dynamicPackages, siteName } = useSiteConfig();
@@ -303,39 +326,40 @@ export default function TokenPurchaseModal() {
                 </div>
 
                 {/* Country Filter Chips */}
-                <div className="flex items-center gap-1 overflow-x-auto pb-1.5 scrollbar-thin scrollbar-thumb-zinc-700">
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-zinc-700">
                   {[
-                    { code: 'ALL', label: 'All', flag: '🌍' },
-                    { code: 'CI', label: "Côte d'Ivoire", flag: '🇨🇮' },
-                    { code: 'SN', label: 'Sénégal', flag: '🇸🇳' },
-                    { code: 'BJ', label: 'Bénin', flag: '🇧🇯' },
-                    { code: 'CM', label: 'Cameroun', flag: '🇨🇲' },
-                    { code: 'TG', label: 'Togo', flag: '🇹🇬' },
-                    { code: 'ML', label: 'Mali', flag: '🇲🇱' },
-                    { code: 'BF', label: 'Burkina Faso', flag: '🇧🇫' },
-                    { code: 'GA', label: 'Gabon', flag: '🇬🇦' },
-                    { code: 'CD', label: 'RDC', flag: '🇨🇩' },
-                    { code: 'GN', label: 'Guinée', flag: '🇬🇳' },
-                    { code: 'CG', label: 'Congo', flag: '🇨🇬' },
+                    { code: 'ALL', label: 'All', country: 'ALL' },
+                    { code: 'CI', label: "Côte d'Ivoire", country: 'CI' },
+                    { code: 'SN', label: 'Sénégal', country: 'SN' },
+                    { code: 'BJ', label: 'Bénin', country: 'BJ' },
+                    { code: 'CM', label: 'Cameroun', country: 'CM' },
+                    { code: 'TG', label: 'Togo', country: 'TG' },
+                    { code: 'ML', label: 'Mali', country: 'ML' },
+                    { code: 'BF', label: 'Burkina Faso', country: 'BF' },
+                    { code: 'GA', label: 'Gabon', country: 'GA' },
+                    { code: 'CD', label: 'RDC', country: 'CD' },
+                    { code: 'GN', label: 'Guinée', country: 'GN' },
+                    { code: 'CG', label: 'Congo', country: 'CG' },
+                    { code: 'card', label: 'Cartes Bancaires', country: 'card' },
                   ].map((c) => (
                     <button
                       key={c.code}
                       type="button"
-                      onClick={() => setSelectedCountry(c.code)}
-                      className={`px-2 py-1 rounded-lg text-[10px] font-medium whitespace-nowrap transition flex items-center gap-1 border shrink-0 ${
-                        selectedCountry === c.code
+                      onClick={() => setSelectedCountry(c.code === 'card' ? 'ALL' : c.code)}
+                      className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium whitespace-nowrap transition flex items-center gap-1.5 border shrink-0 ${
+                        selectedCountry === (c.code === 'card' ? 'ALL' : c.code)
                           ? 'border-emerald-400 bg-emerald-500/25 text-emerald-300 font-bold shadow-sm ring-1 ring-emerald-400/50'
                           : 'border-surfaceBorder bg-surfaceLight/40 text-gray-400 hover:border-gray-500 hover:text-gray-200'
                       }`}
                     >
-                      <span>{c.flag}</span>
+                      <CountryFlagBadge country={c.country} className="w-4 h-3 object-cover rounded shadow-sm shrink-0" />
                       <span>{c.label}</span>
                     </button>
                   ))}
                 </div>
 
                 {/* Operators Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-zinc-700">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-56 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-zinc-700">
                   {SUPPORTED_SASPAY_NETWORKS
                     .filter((net) => selectedCountry === 'ALL' || net.country === selectedCountry)
                     .map((net) => {
@@ -352,7 +376,10 @@ export default function TokenPurchaseModal() {
                           }`}
                         >
                           <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-base shrink-0">{net.flag}</span>
+                            <CountryFlagBadge
+                              country={net.country}
+                              className="w-5 h-3.5 object-cover rounded shadow-sm shrink-0 border border-white/10"
+                            />
                             <div className="min-w-0">
                               <div className="text-[11px] font-bold text-white truncate flex items-center gap-1">
                                 <span>{net.name}</span>
