@@ -184,10 +184,12 @@ export class SasPayProcessor implements PaymentProcessor {
 
         if (softpayRes.ok) {
           const data = await softpayRes.json();
-          if (data.checkout_url) {
+          const checkoutUrl = data.checkout_url || data.data?.checkout_url || data.data?.payment_url;
+          const sessionId = data.id || data.data?.id || data.reference || idempotencyKey;
+          if (checkoutUrl) {
             return {
-              sessionId: data.id || data.reference || idempotencyKey,
-              checkoutUrl: data.checkout_url,
+              sessionId,
+              checkoutUrl,
               provider: 'SASPAY_SOFTPAY',
               sasPayDetails: sasPayOptions,
             };
@@ -268,10 +270,13 @@ export class SasPayProcessor implements PaymentProcessor {
 
       if (sessionRes.ok) {
         const sessionData = await sessionRes.json();
-        if (sessionData.checkout_url) {
+        const checkoutUrl = sessionData.checkout_url || sessionData.data?.checkout_url || sessionData.data?.payment_url;
+        const sessionId = sessionData.id || sessionData.data?.id || sessionData.data?.slug || idempotencyKey;
+
+        if (checkoutUrl) {
           return {
-            sessionId: sessionData.id || idempotencyKey,
-            checkoutUrl: sessionData.checkout_url,
+            sessionId,
+            checkoutUrl,
             provider: 'SASPAY',
             sasPayDetails: sasPayOptions,
           };
