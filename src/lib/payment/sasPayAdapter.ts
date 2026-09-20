@@ -139,6 +139,10 @@ export class SasPayProcessor implements PaymentProcessor {
       cleanReturnUrl = `${successUrl}?package_id=${pkg.id}&tokens=${pkg.tokens}&fiat_cents=${pkg.priceCents}&provider=saspay`;
     }
 
+    const customerEmail = (sasPayOptions?.customerEmail || `user_${userId.slice(0, 8)}@pulsestream.live`).trim();
+    const customerName = (sasPayOptions?.customerName || 'PulseStream Viewer').trim();
+    const customerPhone = sasPayOptions?.phoneNumber || undefined;
+
     // 1. Direct Softpay Push (if phone number is specified)
     if (sasPayOptions?.phoneNumber && sasPayOptions?.operator && sasPayOptions.operator !== 'card') {
       try {
@@ -155,6 +159,14 @@ export class SasPayProcessor implements PaymentProcessor {
             currency,
             method: sasPayOptions.operator,
             phone: sasPayOptions.phoneNumber,
+            customer_email: customerEmail,
+            customer_name: customerName,
+            customer_phone: customerPhone,
+            customer: {
+              email: customerEmail,
+              name: customerName,
+              phone: customerPhone,
+            },
             description: `Live Stream ${pkg.tokens} Tokens (${pkg.label})`,
             metadata: {
               userId,
@@ -189,10 +201,17 @@ export class SasPayProcessor implements PaymentProcessor {
       const sessionPayload: Record<string, any> = {
         amount: amountVal,
         currency,
+        customer_email: customerEmail,
+        customer_name: customerName,
         description: `Live Stream ${pkg.tokens} Tokens (${pkg.label})`,
         return_url: cleanReturnUrl,
         success_url: cleanReturnUrl,
         cancel_url: cancelUrl || cleanReturnUrl,
+        customer: {
+          email: customerEmail,
+          name: customerName,
+          phone: customerPhone,
+        },
         metadata: {
           userId,
           packageId: pkg.id,
@@ -201,17 +220,14 @@ export class SasPayProcessor implements PaymentProcessor {
         },
       };
 
+      if (customerPhone) {
+        sessionPayload.customer_phone = customerPhone;
+        sessionPayload.phone = customerPhone;
+      }
+
       if (sasPayOptions?.operator && sasPayOptions.operator !== 'card') {
         sessionPayload.method = sasPayOptions.operator;
         sessionPayload.country = sasPayOptions.country || 'CI';
-      }
-
-      if (sasPayOptions?.customerEmail || sasPayOptions?.customerName || sasPayOptions?.phoneNumber) {
-        sessionPayload.customer = {
-          email: sasPayOptions.customerEmail,
-          name: sasPayOptions.customerName,
-          phone: sasPayOptions.phoneNumber || undefined,
-        };
       }
 
       const sessionRes = await fetch(`${this.baseUrl}/checkout-sessions/`, {
