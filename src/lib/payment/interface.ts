@@ -7,6 +7,8 @@ export interface SasPayOptions {
   country?: string; // 'CI' | 'BJ' | 'SN' | 'CM' | 'TG' | 'BF'
   operator?: string; // 'wave' | 'orange' | 'mtn' | 'moov' | 'djamo' | 'card'
   currency?: string; // 'XOF' | 'XAF' | 'USD'
+  customerEmail?: string;
+  customerName?: string;
 }
 
 export interface MobileMoneyOptions {

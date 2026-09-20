@@ -112,10 +112,11 @@ export class SasPayProcessor implements PaymentProcessor {
     sasPayOptions?: SasPayOptions
   ): Promise<CheckoutSessionResult> {
     const currency = sasPayOptions?.currency || 'XOF';
-    const amountInXOF = this.centsToXOF(pkg.priceCents);
-    const amountStr = currency === 'XOF' || currency === 'XAF' 
-      ? amountInXOF.toFixed(2) 
-      : (pkg.priceCents / 100).toFixed(2);
+    // For XOF and XAF (CFA Francs), amount must be a whole round integer (no decimals like .00)
+    const amountInXOF = Math.max(100, Math.round(this.centsToXOF(pkg.priceCents)));
+    const amountVal = currency === 'XOF' || currency === 'XAF' 
+      ? amountInXOF 
+      : parseFloat((pkg.priceCents / 100).toFixed(2));
 
     const idempotencyKey = `saspay_cs_${Date.now()}_${userId}`;
 
@@ -123,6 +124,19 @@ export class SasPayProcessor implements PaymentProcessor {
       throw new Error(
         'SasPay gateway is not configured: SASPAY_SECRET_KEY is missing in your server environment variables. Please add SASPAY_SECRET_KEY in your Render Dashboard > Environment to process live payments.'
       );
+    }
+
+    // Clean return URL without illegal template characters like {id}
+    let cleanReturnUrl = successUrl;
+    try {
+      const urlObj = new URL(successUrl);
+      urlObj.searchParams.set('package_id', pkg.id);
+      urlObj.searchParams.set('tokens', String(pkg.tokens));
+      urlObj.searchParams.set('fiat_cents', String(pkg.priceCents));
+      urlObj.searchParams.set('provider', 'saspay');
+      cleanReturnUrl = urlObj.toString();
+    } catch {
+      cleanReturnUrl = `${successUrl}?package_id=${pkg.id}&tokens=${pkg.tokens}&fiat_cents=${pkg.priceCents}&provider=saspay`;
     }
 
     // 1. Direct Softpay Push (if phone number is specified)
@@ -137,7 +151,7 @@ export class SasPayProcessor implements PaymentProcessor {
           },
           signal: AbortSignal.timeout(10000),
           body: JSON.stringify({
-            amount: amountStr,
+            amount: amountVal,
             currency,
             method: sasPayOptions.operator,
             phone: sasPayOptions.phoneNumber,
@@ -172,6 +186,34 @@ export class SasPayProcessor implements PaymentProcessor {
 
     // 2. SasPay Hosted Checkout Session (pay.saspay.me)
     try {
+      const sessionPayload: Record<string, any> = {
+        amount: amountVal,
+        currency,
+        description: `Live Stream ${pkg.tokens} Tokens (${pkg.label})`,
+        return_url: cleanReturnUrl,
+        success_url: cleanReturnUrl,
+        cancel_url: cancelUrl || cleanReturnUrl,
+        metadata: {
+          userId,
+          packageId: pkg.id,
+          tokens: pkg.tokens,
+          fiatAmountCents: pkg.priceCents,
+        },
+      };
+
+      if (sasPayOptions?.operator && sasPayOptions.operator !== 'card') {
+        sessionPayload.method = sasPayOptions.operator;
+        sessionPayload.country = sasPayOptions.country || 'CI';
+      }
+
+      if (sasPayOptions?.customerEmail || sasPayOptions?.customerName || sasPayOptions?.phoneNumber) {
+        sessionPayload.customer = {
+          email: sasPayOptions.customerEmail,
+          name: sasPayOptions.customerName,
+          phone: sasPayOptions.phoneNumber || undefined,
+        };
+      }
+
       const sessionRes = await fetch(`${this.baseUrl}/checkout-sessions/`, {
         method: 'POST',
         headers: {
@@ -180,18 +222,7 @@ export class SasPayProcessor implements PaymentProcessor {
           'Idempotency-Key': idempotencyKey,
         },
         signal: AbortSignal.timeout(10000),
-        body: JSON.stringify({
-          amount: amountStr,
-          currency,
-          description: `Live Stream ${pkg.tokens} Tokens (${pkg.label})`,
-          return_url: `${successUrl}?session_id={id}&package_id=${pkg.id}&tokens=${pkg.tokens}&fiat_cents=${pkg.priceCents}&provider=saspay`,
-          metadata: {
-            userId,
-            packageId: pkg.id,
-            tokens: pkg.tokens,
-            fiatAmountCents: pkg.priceCents,
-          },
-        }),
+        body: JSON.stringify(sessionPayload),
       });
 
       if (sessionRes.ok) {
@@ -207,12 +238,34 @@ export class SasPayProcessor implements PaymentProcessor {
         throw new Error(`SasPay did not return a valid checkout URL: ${JSON.stringify(sessionData)}`);
       } else {
         const errText = await sessionRes.text().catch(() => '');
-        let errMsg = errText;
+        let errMsg = '';
         try {
           const parsed = JSON.parse(errText);
-          errMsg = parsed.message || parsed.error || parsed.detail || errText;
+          if (typeof parsed === 'string') {
+            errMsg = parsed;
+          } else if (parsed && typeof parsed === 'object') {
+            if (typeof parsed.message === 'string') {
+              errMsg = parsed.message;
+            } else if (typeof parsed.error === 'string') {
+              errMsg = parsed.error;
+            } else if (typeof parsed.detail === 'string') {
+              errMsg = parsed.detail;
+            } else if (typeof parsed.error === 'object' && parsed.error !== null) {
+              errMsg = typeof parsed.error.message === 'string' ? parsed.error.message : JSON.stringify(parsed.error);
+            } else if (typeof parsed.message === 'object' && parsed.message !== null) {
+              errMsg = JSON.stringify(parsed.message);
+            } else {
+              // Django REST framework field validation errors: { field: ["error message"] }
+              const fieldErrors = Object.entries(parsed)
+                .map(([field, errs]) => `${field}: ${Array.isArray(errs) ? errs.join(', ') : typeof errs === 'object' ? JSON.stringify(errs) : String(errs)}`)
+                .join(' | ');
+              errMsg = fieldErrors || JSON.stringify(parsed);
+            }
+          }
         } catch {}
-        console.error(`[SasPay Adapter] API responded with error (${sessionRes.status}):`, errMsg);
+
+        if (!errMsg) errMsg = errText || 'Unable to create checkout session.';
+        console.error(`[SasPay Adapter] API responded with error (${sessionRes.status}):`, errMsg, errText);
 
         if (sessionRes.status === 401) {
           throw new Error('SasPay authentication failed (HTTP 401). Please check that your SASPAY_SECRET_KEY in Render environment is correct.');
@@ -220,7 +273,7 @@ export class SasPayProcessor implements PaymentProcessor {
         if (sessionRes.status === 403) {
           throw new Error(`SasPay access denied (HTTP 403). Ensure your server outbound IP is whitelisted on your SasPay dashboard (${errMsg}).`);
         }
-        throw new Error(`SasPay API error (${sessionRes.status}): ${errMsg || 'Unable to create checkout session.'}`);
+        throw new Error(`SasPay API error (${sessionRes.status}): ${errMsg}`);
       }
     } catch (err: any) {
       console.error('[SasPay Adapter] Communication error with SasPay:', err);

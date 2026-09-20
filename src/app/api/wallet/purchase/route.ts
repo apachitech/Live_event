@@ -80,6 +80,19 @@ export async function POST(req: Request) {
     const baseUrl = getPublicBaseUrl(req);
     const defaultReturn = `${baseUrl}/api/wallet/complete`;
 
+    const user = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { email: true, username: true },
+    });
+
+    const enrichedSasPayOptions = sasPayOptions
+      ? {
+          ...sasPayOptions,
+          customerEmail: user?.email || `${user?.username || session.userId}@users.live`,
+          customerName: user?.username || 'PulseStream Viewer',
+        }
+      : undefined;
+
     const processor = getPaymentProcessor(paymentMethod);
     const checkout = await processor.createCheckoutSession(
       session.userId,
@@ -89,7 +102,7 @@ export async function POST(req: Request) {
       mobileMoneyOptions,
       cryptoOptions,
       vaultPayOptions,
-      sasPayOptions
+      enrichedSasPayOptions
     );
 
     return NextResponse.json({ success: true, checkout });
