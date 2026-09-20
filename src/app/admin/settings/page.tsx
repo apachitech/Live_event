@@ -20,6 +20,7 @@ import {
   AlertCircle,
   RefreshCw,
   Film,
+  Shield,
 } from 'lucide-react';
 import { TokenPackage } from '@/types';
 import { useSiteConfig } from '@/context/SiteConfigContext';
@@ -67,6 +68,23 @@ function AdminSettingsContent() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [outboundIp, setOutboundIp] = useState<string>('');
+  const [ipLoading, setIpLoading] = useState(false);
+
+  const fetchOutboundIp = async () => {
+    setIpLoading(true);
+    try {
+      const res = await fetch('/api/admin/outbound-ip');
+      const data = await res.json();
+      if (data.outboundIp) {
+        setOutboundIp(data.outboundIp);
+      }
+    } catch {
+      showNotice('error', 'Failed to retrieve server outbound IP');
+    } finally {
+      setIpLoading(false);
+    }
+  };
 
   const showNotice = (type: 'success' | 'error', message: string) => {
     setNotice({ type, message });
@@ -1153,6 +1171,53 @@ function AdminSettingsContent() {
                 className="w-full px-3.5 py-2.5 rounded-xl bg-surfaceLight border border-surfaceBorder text-white font-bold text-sm focus:outline-none focus:border-brandPurple"
               />
             </div>
+          </div>
+
+          {/* Payment Gateway & Whitelisting Diagnostic Card */}
+          <div className="p-5 rounded-2xl bg-surfaceLight/50 border border-brandPurple/30 space-y-3 mt-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-black text-white flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-brandPurple" />
+                  <span>Production Server Outbound IP (Payment Whitelist)</span>
+                </h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Required by <strong>SasPay</strong>, <strong>VaultPay</strong>, and Banks to whitelist automated streamer payout requests.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={fetchOutboundIp}
+                disabled={ipLoading}
+                className="btn-glow-purple px-3.5 py-2 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 transition shrink-0"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${ipLoading ? 'animate-spin' : ''}`} />
+                <span>{ipLoading ? 'Checking...' : 'Check Live Server IP'}</span>
+              </button>
+            </div>
+
+            {outboundIp ? (
+              <div className="p-3.5 rounded-xl bg-black/70 border border-surfaceBorder flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <span className="text-[10px] text-gray-400 uppercase tracking-wider block font-bold">Live Egress / Outbound IP Address:</span>
+                  <span className="text-base font-mono font-black text-emerald-400">{outboundIp}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(outboundIp);
+                    showNotice('success', `Copied outbound IP: ${outboundIp}`);
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-surfaceLight hover:bg-gray-700 text-xs font-bold text-white border border-surfaceBorder transition"
+                >
+                  Copy IP Address
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400 italic">
+                Click <strong>"Check Live Server IP"</strong> above to detect the public IP address your production server uses when contacting SasPay.
+              </p>
+            )}
           </div>
 
           <div className="pt-4 border-t border-surfaceBorder flex justify-end">

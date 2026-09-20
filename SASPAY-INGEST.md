@@ -84,7 +84,7 @@ SASPAY_ENVIRONMENT=production
 For sandbox testing, use test keys:
 ```env
 SASPAY_SECRET_KEY=saspay_test_secret_key_here
-SASPAY_WEBHOOK_SECRET=saspay_test_webhook_secret_here
+SASPAY_WEBHOOK_SECRET=saspay_test_webhooksecret_here
 SASPAY_ENVIRONMENT=sandbox
 ```
 
@@ -92,12 +92,45 @@ SASPAY_ENVIRONMENT=sandbox
 
 ## 4. IP Whitelisting for Streamer Payouts (Crucial Requirement)
 
-SasPay enforces strict security rules for Automated Payouts (**B2C Disbursements**):
+SasPay enforces strict security rules for Automated Payouts (**B2C Disbursements**). You must whitelist your production server's outbound IP address.
+
+### How to Find Your Production Outbound IP Address (Render & Platform)
+
+#### Option A: Via Render Web Shell (Instant Live IP - Recommended)
+1. Open your **[Render Dashboard](https://dashboard.render.com/)**.
+2. Click on your Web Service (`live-streaming-web` or your service name).
+3. Click the **Shell** tab on the left sidebar.
+4. Run either command:
+   ```bash
+   curl -s https://api.ipify.org
+   ```
+   *or*
+   ```bash
+   curl -s https://ifconfig.me
+   ```
+5. The terminal will immediately print your server's current public outbound IP address (e.g. `52.12.34.56`). Copy this address.
+
+#### Option B: Via Render Dashboard Settings (All Regional Egress IPs)
+1. In your **Render Dashboard**, click on your Web Service.
+2. Click the **Settings** tab on the left navigation.
+3. Scroll down to the **Networking** or **Outbound IP Addresses** (Egress IPs) section.
+4. Render will list all static IP addresses and CIDR ranges used by your service's region (e.g. Oregon, Frankfurt, Ohio). Add these IPs to your SasPay whitelist.
+
+#### Option C: Via Your App's Admin API
+While logged in as Admin, visit:
+```text
+https://<your-render-app>.onrender.com/api/admin/outbound-ip
+```
+This returns a JSON object containing `{ "success": true, "outboundIp": "xxx.xxx.xxx.xxx" }`.
+
+---
+
+### Adding the IP to SasPay Whitelist
 1. Log in to your merchant dashboard at **[https://app.saspay.me](https://app.saspay.me)**.
 2. Go to **Settings** > **Developers** > **API Keys**.
 3. Ensure your API key has the **`PAYOUT`** or **`BOTH`** permission scope.
-4. Go to **IP Whitelist** and enter your production server's outbound IP address (e.g., Render outbound IP).
-5. Alternatively, your backend can register an entry using:
+4. Go to **IP Whitelist** and enter the outbound IP obtained above.
+5. Alternatively, your backend can register an entry via API:
    ```bash
    curl -X POST "https://api.saspay.me/api/v1/merchant-ip-whitelist-entries/" \
      -H "Authorization: Bearer <your_saspay_secret_key>" \
@@ -106,7 +139,7 @@ SasPay enforces strict security rules for Automated Payouts (**B2C Disbursements
    ```
 
 > [!WARNING]
-> If the IP is not whitelisted, payout requests will fail with `403 Forbidden` or `ip_not_whitelisted`.
+> If your server IP is not whitelisted in SasPay, all automated payout requests will fail with `403 Forbidden` or `ip_not_whitelisted`.
 
 ---
 
