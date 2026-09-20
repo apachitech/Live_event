@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { getPublicBaseUrl } from '@/lib/url';
 import { TOKEN_PACKAGES as DEFAULT_PACKAGES, TokenPackage } from '@/types';
 import { getPaymentProcessor, SupportedPaymentMethod, MobileMoneyOptions, CryptoPaymentOptions, VaultPayOptions, SasPayOptions } from '@/lib/payment';
 
@@ -49,9 +50,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid token package selected' }, { status: 400 });
     }
 
-    const host = req.headers.get('host') || 'localhost:3000';
-    const proto = req.headers.get('x-forwarded-proto') || 'http';
-    const defaultReturn = `${proto}://${host}/api/wallet/complete`;
+    const baseUrl = getPublicBaseUrl(req);
+    const defaultReturn = `${baseUrl}/api/wallet/complete`;
 
     const processor = getPaymentProcessor(paymentMethod);
     const checkout = await processor.createCheckoutSession(

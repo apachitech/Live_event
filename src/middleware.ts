@@ -22,9 +22,19 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  const getRedirectUrl = (path: string) => {
+    const url = req.nextUrl.clone();
+    url.pathname = path;
+    url.search = '';
+    if (url.hostname === '0.0.0.0') {
+      url.hostname = 'localhost';
+    }
+    return url;
+  };
+
   // Not authenticated
   if (!token) {
-    const loginUrl = new URL('/login', req.url);
+    const loginUrl = getRedirectUrl('/login');
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
   }
@@ -37,23 +47,23 @@ export function middleware(req: NextRequest) {
       
       // Check expiration
       if (payload.exp && Date.now() >= payload.exp * 1000) {
-        const loginUrl = new URL('/login', req.url);
+        const loginUrl = getRedirectUrl('/login');
         loginUrl.searchParams.set('redirect', pathname);
         return NextResponse.redirect(loginUrl);
       }
 
       // Check admin permissions
       if (isAdminRoute && payload.role !== 'ADMIN') {
-        return NextResponse.redirect(new URL('/', req.url));
+        return NextResponse.redirect(getRedirectUrl('/'));
       }
 
       // Check streamer permissions
       if (isStreamerRoute && payload.role !== 'STREAMER' && payload.role !== 'ADMIN') {
-        return NextResponse.redirect(new URL('/', req.url));
+        return NextResponse.redirect(getRedirectUrl('/'));
       }
     }
   } catch {
-    const loginUrl = new URL('/login', req.url);
+    const loginUrl = getRedirectUrl('/login');
     return NextResponse.redirect(loginUrl);
   }
 

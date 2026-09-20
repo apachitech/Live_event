@@ -4,24 +4,9 @@ import { prisma } from '@/lib/prisma';
 import { signToken, AUTH_COOKIE_OPTIONS, hashPassword } from '@/lib/auth';
 import { logChangeData } from '@/lib/audit';
 import { ensureUserSchema } from '@/lib/ensureSchema';
+import { getPublicBaseUrl } from '@/lib/url';
 
 export const dynamic = 'force-dynamic';
-
-function getBaseUrl(req: Request): string {
-  let envUrl = (process.env.NEXT_PUBLIC_APP_URL || '').trim();
-  if (envUrl) {
-    if (!envUrl.startsWith('http://') && !envUrl.startsWith('https://')) {
-      envUrl = `https://${envUrl}`;
-    }
-    return envUrl.replace(/\/+$/, '');
-  }
-  let host = req.headers.get('host') || 'localhost:3000';
-  if (host.startsWith('0.0.0.0')) {
-    host = host.replace('0.0.0.0', 'localhost');
-  }
-  const proto = req.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
-  return `${proto}://${host}`.replace(/\/+$/, '');
-}
 
 export async function GET(req: Request) {
   try {
@@ -34,7 +19,7 @@ export async function GET(req: Request) {
     const googleError = searchParams.get('error');
     const isDevMock = searchParams.get('dev_mock') === 'true';
 
-    const baseUrl = getBaseUrl(req);
+    const baseUrl = getPublicBaseUrl(req);
 
     // If Google returned an OAuth error (e.g. user denied permissions)
     if (googleError) {
@@ -303,7 +288,7 @@ export async function GET(req: Request) {
     return response;
   } catch (err: any) {
     console.error('Error handling Google OAuth callback:', err);
-    const baseUrl = getBaseUrl(req);
+    const baseUrl = getPublicBaseUrl(req);
     const errorDetail = encodeURIComponent(`Google authentication error: ${err.message || 'oauth_callback_error'}`);
     return NextResponse.redirect(new URL(`/login?error=${errorDetail}`, baseUrl));
   }

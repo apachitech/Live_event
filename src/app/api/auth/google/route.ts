@@ -1,23 +1,8 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { getPublicBaseUrl } from '@/lib/url';
 
 export const dynamic = 'force-dynamic';
-
-function getBaseUrl(req: Request): string {
-  let envUrl = (process.env.NEXT_PUBLIC_APP_URL || '').trim();
-  if (envUrl) {
-    if (!envUrl.startsWith('http://') && !envUrl.startsWith('https://')) {
-      envUrl = `https://${envUrl}`;
-    }
-    return envUrl.replace(/\/+$/, '');
-  }
-  let host = req.headers.get('host') || 'localhost:3000';
-  if (host.startsWith('0.0.0.0')) {
-    host = host.replace('0.0.0.0', 'localhost');
-  }
-  const proto = req.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
-  return `${proto}://${host}`.replace(/\/+$/, '');
-}
 
 export async function GET(req: Request) {
   try {
@@ -26,7 +11,7 @@ export async function GET(req: Request) {
 
     const roleParam = searchParams.get('role');
 
-    const baseUrl = getBaseUrl(req);
+    const baseUrl = getPublicBaseUrl(req);
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const redirectUri = `${baseUrl}/api/auth/google/callback`;
 
