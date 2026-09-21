@@ -38,6 +38,12 @@ export async function GET() {
       } catch {}
     }
 
+    const contentRating = (map['SITE_CONTENT_RATING'] || map['CONTENT_RATING'] || 'ADULT').toUpperCase();
+    const primaryColor = map['SITE_PRIMARY_COLOR'] || '#8b5cf6';
+    const rawToys = map['ENABLE_INTERACTIVE_TOYS'] !== 'false';
+    // STRICT ENFORCEMENT: Interactive adult toys are strictly forbidden in KIDS and GENERAL modes
+    const enableInteractiveToys = contentRating === 'ADULT' ? rawToys : false;
+
     return NextResponse.json({
       success: true,
       settings: {
@@ -47,7 +53,9 @@ export async function GET() {
           map['SITE_DESCRIPTION'] ||
           'Public stream rooms, virtual currency economy, interactive tipping menus, and private shows.',
         supportEmail: map['SUPPORT_EMAIL'] || 'support@pulsestream.live',
-        contentRating: (map['SITE_CONTENT_RATING'] || map['CONTENT_RATING'] || 'ADULT').toUpperCase(),
+        contentRating,
+        primaryColor,
+        enableInteractiveToys,
         tokenPackages,
         paymentMethods,
         tokenExchangeRateCents: parseInt(map['TOKEN_EXCHANGE_RATE_CENTS'] || '5', 10),

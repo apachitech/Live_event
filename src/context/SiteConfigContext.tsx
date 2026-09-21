@@ -26,6 +26,9 @@ interface SiteConfigContextType {
   siteDescription: string;
   supportEmail: string;
   contentRating: ContentRatingMode;
+  primaryColor: string;
+  enableInteractiveToys: boolean;
+  isToysAllowed: boolean;
   tokenPackages: TokenPackage[];
   paymentMethods: PaymentMethodsState;
   tokenExchangeRateCents: number;
@@ -36,12 +39,26 @@ interface SiteConfigContextType {
   reloadConfig: () => Promise<void>;
 }
 
+function hexToRgba(hex: string, alpha: number = 0.35): string {
+  const clean = (hex || '').replace('#', '');
+  if (clean.length === 6) {
+    const r = parseInt(clean.substring(0, 2), 16);
+    const g = parseInt(clean.substring(2, 4), 16);
+    const b = parseInt(clean.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  return `rgba(139, 92, 246, ${alpha})`;
+}
+
 const SiteConfigContext = createContext<SiteConfigContextType>({
   siteName: 'PulseStream',
   siteTagline: 'Live Interactive Monetized Streaming Platform',
   siteDescription: 'Public stream rooms, virtual currency economy, interactive tipping menus, and private shows.',
   supportEmail: 'support@pulsestream.live',
   contentRating: 'ADULT',
+  primaryColor: '#8b5cf6',
+  enableInteractiveToys: true,
+  isToysAllowed: true,
   tokenPackages: DEFAULT_PACKAGES,
   paymentMethods: DEFAULT_PAYMENT_METHODS,
   tokenExchangeRateCents: 5,
@@ -60,12 +77,25 @@ export function SiteConfigProvider({ children }: { children: React.ReactNode }) 
   );
   const [supportEmail, setSupportEmail] = useState<string>('support@pulsestream.live');
   const [contentRating, setContentRating] = useState<ContentRatingMode>('ADULT');
+  const [primaryColor, setPrimaryColor] = useState<string>('#8b5cf6');
+  const [enableInteractiveToys, setEnableInteractiveToys] = useState<boolean>(true);
   const [tokenPackages, setTokenPackages] = useState<TokenPackage[]>(DEFAULT_PACKAGES);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodsState>(DEFAULT_PAYMENT_METHODS);
   const [tokenExchangeRateCents, setTokenExchangeRateCents] = useState<number>(5);
   const [revenueSplitStreamerPercent, setRevenueSplitStreamerPercent] = useState<number>(70);
   const [minPayoutTokens, setMinPayoutTokens] = useState<number>(1000);
   const [loading, setLoading] = useState<boolean>(true);
+
+  // Computed: Interactive adult toys are strictly permitted ONLY when content rating is ADULT and admin switch is ON
+  const isToysAllowed = contentRating === 'ADULT' && enableInteractiveToys;
+
+  // Apply dynamic color variables to document root
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.style.setProperty('--brand-primary', primaryColor);
+      document.documentElement.style.setProperty('--brand-glow', hexToRgba(primaryColor, 0.35));
+    }
+  }, [primaryColor]);
 
   const applySettings = useCallback((settings: any) => {
     if (!settings) return;
@@ -92,6 +122,20 @@ export function SiteConfigProvider({ children }: { children: React.ReactNode }) 
     }
     if (settings.supportEmail || settings.SUPPORT_EMAIL) {
       setSupportEmail(settings.supportEmail || settings.SUPPORT_EMAIL);
+    }
+    if (settings.primaryColor || settings.SITE_PRIMARY_COLOR) {
+      const color = settings.primaryColor || settings.SITE_PRIMARY_COLOR;
+      setPrimaryColor(color);
+      if (typeof document !== 'undefined') {
+        document.documentElement.style.setProperty('--brand-primary', color);
+        document.documentElement.style.setProperty('--brand-glow', hexToRgba(color, 0.35));
+      }
+    }
+    if (settings.enableInteractiveToys !== undefined || settings.ENABLE_INTERACTIVE_TOYS !== undefined) {
+      const val = settings.enableInteractiveToys !== undefined
+        ? Boolean(settings.enableInteractiveToys)
+        : settings.ENABLE_INTERACTIVE_TOYS !== 'false' && settings.ENABLE_INTERACTIVE_TOYS !== false;
+      setEnableInteractiveToys(val);
     }
     if (settings.tokenPackages || settings.TOKEN_PACKAGES) {
       const pkgs = settings.tokenPackages || settings.TOKEN_PACKAGES;
@@ -182,6 +226,9 @@ export function SiteConfigProvider({ children }: { children: React.ReactNode }) 
         siteDescription,
         supportEmail,
         contentRating,
+        primaryColor,
+        enableInteractiveToys,
+        isToysAllowed,
         tokenPackages,
         paymentMethods,
         tokenExchangeRateCents,

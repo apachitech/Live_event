@@ -28,9 +28,15 @@ import PrivateShowMeterBanner from '@/components/stream/PrivateShowMeterBanner';
 import BroadcastStudio from '@/components/stream/BroadcastStudio';
 import StreamPollCard, { PollData } from '@/components/stream/StreamPollCard';
 import { HapticsManager } from '@/lib/haptics/hapticsManager';
+import { useSiteConfig } from '@/context/SiteConfigContext';
 
 export default function StreamerStudioPage() {
   const { user } = useAuth();
+  const { isToysAllowed } = useSiteConfig();
+
+  useEffect(() => {
+    HapticsManager.getInstance().setEnabled(!!isToysAllowed);
+  }, [isToysAllowed]);
   const [stream, setStream] = useState<any>(null);
   const [isLive, setIsLive] = useState(false);
   const [streamTitle, setStreamTitle] = useState('My Live Broadcast');

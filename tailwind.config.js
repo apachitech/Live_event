@@ -14,8 +14,8 @@ module.exports = {
         surfaceBorder: "#272838",
         tokenGold: "#f59e0b",
         tokenGoldHover: "#d97706",
-        brandPurple: "#8b5cf6",
-        brandPink: "#ec4899",
+        brandPurple: "var(--brand-primary, #8b5cf6)",
+        brandPink: "var(--brand-secondary, #ec4899)",
       },
       animation: {
         'pulse-subtle': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',

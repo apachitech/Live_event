@@ -35,6 +35,7 @@ export class HapticsManager {
   private bluetoothDevice: any = null;
   private bluetoothCharacteristic: any = null;
   private rules: VibrationRule[] = DEFAULT_VIBRATION_RULES;
+  private enabled: boolean = true;
 
   private constructor() {}
 
@@ -45,6 +46,19 @@ export class HapticsManager {
     return HapticsManager.instance;
   }
 
+  public setEnabled(enabled: boolean): void {
+    this.enabled = enabled;
+    if (!enabled) {
+      this.connectedDevices.clear();
+      this.bluetoothDevice = null;
+      this.bluetoothCharacteristic = null;
+    }
+  }
+
+  public isEnabled(): boolean {
+    return this.enabled;
+  }
+
   public getDevices(): HapticDevice[] {
     return Array.from(this.connectedDevices.values());
   }
@@ -53,6 +67,10 @@ export class HapticsManager {
    * Scan and connect to Bluetooth LE Toy directly via Web Bluetooth API
    */
   public async connectWebBluetooth(): Promise<HapticDevice> {
+    if (!this.enabled) {
+      throw new Error('Interactive toys are currently disabled on this platform.');
+    }
+
     if (typeof window === 'undefined' || !(navigator as any).bluetooth) {
       throw new Error('Web Bluetooth is not supported in this browser. Please use Google Chrome or Microsoft Edge.');
     }
@@ -105,6 +123,9 @@ export class HapticsManager {
    * Connect to local Lovense Connect app over LAN
    */
   public async connectLovenseLocal(localIp: string = '127.0.0.1', port: number = 20010): Promise<HapticDevice> {
+    if (!this.enabled) {
+      throw new Error('Interactive toys are currently disabled on this platform.');
+    }
     try {
       const res = await fetch(`http://${localIp}:${port}/command`, {
         method: 'POST',
@@ -144,6 +165,7 @@ export class HapticsManager {
    * Send vibration command to all connected hardware
    */
   public async vibrate(strength: number, durationSeconds: number): Promise<void> {
+    if (!this.enabled) return;
     const clampedStrength = Math.min(20, Math.max(0, Math.round(strength)));
     const durationMs = durationSeconds * 1000;
 

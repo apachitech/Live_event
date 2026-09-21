@@ -32,6 +32,8 @@ import {
   Copy,
   RotateCcw,
   Eye,
+  Palette,
+  Lock,
 } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import { TokenPackage, TOKEN_PACKAGES as DEFAULT_PACKAGES } from '@/types';
@@ -54,6 +56,8 @@ function AdminSettingsContent() {
   );
   const [supportEmail, setSupportEmail] = useState('support@pulsestream.live');
   const [contentRating, setContentRating] = useState<'ADULT' | 'KIDS' | 'GENERAL'>('ADULT');
+  const [primaryColor, setPrimaryColor] = useState('#8b5cf6');
+  const [enableInteractiveToys, setEnableInteractiveToys] = useState(true);
 
   // Economics & Rules State
   const [streamerSplit, setStreamerSplit] = useState('70');
@@ -143,6 +147,12 @@ function AdminSettingsContent() {
         if (data.settings.SITE_CONTENT_RATING) {
           setContentRating(data.settings.SITE_CONTENT_RATING as any);
         }
+        if (data.settings.SITE_PRIMARY_COLOR) {
+          setPrimaryColor(data.settings.SITE_PRIMARY_COLOR);
+        }
+        if (data.settings.ENABLE_INTERACTIVE_TOYS !== undefined) {
+          setEnableInteractiveToys(data.settings.ENABLE_INTERACTIVE_TOYS !== false && data.settings.ENABLE_INTERACTIVE_TOYS !== 'false');
+        }
         setStreamerSplit(data.settings.REVENUE_SPLIT_STREAMER_PERCENT || '70');
         setMinPayoutTokens(data.settings.MIN_PAYOUT_THRESHOLD_TOKENS || '1000');
         setChatRateLimit(data.settings.CHAT_RATE_LIMIT_MESSAGES || '5');
@@ -208,6 +218,14 @@ function AdminSettingsContent() {
         if (rate !== undefined) {
           setExchangeRateCents(String(rate));
         }
+        const color = updated.primaryColor || updated.SITE_PRIMARY_COLOR;
+        if (color) {
+          setPrimaryColor(color);
+        }
+        const toys = updated.enableInteractiveToys !== undefined ? updated.enableInteractiveToys : updated.ENABLE_INTERACTIVE_TOYS;
+        if (toys !== undefined) {
+          setEnableInteractiveToys(toys !== false && toys !== 'false');
+        }
         if (updated.paymentMethods || updated.PAYMENT_METHODS_CONFIG) {
           try {
             const pm = updated.paymentMethods || updated.PAYMENT_METHODS_CONFIG;
@@ -261,12 +279,14 @@ function AdminSettingsContent() {
             SITE_DESCRIPTION: siteDescription.trim(),
             SUPPORT_EMAIL: supportEmail.trim(),
             SITE_CONTENT_RATING: contentRating,
+            SITE_PRIMARY_COLOR: primaryColor,
+            ENABLE_INTERACTIVE_TOYS: contentRating === 'ADULT' ? enableInteractiveToys : false,
           },
         }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        showNotice('success', 'Site Branding & Content Rating saved! Applied platform-wide immediately.');
+        showNotice('success', 'Site Branding, Theme & Toy Settings saved! Applied platform-wide in real time.');
         reloadConfig();
       } else {
         showNotice('error', data.error || 'Failed to update branding');
@@ -287,6 +307,11 @@ function AdminSettingsContent() {
     );
     setSupportEmail('support@pulsestream.live');
     setContentRating('ADULT');
+    setPrimaryColor('#8b5cf6');
+    setEnableInteractiveToys(true);
+    if (typeof document !== 'undefined') {
+      document.documentElement.style.setProperty('--brand-primary', '#8b5cf6');
+    }
   };
 
   // Save Token Packages & Pricing with validation
@@ -840,35 +865,218 @@ function AdminSettingsContent() {
             </div>
           </div>
 
-          {/* Live Preview Card */}
-          <div className="p-4 rounded-xl bg-surfaceLight/40 border border-surfaceBorder/80 space-y-2">
-            <span className="text-[11px] font-bold text-purple-300 uppercase tracking-wider">
-              Live Brand Preview
-            </span>
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brandPurple to-brandPink flex items-center justify-center font-black text-white text-sm shadow-md">
-                {siteName.charAt(0) || 'P'}
-              </div>
+          {/* Platform Theme Color Customizer */}
+          <div className="space-y-3 pt-4 border-t border-surfaceBorder">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-base font-black text-white tracking-wide">{siteName}</span>
-                  <span
-                    className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${
-                      contentRating === 'ADULT'
-                        ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
-                        : contentRating === 'KIDS'
-                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                        : 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                <label className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-purple-400" />
+                  <span>Platform Theme Color & Aesthetics</span>
+                </label>
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  Select the primary theme color for buttons, navigation accents, glows, and interactive elements.
+                </p>
+              </div>
+
+              {/* Color Hex & Native Picker */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={primaryColor}
+                  onChange={(e) => {
+                    setPrimaryColor(e.target.value);
+                    if (typeof document !== 'undefined') {
+                      document.documentElement.style.setProperty('--brand-primary', e.target.value);
+                    }
+                  }}
+                  className="w-8 h-8 rounded-lg border border-surfaceBorder cursor-pointer bg-transparent"
+                  title="Choose custom color"
+                />
+                <input
+                  type="text"
+                  value={primaryColor}
+                  onChange={(e) => {
+                    setPrimaryColor(e.target.value);
+                    if (typeof document !== 'undefined') {
+                      document.documentElement.style.setProperty('--brand-primary', e.target.value);
+                    }
+                  }}
+                  placeholder="#8b5cf6"
+                  className="w-24 px-2.5 py-1.5 rounded-lg bg-surfaceLight border border-surfaceBorder text-white text-xs font-mono font-bold text-center focus:outline-none focus:border-brandPurple"
+                />
+              </div>
+            </div>
+
+            {/* Curated Color Preset Swatches */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2 pt-1">
+              {[
+                { name: 'Cyber Purple', hex: '#8b5cf6' },
+                { name: 'Neon Pink', hex: '#ec4899' },
+                { name: 'Electric Cyan', hex: '#06b6d4' },
+                { name: 'Emerald Glow', hex: '#10b981' },
+                { name: 'Royal Blue', hex: '#3b82f6' },
+                { name: 'Crimson Red', hex: '#ef4444' },
+                { name: 'Amber Gold', hex: '#f59e0b' },
+              ].map((swatch) => {
+                const isActive = primaryColor.toLowerCase() === swatch.hex.toLowerCase();
+                return (
+                  <button
+                    key={swatch.hex}
+                    type="button"
+                    onClick={() => {
+                      setPrimaryColor(swatch.hex);
+                      if (typeof document !== 'undefined') {
+                        document.documentElement.style.setProperty('--brand-primary', swatch.hex);
+                      }
+                    }}
+                    className={`p-2 rounded-xl border flex flex-col items-center gap-1.5 transition ${
+                      isActive
+                        ? 'border-white bg-white/10 ring-2 ring-white/30 shadow-md scale-105'
+                        : 'border-surfaceBorder bg-surfaceLight/40 hover:bg-surfaceLight hover:border-gray-500'
                     }`}
                   >
-                    {contentRating === 'ADULT'
-                      ? '18+ ADULTS ONLY'
-                      : contentRating === 'KIDS'
-                      ? 'KIDS & FAMILY SAFE'
-                      : 'ALL AGES'}
-                  </span>
+                    <div
+                      className="w-5 h-5 rounded-full shadow border border-white/20"
+                      style={{ backgroundColor: swatch.hex }}
+                    />
+                    <span className="text-[10px] font-bold text-gray-300 truncate w-full text-center">
+                      {swatch.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Interactive Adult Toys & Haptic Device Control */}
+          <div className="space-y-3 pt-4 border-t border-surfaceBorder">
+            <div>
+              <label className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <Zap className="w-4 h-4 text-pink-400" />
+                <span>Interactive Adult Toys & Haptic Integrations (Lovense / Bluetooth)</span>
+              </label>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                Control whether adult streamers can pair Bluetooth and LAN interactive toys that vibrate when tips or goals are received.
+              </p>
+            </div>
+
+            {/* Compliance Lock: If KIDS or GENERAL, strictly forced OFF */}
+            {contentRating === 'KIDS' || contentRating === 'GENERAL' ? (
+              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
+                <Lock className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-xs font-bold text-amber-300 uppercase">
+                      Interactive Toys: Permanently Disabled
+                    </h4>
+                    <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                      SAFETY LOCK ACTIVE
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-300 mt-1 leading-relaxed">
+                    Interactive adult toys are permanently disabled because the platform audience is set to{' '}
+                    <strong>{contentRating === 'KIDS' ? 'Kids & Family Safe' : 'General Standard (All Ages)'}</strong>.
+                    Toy pairing buttons, Bluetooth haptic controls, and tip vibration triggers are completely hidden to ensure full safety compliance.
+                  </p>
                 </div>
-                <p className="text-[11px] text-gray-400">{siteTagline}</p>
+              </div>
+            ) : (
+              /* Adult Mode: Switch ON or OFF */
+              <div className="p-4 rounded-xl bg-surfaceLight/40 border border-surfaceBorder flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-white">Interactive Toy Hardware Support</span>
+                    <span
+                      className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full border ${
+                        enableInteractiveToys
+                          ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                          : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+                      }`}
+                    >
+                      {enableInteractiveToys ? 'TOYS ALLOWED' : 'TOYS DISABLED'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    {enableInteractiveToys
+                      ? 'Streamers can connect Lovense & Bluetooth toys. Tip goals and tips trigger live vibrations.'
+                      : 'Interactive toys are deactivated across the site. All toy pairing buttons and vibrations are disabled.'}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setEnableInteractiveToys(!enableInteractiveToys)}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 border shrink-0 ${
+                    enableInteractiveToys
+                      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/30 shadow-sm'
+                      : 'bg-surfaceLight text-gray-400 border-surfaceBorder hover:text-white'
+                  }`}
+                >
+                  <Zap className={`w-3.5 h-3.5 ${enableInteractiveToys ? 'text-emerald-400' : 'text-gray-400'}`} />
+                  <span>{enableInteractiveToys ? 'Toys: Active (On)' : 'Toys: Disabled (Off)'}</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Live Preview Card */}
+          <div className="p-4 rounded-xl bg-surfaceLight/40 border border-surfaceBorder/80 space-y-3">
+            <span className="text-[11px] font-bold text-purple-300 uppercase tracking-wider block">
+              Live Brand & Theme Preview
+            </span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-white text-base shadow-lg"
+                  style={{
+                    background: `linear-gradient(135deg, ${primaryColor} 0%, #ec4899 100%)`,
+                  }}
+                >
+                  {siteName.charAt(0) || 'P'}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-base font-black text-white tracking-wide">{siteName}</span>
+                    <span
+                      className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${
+                        contentRating === 'ADULT'
+                          ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                          : contentRating === 'KIDS'
+                          ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                          : 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                      }`}
+                    >
+                      {contentRating === 'ADULT'
+                        ? '18+ ADULTS ONLY'
+                        : contentRating === 'KIDS'
+                        ? 'KIDS & FAMILY SAFE'
+                        : 'ALL AGES'}
+                    </span>
+                    <span
+                      className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${
+                        contentRating === 'ADULT' && enableInteractiveToys
+                          ? 'bg-pink-500/20 text-pink-400 border-pink-500/30'
+                          : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+                      }`}
+                    >
+                      {contentRating === 'ADULT' && enableInteractiveToys ? '⚡ TOYS ACTIVE' : '🔒 TOYS DISABLED'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-0.5">{siteTagline}</p>
+                </div>
+              </div>
+
+              {/* Sample Themed Button */}
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  style={{
+                    background: `linear-gradient(135deg, ${primaryColor} 0%, #ec4899 100%)`,
+                  }}
+                  className="px-4 py-2 rounded-xl text-white text-xs font-bold shadow-md"
+                >
+                  Preview Button
+                </button>
               </div>
             </div>
           </div>

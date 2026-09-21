@@ -39,6 +39,8 @@ export async function GET() {
           'Public stream rooms, virtual currency economy, interactive tipping menus, and private shows.',
         SUPPORT_EMAIL: settingsMap['SUPPORT_EMAIL'] || 'support@pulsestream.live',
         SITE_CONTENT_RATING: settingsMap['SITE_CONTENT_RATING'] || settingsMap['CONTENT_RATING'] || 'ADULT',
+        SITE_PRIMARY_COLOR: settingsMap['SITE_PRIMARY_COLOR'] || '#8b5cf6',
+        ENABLE_INTERACTIVE_TOYS: settingsMap['ENABLE_INTERACTIVE_TOYS'] !== 'false',
         REVENUE_SPLIT_STREAMER_PERCENT: settingsMap['REVENUE_SPLIT_STREAMER_PERCENT'] || '70',
         MIN_PAYOUT_THRESHOLD_TOKENS: settingsMap['MIN_PAYOUT_THRESHOLD_TOKENS'] || '1000',
         CHAT_RATE_LIMIT_MESSAGES: settingsMap['CHAT_RATE_LIMIT_MESSAGES'] || '5',
@@ -94,6 +96,12 @@ export async function POST(req: Request) {
       if (body.settings.TOKEN_EXCHANGE_RATE_CENTS !== undefined) {
         broadcastPayload.tokenExchangeRateCents = body.settings.TOKEN_EXCHANGE_RATE_CENTS;
       }
+      if (body.settings.SITE_PRIMARY_COLOR) {
+        broadcastPayload.primaryColor = body.settings.SITE_PRIMARY_COLOR;
+      }
+      if (body.settings.ENABLE_INTERACTIVE_TOYS !== undefined) {
+        broadcastPayload.enableInteractiveToys = body.settings.ENABLE_INTERACTIVE_TOYS !== 'false' && body.settings.ENABLE_INTERACTIVE_TOYS !== false;
+      }
       if (body.settings.PAYMENT_METHODS_CONFIG) {
         try {
           const pm = typeof body.settings.PAYMENT_METHODS_CONFIG === 'string'
@@ -132,6 +140,8 @@ export async function POST(req: Request) {
     const broadcastPayload: Record<string, any> = { [key]: value };
     if (key === 'TOKEN_PACKAGES') broadcastPayload.tokenPackages = value;
     if (key === 'TOKEN_EXCHANGE_RATE_CENTS') broadcastPayload.tokenExchangeRateCents = value;
+    if (key === 'SITE_PRIMARY_COLOR') broadcastPayload.primaryColor = value;
+    if (key === 'ENABLE_INTERACTIVE_TOYS') broadcastPayload.enableInteractiveToys = value !== 'false' && value !== false;
     if (key === 'PAYMENT_METHODS_CONFIG') {
       try {
         broadcastPayload.paymentMethods = typeof value === 'string' ? JSON.parse(value) : value;

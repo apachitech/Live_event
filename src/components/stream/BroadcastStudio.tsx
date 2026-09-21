@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import ToyPairingModal from './ToyPairingModal';
 import { soundEffects } from '@/lib/sound/soundEffects';
+import { useSiteConfig } from '@/context/SiteConfigContext';
 
 interface BroadcastStudioProps {
   streamId: string | null;
@@ -53,6 +54,7 @@ export default function BroadcastStudio({
   onStartStream,
   onEndStream,
 }: BroadcastStudioProps) {
+  const { isToysAllowed } = useSiteConfig();
   const videoPreviewRef = useRef<HTMLVideoElement>(null);
   const screenPreviewRef = useRef<HTMLVideoElement>(null);
   const externalPreviewRef = useRef<HTMLVideoElement>(null);
@@ -1088,15 +1090,17 @@ export default function BroadcastStudio({
               <span>SFX</span>
             </button>
 
-            {/* Interactive Toy Modal */}
-            <button
-              onClick={() => setShowToyModal(true)}
-              className="shrink-0 px-2.5 py-1 rounded-lg bg-pink-600/80 hover:bg-pink-600 text-white border border-pink-400/40 text-xs font-bold flex items-center gap-1.5 transition shadow"
-              title="Pair Lovense or Bluetooth Interactive Toy"
-            >
-              <Zap className="w-3.5 h-3.5 animate-pulse text-amber-300" />
-              <span>Toy</span>
-            </button>
+            {/* Interactive Toy Modal (Strictly hidden if site is KIDS, GENERAL, or disabled by admin) */}
+            {isToysAllowed && (
+              <button
+                onClick={() => setShowToyModal(true)}
+                className="shrink-0 px-2.5 py-1 rounded-lg bg-pink-600/80 hover:bg-pink-600 text-white border border-pink-400/40 text-xs font-bold flex items-center gap-1.5 transition shadow"
+                title="Pair Lovense or Bluetooth Interactive Toy"
+              >
+                <Zap className="w-3.5 h-3.5 animate-pulse text-amber-300" />
+                <span>Toy</span>
+              </button>
+            )}
 
             {/* OBS Credentials Drawer */}
             <button
@@ -1515,10 +1519,12 @@ export default function BroadcastStudio({
       )}
 
       {/* Interactive Toy Pairing Modal */}
-      <ToyPairingModal
-        isOpen={showToyModal}
-        onClose={() => setShowToyModal(false)}
-      />
+      {isToysAllowed && (
+        <ToyPairingModal
+          isOpen={showToyModal}
+          onClose={() => setShowToyModal(false)}
+        />
+      )}
     </div>
   );
 }
