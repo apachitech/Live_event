@@ -87,7 +87,9 @@ export default function TokenPurchaseModal() {
   useEffect(() => {
     if (activePackages.length > 0) {
       const found = activePackages.find((p) => p.id === selectedPackage?.id);
-      if (!found) {
+      if (found) {
+        setSelectedPackage(found);
+      } else {
         setSelectedPackage(activePackages[1] || activePackages[0]);
       }
     }
@@ -260,12 +262,20 @@ export default function TokenPurchaseModal() {
                     className={`relative cursor-pointer rounded-xl p-3 transition-all duration-200 border flex flex-col justify-between hover:scale-[1.02] active:scale-95 ${
                       isSelected
                         ? 'border-amber-500 bg-amber-500/10 shadow-lg shadow-amber-500/10 ring-1 ring-amber-500/40'
+                        : pkg.popular
+                        ? 'border-brandPurple/60 bg-brandPurple/10 hover:border-brandPurple hover:bg-brandPurple/15 shadow-sm'
                         : 'border-surfaceBorder bg-surfaceLight/60 hover:border-gray-500 hover:bg-surfaceLight'
                     }`}
                   >
-                    {pkg.badge && (
-                      <span className="absolute -top-2 right-1.5 bg-gradient-to-r from-amber-500 to-amber-600 text-black text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow">
-                        {pkg.badge}
+                    {(pkg.badge || pkg.popular) && (
+                      <span
+                        className={`absolute -top-2 right-1.5 text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow ${
+                          pkg.popular
+                            ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-purple-500/20 ring-1 ring-purple-400/40'
+                            : 'bg-gradient-to-r from-amber-500 to-amber-600 text-black'
+                        }`}
+                      >
+                        {pkg.badge || t('modal.popular', 'POPULAR')}
                       </span>
                     )}
 

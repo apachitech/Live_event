@@ -21,7 +21,8 @@ export async function GET() {
     let tokenPackages = DEFAULT_PACKAGES;
     if (settingsMap['TOKEN_PACKAGES']) {
       try {
-        const parsed = JSON.parse(settingsMap['TOKEN_PACKAGES']);
+        let parsed = JSON.parse(settingsMap['TOKEN_PACKAGES']);
+        if (typeof parsed === 'string') parsed = JSON.parse(parsed);
         if (Array.isArray(parsed) && parsed.length > 0) {
           tokenPackages = parsed;
         }
@@ -86,8 +87,24 @@ export async function POST(req: Request) {
         },
       });
 
+      const broadcastPayload: Record<string, any> = { ...body.settings };
+      if (body.settings.TOKEN_PACKAGES) {
+        broadcastPayload.tokenPackages = body.settings.TOKEN_PACKAGES;
+      }
+      if (body.settings.TOKEN_EXCHANGE_RATE_CENTS !== undefined) {
+        broadcastPayload.tokenExchangeRateCents = body.settings.TOKEN_EXCHANGE_RATE_CENTS;
+      }
+      if (body.settings.PAYMENT_METHODS_CONFIG) {
+        try {
+          const pm = typeof body.settings.PAYMENT_METHODS_CONFIG === 'string'
+            ? JSON.parse(body.settings.PAYMENT_METHODS_CONFIG)
+            : body.settings.PAYMENT_METHODS_CONFIG;
+          broadcastPayload.paymentMethods = pm;
+        } catch {}
+      }
+
       if ((global as any).io) {
-        (global as any).io.emit('site_settings_updated', body.settings);
+        (global as any).io.emit('site_settings_updated', broadcastPayload);
       }
 
       return NextResponse.json({ success: true, message: 'Settings updated successfully' });
@@ -112,8 +129,17 @@ export async function POST(req: Request) {
       },
     });
 
+    const broadcastPayload: Record<string, any> = { [key]: value };
+    if (key === 'TOKEN_PACKAGES') broadcastPayload.tokenPackages = value;
+    if (key === 'TOKEN_EXCHANGE_RATE_CENTS') broadcastPayload.tokenExchangeRateCents = value;
+    if (key === 'PAYMENT_METHODS_CONFIG') {
+      try {
+        broadcastPayload.paymentMethods = typeof value === 'string' ? JSON.parse(value) : value;
+      } catch {}
+    }
+
     if ((global as any).io) {
-      (global as any).io.emit('site_settings_updated', { [key]: value });
+      (global as any).io.emit('site_settings_updated', broadcastPayload);
     }
 
     return NextResponse.json({ success: true, setting });

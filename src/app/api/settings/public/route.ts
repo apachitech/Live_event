@@ -15,7 +15,8 @@ export async function GET() {
     let tokenPackages = DEFAULT_PACKAGES;
     if (map['TOKEN_PACKAGES']) {
       try {
-        const parsed = JSON.parse(map['TOKEN_PACKAGES']);
+        let parsed = JSON.parse(map['TOKEN_PACKAGES']);
+        if (typeof parsed === 'string') parsed = JSON.parse(parsed);
         if (Array.isArray(parsed) && parsed.length > 0) {
           tokenPackages = parsed;
         }

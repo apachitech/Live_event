@@ -37,14 +37,21 @@ export async function POST(req: Request) {
     });
     if (dbSetting?.value) {
       try {
-        const parsed = JSON.parse(dbSetting.value);
+        let parsed = JSON.parse(dbSetting.value);
+        if (typeof parsed === 'string') parsed = JSON.parse(parsed);
         if (Array.isArray(parsed) && parsed.length > 0) {
           packages = parsed;
         }
       } catch {}
     }
 
-    const pkg = packages.find((p) => p.id === packageId);
+    const pkg = packages.find(
+      (p, idx) =>
+        p.id === packageId ||
+        `pack-${p.tokens}` === packageId ||
+        `pkg_${idx}` === packageId ||
+        String(idx) === packageId
+    );
 
     if (!pkg) {
       return NextResponse.json({ error: 'Invalid token package selected' }, { status: 400 });

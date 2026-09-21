@@ -27,8 +27,14 @@ import {
   Zap,
   Check,
   X,
+  ArrowUp,
+  ArrowDown,
+  Copy,
+  RotateCcw,
+  Eye,
 } from 'lucide-react';
-import { TokenPackage } from '@/types';
+import { io, Socket } from 'socket.io-client';
+import { TokenPackage, TOKEN_PACKAGES as DEFAULT_PACKAGES } from '@/types';
 import { useSiteConfig } from '@/context/SiteConfigContext';
 
 function AdminSettingsContent() {
@@ -183,6 +189,40 @@ function AdminSettingsContent() {
   useEffect(() => {
     fetchSettings();
     fetchDistributions();
+
+    let socket: Socket | null = null;
+    try {
+      socket = io();
+      socket.on('site_settings_updated', (updated: any) => {
+        if (!updated) return;
+        const pkgs = updated.tokenPackages || updated.TOKEN_PACKAGES;
+        if (pkgs) {
+          try {
+            const list = typeof pkgs === 'string' ? JSON.parse(pkgs) : pkgs;
+            if (Array.isArray(list) && list.length > 0) {
+              setTokenPackages(list);
+            }
+          } catch {}
+        }
+        const rate = updated.tokenExchangeRateCents || updated.TOKEN_EXCHANGE_RATE_CENTS;
+        if (rate !== undefined) {
+          setExchangeRateCents(String(rate));
+        }
+        if (updated.paymentMethods || updated.PAYMENT_METHODS_CONFIG) {
+          try {
+            const pm = updated.paymentMethods || updated.PAYMENT_METHODS_CONFIG;
+            const parsed = typeof pm === 'string' ? JSON.parse(pm) : pm;
+            if (typeof parsed === 'object' && parsed !== null) {
+              setPaymentMethods((prev) => ({ ...prev, ...parsed }));
+            }
+          } catch {}
+        }
+      });
+    } catch {}
+
+    return () => {
+      if (socket) socket.disconnect();
+    };
   }, []);
 
   // Search users debounce
@@ -249,9 +289,36 @@ function AdminSettingsContent() {
     setContentRating('ADULT');
   };
 
-  // Save Token Packages & Pricing
+  // Save Token Packages & Pricing with validation
   const handleSavePricing = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!tokenPackages || tokenPackages.length === 0) {
+      showNotice('error', 'Please configure at least one token bundle package.');
+      return;
+    }
+
+    // Validate and normalize packages
+    const sanitizedPackages: TokenPackage[] = tokenPackages.map((pkg, idx) => {
+      const tokens = Math.max(1, parseInt(String(pkg.tokens), 10) || 100);
+      const priceCents = Math.max(1, parseInt(String(pkg.priceCents), 10) || 99);
+      const bonusTokens = Math.max(0, parseInt(String(pkg.bonusTokens || 0), 10) || 0);
+      const label = (pkg.label || '').trim() || `${tokens} Tokens Pack`;
+      const id = (pkg.id || '').trim() || `pack-${tokens}-${idx}`;
+      const badge = (pkg.badge || '').trim();
+
+      return {
+        id,
+        tokens,
+        priceCents,
+        label,
+        bonusTokens: bonusTokens > 0 ? bonusTokens : undefined,
+        badge: badge ? badge : undefined,
+        popular: !!pkg.popular,
+      };
+    });
+
+    const parsedRate = Math.max(1, parseInt(exchangeRateCents, 10) || 5);
+
     setSaving(true);
     try {
       const res = await fetch('/api/admin/settings', {
@@ -259,15 +326,16 @@ function AdminSettingsContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           settings: {
-            TOKEN_PACKAGES: tokenPackages,
-            TOKEN_EXCHANGE_RATE_CENTS: exchangeRateCents,
+            TOKEN_PACKAGES: sanitizedPackages,
+            TOKEN_EXCHANGE_RATE_CENTS: parsedRate,
           },
         }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        showNotice('success', 'Token packages and pricing updated successfully!');
-        reloadConfig();
+        setTokenPackages(sanitizedPackages);
+        showNotice('success', 'Token packages and pricing published live in real time!');
+        await reloadConfig();
       } else {
         showNotice('error', data.error || 'Failed to update pricing');
       }
@@ -287,20 +355,65 @@ function AdminSettingsContent() {
     });
   };
 
+  // Reorder packages
+  const handleMovePackage = (index: number, direction: 'up' | 'down') => {
+    setTokenPackages((prev) => {
+      const targetIdx = direction === 'up' ? index - 1 : index + 1;
+      if (targetIdx < 0 || targetIdx >= prev.length) return prev;
+      const copy = [...prev];
+      const temp = copy[index];
+      copy[index] = copy[targetIdx];
+      copy[targetIdx] = temp;
+      return copy;
+    });
+  };
+
+  // Duplicate / Clone package
+  const handleDuplicatePackage = (index: number) => {
+    setTokenPackages((prev) => {
+      const target = prev[index];
+      if (!target) return prev;
+      const copy = [...prev];
+      const cloned: TokenPackage = {
+        ...target,
+        id: `pack-${Date.now()}`,
+        label: `${target.label || `${target.tokens} Tokens`} (Copy)`,
+        popular: false,
+      };
+      copy.splice(index + 1, 0, cloned);
+      return copy;
+    });
+    showNotice('success', 'Package tier cloned');
+  };
+
+  // Reset to default recommended packages
+  const handleResetPricingToDefaults = () => {
+    if (confirm('Reset all token packages to platform recommended defaults? Click "Save & Publish" afterwards to apply.')) {
+      setTokenPackages(JSON.parse(JSON.stringify(DEFAULT_PACKAGES)));
+      setExchangeRateCents('5');
+      showNotice('success', 'Packages reset to platform defaults (click Save & Publish to save)');
+    }
+  };
+
   const handleAddPackage = () => {
-    const newId = `pkg_${Date.now()}`;
+    const newId = `pack-${Date.now()}`;
     const newPkg: TokenPackage = {
       id: newId,
       tokens: 500,
       priceCents: 2499,
       label: '500 Tokens Pack',
       bonusTokens: 50,
+      badge: '',
       popular: false,
     };
     setTokenPackages((prev) => [...prev, newPkg]);
   };
 
   const handleRemovePackage = (index: number) => {
+    if (tokenPackages.length <= 1) {
+      showNotice('error', 'You must have at least one active token package for user purchases');
+      return;
+    }
     setTokenPackages((prev) => prev.filter((_, i) => i !== index));
   };
 
@@ -784,162 +897,359 @@ function AdminSettingsContent() {
       {/* TAB 2: ORGANIZE TOKEN PRICING */}
       {activeTab === 'pricing' && (
         <form onSubmit={handleSavePricing} className="p-6 rounded-2xl glass-panel border border-surfaceBorder space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* Header Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-surfaceBorder">
             <div>
               <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <Coins className="w-4 h-4 text-tokenGold" />
+                <Coins className="w-5 h-5 text-tokenGold" />
                 <span>Token Pricing & Packages Organizer</span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold tracking-wide">
+                  REAL-TIME SYNC
+                </span>
               </h2>
-              <p className="text-xs text-gray-400 mt-0.5">
-                Customize token tiers, purchase prices in USD, bonus incentives, and popular flags.
+              <p className="text-xs text-gray-400 mt-1">
+                Customize token tiers, purchase prices in USD, bonus incentives, badges, and reorder bundles. All changes sync immediately to active viewers.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={handleAddPackage}
-              className="px-3.5 py-2 rounded-xl bg-brandPurple/20 hover:bg-brandPurple/30 border border-brandPurple/40 text-brandPurple text-xs font-bold flex items-center gap-1.5 transition shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Package</span>
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleResetPricingToDefaults}
+                className="px-3 py-2 rounded-xl bg-surfaceLight hover:bg-gray-700/50 text-gray-300 text-xs font-semibold flex items-center gap-1.5 transition border border-surfaceBorder"
+                title="Restore platform recommended packages"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset Defaults</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleAddPackage}
+                className="px-3.5 py-2 rounded-xl bg-brandPurple/20 hover:bg-brandPurple/30 border border-brandPurple/40 text-brandPurple text-xs font-bold flex items-center gap-1.5 transition"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Package</span>
+              </button>
+            </div>
           </div>
 
-          {/* Exchange Rate Parameter */}
-          <div className="p-4 rounded-xl bg-surfaceLight/40 border border-surfaceBorder flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {/* Exchange Rate Parameter & Economics Summary */}
+          <div className="p-4 rounded-xl bg-surfaceLight/40 border border-surfaceBorder grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
             <div>
-              <label className="text-xs font-bold text-white">Baseline Token Exchange Value</label>
-              <p className="text-[11px] text-gray-400">
-                Estimated fiat equivalent per 1 token for streamer cashouts.
+              <label className="text-xs font-bold text-white flex items-center gap-2">
+                <span>Baseline Token Exchange Value</span>
+                <span className="text-[10px] text-gray-400 font-normal">(Streamer Cashout Rate)</span>
+              </label>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                Conversion rate used when streamers request cashouts for received tip tokens.
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-400">1 Token = </span>
-              <input
-                type="number"
-                min="1"
-                max="100"
-                value={exchangeRateCents}
-                onChange={(e) => setExchangeRateCents(e.target.value)}
-                className="w-16 px-2.5 py-1.5 rounded-lg bg-surfaceLight border border-surfaceBorder text-white text-xs font-bold text-center focus:outline-none focus:border-brandPurple"
-              />
-              <span className="text-xs font-bold text-emerald-400">¢ Cents ($0.05)</span>
+            <div className="flex flex-wrap items-center justify-start md:justify-end gap-3">
+              <div className="flex items-center gap-2 bg-surfaceLight px-3 py-1.5 rounded-lg border border-surfaceBorder">
+                <span className="text-xs text-gray-400">1 Token =</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={exchangeRateCents}
+                  onChange={(e) => setExchangeRateCents(e.target.value)}
+                  className="w-14 px-2 py-1 rounded bg-black/40 border border-surfaceBorder text-white text-xs font-bold text-center focus:outline-none focus:border-brandPurple"
+                />
+                <span className="text-xs font-bold text-emerald-400">¢ Cents</span>
+              </div>
+              <div className="text-[11px] text-gray-400 bg-black/30 px-3 py-2 rounded-lg border border-surfaceBorder/60">
+                1,000 Tokens = <strong className="text-white">${((1000 * (parseInt(exchangeRateCents, 10) || 5)) / 100).toFixed(2)} USD</strong>
+              </div>
             </div>
           </div>
 
           {/* Package Cards List */}
-          <div className="space-y-3">
-            {tokenPackages.map((pkg, idx) => (
-              <div
-                key={pkg.id || idx}
-                className={`p-4 rounded-xl border transition flex flex-col md:flex-row md:items-center justify-between gap-4 ${
-                  pkg.popular
-                    ? 'bg-brandPurple/10 border-brandPurple/40 shadow-sm'
-                    : 'bg-surfaceLight/50 border-surfaceBorder'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-tokenGold/10 border border-tokenGold/20 flex items-center justify-center font-bold text-tokenGold text-base">
-                    🪙
-                  </div>
-                  <div>
-                    <span className="text-xs font-black text-white">Tier #{idx + 1}</span>
-                    <div className="flex items-center gap-2 mt-0.5">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-gray-300 uppercase tracking-wider">
+                Configured Bundles ({tokenPackages.length})
+              </span>
+              <span className="text-[11px] text-gray-400">
+                Use arrows to change display order for viewers
+              </span>
+            </div>
+
+            {tokenPackages.map((pkg, idx) => {
+              const totalTokens = (pkg.tokens || 0) + (pkg.bonusTokens || 0);
+              const priceUsd = ((pkg.priceCents || 0) / 100);
+              const unitRate = totalTokens > 0 ? (priceUsd / totalTokens).toFixed(4) : '0.0000';
+
+              return (
+                <div
+                  key={pkg.id || idx}
+                  className={`p-4 rounded-xl border transition space-y-3.5 ${
+                    pkg.popular
+                      ? 'bg-brandPurple/10 border-brandPurple/40 shadow-sm ring-1 ring-brandPurple/20'
+                      : 'bg-surfaceLight/50 border-surfaceBorder'
+                  }`}
+                >
+                  {/* Card Header: Reorder & Actions */}
+                  <div className="flex items-center justify-between gap-3 pb-2.5 border-b border-surfaceBorder/60">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded-lg bg-surfaceLight text-white text-xs font-black border border-surfaceBorder">
+                        Tier #{idx + 1}
+                      </span>
+                      <div className="flex items-center gap-0.5">
+                        <button
+                          type="button"
+                          disabled={idx === 0}
+                          onClick={() => handleMovePackage(idx, 'up')}
+                          className="p-1 rounded bg-surfaceLight hover:bg-surfaceLight/80 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          title="Move Up"
+                        >
+                          <ArrowUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={idx === tokenPackages.length - 1}
+                          onClick={() => handleMovePackage(idx, 'down')}
+                          className="p-1 rounded bg-surfaceLight hover:bg-surfaceLight/80 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          title="Move Down"
+                        >
+                          <ArrowDown className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
                       {pkg.popular && (
-                        <span className="px-2 py-0.5 rounded-full bg-brandPurple text-white text-[10px] font-extrabold uppercase">
-                          POPULAR
+                        <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white text-[9px] font-extrabold uppercase shadow-sm">
+                          ★ FEATURED
                         </span>
                       )}
-                      {pkg.bonusTokens && pkg.bonusTokens > 0 ? (
-                        <span className="text-[11px] text-emerald-400 font-semibold">
-                          +{pkg.bonusTokens} Bonus
+                      {pkg.badge && (
+                        <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[9px] font-extrabold uppercase">
+                          {pkg.badge}
                         </span>
-                      ) : null}
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-gray-400 hidden sm:inline">
+                        Unit Rate: <strong className="text-emerald-400">${unitRate}</strong> / tkn
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleDuplicatePackage(idx)}
+                        className="p-1.5 rounded-lg bg-surfaceLight hover:bg-brandPurple/20 text-gray-400 hover:text-brandPurple transition"
+                        title="Duplicate this bundle"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePackage(idx)}
+                        className="p-1.5 rounded-lg bg-surfaceLight hover:bg-rose-500/20 text-gray-400 hover:text-rose-400 transition"
+                        title="Delete this bundle"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Form Inputs Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 items-end">
+                    {/* 1. Label */}
+                    <div className="space-y-1 lg:col-span-2">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase">Package Name / Title</label>
+                      <input
+                        type="text"
+                        value={pkg.label || ''}
+                        placeholder={`${pkg.tokens} Tokens Pack`}
+                        onChange={(e) => handleUpdatePackage(idx, 'label', e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-surfaceLight border border-surfaceBorder text-white text-xs font-bold focus:outline-none focus:border-brandPurple"
+                      />
+                    </div>
+
+                    {/* 2. Custom Badge */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase">Custom Badge</label>
+                      <input
+                        type="text"
+                        value={pkg.badge || ''}
+                        placeholder="e.g. BEST VALUE"
+                        onChange={(e) => handleUpdatePackage(idx, 'badge', e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-surfaceLight border border-surfaceBorder text-amber-300 text-xs font-bold focus:outline-none focus:border-brandPurple"
+                      />
+                    </div>
+
+                    {/* 3. Tokens Amount */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase">Tokens</label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="10"
+                        value={pkg.tokens}
+                        onChange={(e) => handleUpdatePackage(idx, 'tokens', parseInt(e.target.value, 10) || 0)}
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-surfaceLight border border-surfaceBorder text-white text-xs font-bold focus:outline-none focus:border-brandPurple"
+                      />
+                    </div>
+
+                    {/* 4. Price in USD */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase">Price (USD $)</label>
+                      <input
+                        type="number"
+                        min="0.5"
+                        step="0.5"
+                        value={((pkg.priceCents || 0) / 100).toString()}
+                        onChange={(e) =>
+                          handleUpdatePackage(
+                            idx,
+                            'priceCents',
+                            Math.round((parseFloat(e.target.value) || 0) * 100)
+                          )
+                        }
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-surfaceLight border border-surfaceBorder text-emerald-400 text-xs font-bold focus:outline-none focus:border-brandPurple"
+                      />
+                    </div>
+
+                    {/* 5. Bonus Tokens */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase">Bonus Tokens</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="5"
+                        value={pkg.bonusTokens || 0}
+                        onChange={(e) => handleUpdatePackage(idx, 'bonusTokens', parseInt(e.target.value, 10) || 0)}
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-surfaceLight border border-surfaceBorder text-tokenGold text-xs font-bold focus:outline-none focus:border-brandPurple"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Featured / Popular Toggle */}
+                  <div className="pt-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleUpdatePackage(idx, 'popular', !pkg.popular)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 border ${
+                          pkg.popular
+                            ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white border-purple-400 shadow-sm'
+                            : 'bg-surfaceLight text-gray-400 border-surfaceBorder hover:text-white'
+                        }`}
+                      >
+                        <span>{pkg.popular ? '★ Highlighted / Popular Tier' : '☆ Normal Tier'}</span>
+                      </button>
+                      <span className="text-[11px] text-gray-400 hidden sm:inline">
+                        {pkg.popular
+                          ? 'Featured prominently with glowing card in checkout modal.'
+                          : 'Displayed with standard border styling.'}
+                      </span>
+                    </div>
+
+                    <div className="text-[11px] text-gray-400">
+                      Total Tokens: <strong className="text-tokenGold">{totalTokens}</strong>
                     </div>
                   </div>
                 </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-center flex-1 max-w-xl">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase">Tokens</label>
-                    <input
-                      type="number"
-                      min="10"
-                      step="10"
-                      value={pkg.tokens}
-                      onChange={(e) => handleUpdatePackage(idx, 'tokens', parseInt(e.target.value, 10) || 0)}
-                      className="w-full px-2.5 py-1.5 rounded-lg bg-surfaceLight border border-surfaceBorder text-white text-xs font-bold focus:outline-none focus:border-brandPurple"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase">Price (USD $)</label>
-                    <input
-                      type="number"
-                      min="0.5"
-                      step="0.5"
-                      value={((pkg.priceCents || 0) / 100).toString()}
-                      onChange={(e) =>
-                        handleUpdatePackage(
-                          idx,
-                          'priceCents',
-                          Math.round((parseFloat(e.target.value) || 0) * 100)
-                        )
-                      }
-                      className="w-full px-2.5 py-1.5 rounded-lg bg-surfaceLight border border-surfaceBorder text-emerald-400 text-xs font-bold focus:outline-none focus:border-brandPurple"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase">Bonus Tokens</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="5"
-                      value={pkg.bonusTokens || 0}
-                      onChange={(e) => handleUpdatePackage(idx, 'bonusTokens', parseInt(e.target.value, 10) || 0)}
-                      className="w-full px-2.5 py-1.5 rounded-lg bg-surfaceLight border border-surfaceBorder text-tokenGold text-xs font-bold focus:outline-none focus:border-brandPurple"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase">Featured</label>
-                    <button
-                      type="button"
-                      onClick={() => handleUpdatePackage(idx, 'popular', !pkg.popular)}
-                      className={`w-full py-1.5 rounded-lg text-xs font-bold transition border ${
-                        pkg.popular
-                          ? 'bg-brandPurple text-white border-brandPurple'
-                          : 'bg-surfaceLight text-gray-400 border-surfaceBorder hover:text-white'
-                      }`}
-                    >
-                      {pkg.popular ? '★ Highlighted' : 'Normal'}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end">
-                  <button
-                    type="button"
-                    onClick={() => handleRemovePackage(idx)}
-                    className="p-2 rounded-lg bg-surfaceLight hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition"
-                    title="Remove Package"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
-          <div className="pt-4 border-t border-surfaceBorder flex justify-end">
-            <button
-              type="submit"
-              disabled={saving}
-              className="btn-glow-purple px-6 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 shadow"
-            >
-              <Save className="w-4 h-4" />
-              <span>{saving ? 'Saving Pricing...' : 'Save & Publish Token Packages'}</span>
-            </button>
+          {/* Customer View Live Preview */}
+          <div className="p-4 rounded-2xl bg-surfaceLight/30 border border-surfaceBorder space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Eye className="w-4 h-4 text-cyan-400" />
+                <span className="text-xs font-bold text-white uppercase tracking-wider">
+                  Live Customer Checkout Preview
+                </span>
+              </div>
+              <span className="text-[10px] text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/20 font-semibold">
+                Auto-Updates As You Edit
+              </span>
+            </div>
+            <p className="text-[11px] text-gray-400">
+              This preview shows exactly how viewers will see and select token packages in the checkout modal:
+            </p>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+              {tokenPackages.map((pkg, pIdx) => {
+                const isSelected = pIdx === 0;
+                return (
+                  <div
+                    key={pkg.id || pIdx}
+                    className={`relative rounded-xl p-3 border flex flex-col justify-between transition ${
+                      isSelected
+                        ? 'border-amber-500 bg-amber-500/10 ring-1 ring-amber-500/40'
+                        : pkg.popular
+                        ? 'border-brandPurple/60 bg-brandPurple/10 shadow-sm'
+                        : 'border-surfaceBorder bg-surfaceLight/60'
+                    }`}
+                  >
+                    {(pkg.badge || pkg.popular) && (
+                      <span
+                        className={`absolute -top-2 right-1.5 text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow ${
+                          pkg.popular
+                            ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-purple-500/20 ring-1 ring-purple-400/40'
+                            : 'bg-gradient-to-r from-amber-500 to-amber-600 text-black'
+                        }`}
+                      >
+                        {pkg.badge || 'POPULAR'}
+                      </span>
+                    )}
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] text-gray-400 font-medium truncate">
+                          {pkg.label || `${pkg.tokens} Tokens`}
+                        </span>
+                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-tokenGold shrink-0" />}
+                      </div>
+
+                      <div className="flex items-baseline gap-1 my-0.5">
+                        <Coins className="w-3.5 h-3.5 text-tokenGold shrink-0" />
+                        <span className="text-lg font-black text-white">{pkg.tokens}</span>
+                        <span className="text-[10px] text-tokenGold font-semibold">TKN</span>
+                      </div>
+
+                      {pkg.bonusTokens && pkg.bonusTokens > 0 ? (
+                        <div className="text-[9px] text-emerald-400 font-medium flex items-center gap-1">
+                          <Sparkles className="w-2.5 h-2.5 shrink-0" /> +{pkg.bonusTokens} Bonus
+                        </div>
+                      ) : (
+                        <div className="text-[9px] text-gray-500">Standard Pack</div>
+                      )}
+                    </div>
+
+                    <div className="mt-2 pt-1.5 border-t border-surfaceBorder/60 flex justify-between items-center text-[11px]">
+                      <span className="text-gray-400">Price</span>
+                      <span className="font-bold text-white">${((pkg.priceCents || 0) / 100).toFixed(2)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Save Action Bar */}
+          <div className="pt-4 border-t border-surfaceBorder flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <span className="text-xs text-gray-400">
+              Publishing will update packages across all connected browsers instantaneously.
+            </span>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleAddPackage}
+                className="px-4 py-2.5 rounded-xl bg-surfaceLight hover:bg-gray-700/50 text-gray-300 text-xs font-semibold flex items-center gap-1.5 transition border border-surfaceBorder"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Tier</span>
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="btn-glow-purple px-6 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 shadow"
+              >
+                <Save className="w-4 h-4" />
+                <span>{saving ? 'Publishing Live...' : 'Save & Publish Token Packages'}</span>
+              </button>
+            </div>
           </div>
         </form>
       )}

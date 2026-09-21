@@ -159,8 +159,18 @@ export function SiteConfigProvider({ children }: { children: React.ReactNode }) 
       applySettings(updatedSettings);
     });
 
+    const onFocus = () => {
+      refreshConfig();
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', onFocus);
+    }
+
     return () => {
       socket.disconnect();
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('focus', onFocus);
+      }
     };
   }, [refreshConfig, applySettings]);
 
