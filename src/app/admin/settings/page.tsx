@@ -1104,7 +1104,7 @@ function AdminSettingsContent() {
 
       {/* TAB 2: ORGANIZE TOKEN PRICING */}
       {activeTab === 'pricing' && (
-        <form onSubmit={handleSavePricing} className="p-6 rounded-2xl glass-panel border border-surfaceBorder space-y-6">
+        <form onSubmit={handleSavePricing} noValidate className="p-6 rounded-2xl glass-panel border border-surfaceBorder space-y-6">
           {/* Header Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-surfaceBorder">
             <div>
@@ -1289,7 +1289,7 @@ function AdminSettingsContent() {
                       <input
                         type="number"
                         min="1"
-                        step="10"
+                        step="1"
                         value={pkg.tokens}
                         onChange={(e) => handleUpdatePackage(idx, 'tokens', parseInt(e.target.value, 10) || 0)}
                         className="w-full px-2.5 py-1.5 rounded-lg bg-surfaceLight border border-surfaceBorder text-white text-xs font-bold focus:outline-none focus:border-brandPurple"
@@ -1301,8 +1301,8 @@ function AdminSettingsContent() {
                       <label className="text-[10px] font-bold text-gray-400 uppercase">Price (USD $)</label>
                       <input
                         type="number"
-                        min="0.5"
-                        step="0.5"
+                        min="0.01"
+                        step="0.01"
                         value={((pkg.priceCents || 0) / 100).toString()}
                         onChange={(e) =>
                           handleUpdatePackage(
@@ -1321,7 +1321,7 @@ function AdminSettingsContent() {
                       <input
                         type="number"
                         min="0"
-                        step="5"
+                        step="1"
                         value={pkg.bonusTokens || 0}
                         onChange={(e) => handleUpdatePackage(idx, 'bonusTokens', parseInt(e.target.value, 10) || 0)}
                         className="w-full px-2.5 py-1.5 rounded-lg bg-surfaceLight border border-surfaceBorder text-tokenGold text-xs font-bold focus:outline-none focus:border-brandPurple"
@@ -1756,8 +1756,8 @@ function AdminSettingsContent() {
             <div className="w-64">
               <input
                 type="number"
-                min="100"
-                step="100"
+                min="1"
+                step="1"
                 value={minPayoutTokens}
                 onChange={(e) => setMinPayoutTokens(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-surfaceLight border border-surfaceBorder text-tokenGold font-bold text-sm focus:outline-none focus:border-brandPurple"

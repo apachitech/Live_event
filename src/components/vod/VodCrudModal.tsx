@@ -273,7 +273,7 @@ export default function VodCrudModal({
               <input
                 type="number"
                 min={0}
-                step={5}
+                step={1}
                 value={priceTokens}
                 onChange={(e) => setPriceTokens(Math.max(0, parseInt(e.target.value, 10) || 0))}
                 className="w-full px-3.5 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs font-bold text-tokenGold focus:outline-none focus:border-amber-400"
