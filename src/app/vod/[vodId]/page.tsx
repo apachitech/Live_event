@@ -22,13 +22,14 @@ import {
   Sparkles,
   Edit,
   Trash2,
+  X,
 } from 'lucide-react';
 
 export default function SingleVodWatchPage() {
   const params = useParams();
   const router = useRouter();
   const vodId = params?.vodId as string;
-  const { user, openPurchaseModal } = useAuth();
+  const { user, openPurchaseModal, refreshUser } = useAuth();
 
   const [vod, setVod] = useState<any>(null);
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -37,6 +38,7 @@ export default function SingleVodWatchPage() {
   const [error, setError] = useState('');
   const [unlocking, setUnlocking] = useState(false);
   const [unlockSuccess, setUnlockSuccess] = useState(false);
+  const [unlockFeedback, setUnlockFeedback] = useState<string | null>(null);
   const [isTipModalOpen, setIsTipModalOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
@@ -110,6 +112,7 @@ export default function SingleVodWatchPage() {
     }
 
     setUnlocking(true);
+    setUnlockFeedback(null);
     try {
       const res = await fetch(`/api/vod/${vod.id}/unlock`, {
         method: 'POST',
@@ -118,7 +121,19 @@ export default function SingleVodWatchPage() {
       if (res.ok && data.isUnlocked) {
         setIsUnlocked(true);
         setUnlockSuccess(true);
+        if (data.tokensDeducted > 0) {
+          setUnlockFeedback(
+            `✨ Video unlocked successfully! ${data.tokensDeducted} Tokens have been deducted from your wallet balance.`
+          );
+        } else {
+          setUnlockFeedback(data.message || 'Video unlocked successfully!');
+        }
+        // Immediately refresh user wallet balance in AuthContext and Navbar
+        await refreshUser();
       } else {
+        if (data.insufficientFunds || (user.wallet?.balance ?? 0) < vod.priceTokens) {
+          openPurchaseModal();
+        }
         alert(data.error || 'Failed to unlock video');
       }
     } catch (err: any) {
@@ -150,17 +165,55 @@ export default function SingleVodWatchPage() {
     );
   }
 
+  const userBalance = user?.wallet?.balance ?? 0;
+  const hasEnoughTokens = userBalance >= vod.priceTokens;
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6 animate-fade-in">
-      {/* Navigation Breadcrumb */}
-      <div className="flex items-center gap-2 text-xs text-gray-400">
-        <Link href="/vods" className="flex items-center gap-1 hover:text-white transition">
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Back to VOD Library</span>
-        </Link>
-        <span>/</span>
-        <span className="text-gray-200 font-semibold truncate max-w-sm">{vod.title}</span>
+      {/* Navigation Breadcrumb & Balance */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-gray-400">
+        <div className="flex items-center gap-2">
+          <Link href="/vods" className="flex items-center gap-1 hover:text-white transition">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Back to VOD Library</span>
+          </Link>
+          <span>/</span>
+          <span className="text-gray-200 font-semibold truncate max-w-sm">{vod.title}</span>
+        </div>
+
+        {user && (
+          <div className="flex items-center gap-2 self-start sm:self-auto px-3 py-1.5 rounded-xl bg-surfaceLight border border-surfaceBorder text-gray-300">
+            <Coins className="w-3.5 h-3.5 text-tokenGold" />
+            <span>Your Wallet:</span>
+            <span className="text-tokenGold font-black">{userBalance} Tokens</span>
+            {!hasEnoughTokens && !isUnlocked && (
+              <button
+                onClick={openPurchaseModal}
+                className="ml-1 text-[11px] font-bold text-amber-400 hover:text-amber-300 underline"
+              >
+                Recharge
+              </button>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Unlock Success Notification Toast */}
+      {unlockFeedback && (
+        <div className="p-3.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center justify-between animate-fade-in shadow-lg">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
+            <span className="font-medium">{unlockFeedback}</span>
+          </div>
+          <button
+            onClick={() => setUnlockFeedback(null)}
+            className="text-emerald-400 hover:text-white p-1 transition"
+            aria-label="Close notification"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Video Surface or Paywall Card */}
       <div className="relative aspect-video rounded-2xl bg-black border border-surfaceBorder overflow-hidden shadow-2xl flex items-center justify-center">
@@ -192,32 +245,60 @@ export default function SingleVodWatchPage() {
             </div>
 
             <div className="relative z-10 space-y-1.5 max-w-md">
-              <h2 className="text-xl font-black text-white">Pay-Per-View Video Recording</h2>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-tokenGold text-xs font-bold">
+                <Coins className="w-3.5 h-3.5 text-tokenGold" />
+                <span>Pay-Per-View Video</span>
+              </div>
+              <h2 className="text-xl font-black text-white">Unlock Exclusive Stream Recording</h2>
               <p className="text-xs text-gray-300 leading-relaxed">
                 This exclusive stream recording requires an unlock of{' '}
-                <span className="text-tokenGold font-bold">{vod.priceTokens} Tokens</span>. Unlock once and watch unlimited replays anytime.
+                <span className="text-tokenGold font-bold">{vod.priceTokens} Tokens</span>.
+                Tokens will be deducted directly from your wallet balance. Unlock once and watch unlimited replays anytime.
               </p>
             </div>
 
-            <div className="relative z-10 flex flex-col sm:flex-row items-center gap-3 pt-2">
-              <button
-                onClick={handleUnlock}
-                disabled={unlocking}
-                className="btn-glow-gold px-6 py-3 rounded-xl text-xs font-black text-black flex items-center gap-2 shadow-xl hover:scale-105 transition"
-              >
-                <Coins className="w-4 h-4 text-black" />
-                <span>
-                  {unlocking ? 'Processing Unlock...' : `Unlock for ${vod.priceTokens} Tokens`}
+            {/* Wallet Balance Indicator */}
+            {user && (
+              <div className="relative z-10 flex items-center gap-2 text-xs px-3.5 py-1.5 rounded-full bg-black/70 border border-surfaceBorder backdrop-blur-md">
+                <Coins className="w-3.5 h-3.5 text-tokenGold" />
+                <span className="text-gray-400">Current Wallet Balance:</span>
+                <span className={`font-black ${hasEnoughTokens ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  {userBalance} Tokens
                 </span>
-              </button>
+                {!hasEnoughTokens && (
+                  <span className="text-[11px] text-rose-300 font-semibold">
+                    (Need {vod.priceTokens - userBalance} more)
+                  </span>
+                )}
+              </div>
+            )}
 
-              {user && (user.wallet?.balance ?? 0) < vod.priceTokens && (
+            <div className="relative z-10 flex flex-col sm:flex-row items-center gap-3 pt-2">
+              {hasEnoughTokens ? (
+                <button
+                  onClick={handleUnlock}
+                  disabled={unlocking}
+                  className="btn-glow-gold px-7 py-3 rounded-xl text-xs font-black text-black flex items-center gap-2 shadow-xl hover:scale-105 transition"
+                >
+                  <Coins className="w-4 h-4 text-black" />
+                  <span>
+                    {unlocking ? 'Deducting Tokens & Unlocking...' : `Unlock Now (${vod.priceTokens} Tokens)`}
+                  </span>
+                </button>
+              ) : (
                 <button
                   onClick={openPurchaseModal}
-                  className="px-4 py-3 rounded-xl bg-surfaceLight border border-surfaceBorder hover:border-gray-500 text-xs font-bold text-gray-300 transition"
+                  className="btn-glow-gold px-7 py-3 rounded-xl text-xs font-black text-black flex items-center gap-2 shadow-xl hover:scale-105 transition"
                 >
-                  Buy Tokens ({user.wallet?.balance ?? 0} available)
+                  <Coins className="w-4 h-4 text-black" />
+                  <span>Get Tokens ({userBalance} / {vod.priceTokens} Available)</span>
                 </button>
+              )}
+
+              {user && hasEnoughTokens && (
+                <span className="text-[11px] text-gray-400">
+                  {vod.priceTokens} Tokens will be deducted
+                </span>
               )}
             </div>
           </div>

@@ -48,7 +48,7 @@ export async function GET(
       const existingPurchase = await prisma.transaction.findFirst({
         where: {
           senderId: session.userId,
-          type: 'TIP',
+          type: { in: ['VOD_UNLOCK', 'TIP', 'PPV_UNLOCK'] },
           metadata: {
             contains: `"vodId":"${vod.id}"`,
           },
