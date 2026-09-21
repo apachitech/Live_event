@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { ChatMessagePayload } from '@/types';
 import { Send, Sparkles, AlertCircle, MessageSquare, Pin, X } from 'lucide-react';
 import BadgePill from '@/components/badges/BadgePill';
+import AdPlacement from '@/components/ads/AdPlacement';
 
 interface ChatContainerProps {
   streamId: string;
@@ -161,6 +162,9 @@ export default function ChatContainer({ streamId, initialMessages = [] }: ChatCo
         </div>
         <span className="text-[10px] text-gray-400 font-medium">Filtered & Rate-Limited</span>
       </div>
+
+      {/* Stream Chat Sponsored Card */}
+      <AdPlacement placement="STREAM_CHAT" className="mx-3 mt-2" />
 
       {/* Pinned Announcement Sticky Banner */}
       {pinnedAnnouncement && (

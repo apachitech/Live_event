@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useSiteConfig } from '@/context/SiteConfigContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { Radio, Coins, Plus, Video, Shield, User, LogOut, ChevronDown, CheckCircle2, Film, Building2 } from 'lucide-react';
+import AdPlacement from '@/components/ads/AdPlacement';
 
 export default function Navbar() {
   const { user, logout, openPurchaseModal } = useAuth();
@@ -15,6 +16,7 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-surfaceBorder/80 glass-panel">
+      <AdPlacement placement="HEADER_TOP" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         {/* Left: Brand Logo & Navigation */}
         <div className="flex items-center gap-8">

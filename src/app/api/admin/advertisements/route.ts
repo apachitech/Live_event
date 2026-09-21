@@ -44,11 +44,38 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { title, imageUrl, targetUrl, placement = 'FEED', active = true } = body;
+    const {
+      title,
+      description,
+      mediaType = 'IMAGE',
+      imageUrl,
+      videoUrl,
+      targetUrl,
+      ctaText = 'Learn More',
+      badge = 'SPONSORED',
+      placement = 'FEED',
+      durationSeconds = 15,
+      skipOffsetSeconds = 5,
+      active = true,
+    } = body;
 
-    if (!title || !imageUrl || !targetUrl) {
+    if (!title || !targetUrl) {
       return NextResponse.json(
-        { error: 'Title, Image URL, and Target URL are required' },
+        { error: 'Title and Target URL are required' },
+        { status: 400 }
+      );
+    }
+
+    if (mediaType === 'VIDEO' && !videoUrl && !imageUrl) {
+      return NextResponse.json(
+        { error: 'Video URL or fallback thumbnail is required for video ads' },
+        { status: 400 }
+      );
+    }
+
+    if (mediaType === 'IMAGE' && !imageUrl) {
+      return NextResponse.json(
+        { error: 'Creative image URL is required' },
         { status: 400 }
       );
     }
@@ -56,9 +83,16 @@ export async function POST(req: Request) {
     const ad = await prisma.advertisement.create({
       data: {
         title: title.trim(),
-        imageUrl: imageUrl.trim(),
+        description: description ? description.trim() : null,
+        mediaType: mediaType === 'VIDEO' ? 'VIDEO' : 'IMAGE',
+        imageUrl: (imageUrl || 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800').trim(),
+        videoUrl: videoUrl ? videoUrl.trim() : null,
         targetUrl: targetUrl.trim(),
+        ctaText: (ctaText || 'Learn More').trim(),
+        badge: (badge || 'SPONSORED').trim(),
         placement: placement.toUpperCase(),
+        durationSeconds: durationSeconds ? parseInt(String(durationSeconds), 10) : 15,
+        skipOffsetSeconds: skipOffsetSeconds ? parseInt(String(skipOffsetSeconds), 10) : 5,
         active: Boolean(active),
       },
     });
@@ -88,7 +122,21 @@ export async function PUT(req: Request) {
     }
 
     const body = await req.json();
-    const { id, title, imageUrl, targetUrl, placement, active } = body;
+    const {
+      id,
+      title,
+      description,
+      mediaType,
+      imageUrl,
+      videoUrl,
+      targetUrl,
+      ctaText,
+      badge,
+      placement,
+      durationSeconds,
+      skipOffsetSeconds,
+      active,
+    } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Ad ID is required' }, { status: 400 });
@@ -96,9 +144,16 @@ export async function PUT(req: Request) {
 
     const updateData: any = {};
     if (title !== undefined) updateData.title = title.trim();
+    if (description !== undefined) updateData.description = description ? description.trim() : null;
+    if (mediaType !== undefined) updateData.mediaType = mediaType === 'VIDEO' ? 'VIDEO' : 'IMAGE';
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl.trim();
+    if (videoUrl !== undefined) updateData.videoUrl = videoUrl ? videoUrl.trim() : null;
     if (targetUrl !== undefined) updateData.targetUrl = targetUrl.trim();
+    if (ctaText !== undefined) updateData.ctaText = ctaText.trim();
+    if (badge !== undefined) updateData.badge = badge.trim();
     if (placement !== undefined) updateData.placement = placement.toUpperCase();
+    if (durationSeconds !== undefined) updateData.durationSeconds = parseInt(String(durationSeconds), 10);
+    if (skipOffsetSeconds !== undefined) updateData.skipOffsetSeconds = parseInt(String(skipOffsetSeconds), 10);
     if (active !== undefined) updateData.active = Boolean(active);
 
     const updated = await prisma.advertisement.update({

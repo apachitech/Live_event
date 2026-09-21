@@ -24,7 +24,14 @@ export async function ensureUserSchema(): Promise<void> {
       await prisma.$executeRawUnsafe(`ALTER TABLE "User" ALTER COLUMN "passwordHash" DROP NOT NULL;`);
       await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "User_googleId_key" ON "User"("googleId");`);
       await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "User_resetPasswordToken_key" ON "User"("resetPasswordToken");`);
-      console.log('[ensureSchema] PostgreSQL User schema successfully verified & updated.');
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Advertisement" ADD COLUMN IF NOT EXISTS "description" TEXT;`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Advertisement" ADD COLUMN IF NOT EXISTS "mediaType" TEXT DEFAULT 'IMAGE';`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Advertisement" ADD COLUMN IF NOT EXISTS "videoUrl" TEXT;`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Advertisement" ADD COLUMN IF NOT EXISTS "ctaText" TEXT DEFAULT 'Learn More';`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Advertisement" ADD COLUMN IF NOT EXISTS "badge" TEXT DEFAULT 'SPONSORED';`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Advertisement" ADD COLUMN IF NOT EXISTS "durationSeconds" INTEGER DEFAULT 15;`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Advertisement" ADD COLUMN IF NOT EXISTS "skipOffsetSeconds" INTEGER DEFAULT 5;`);
+      console.log('[ensureSchema] PostgreSQL User & Advertisement schema successfully verified & updated.');
     } else {
       // SQLite fallback: columns will already exist or silently ignore if duplicate
       try {
@@ -44,6 +51,27 @@ export async function ensureUserSchema(): Promise<void> {
       } catch {}
       try {
         await prisma.$executeRawUnsafe(`ALTER TABLE StreamerProfile ADD COLUMN agencyId TEXT;`);
+      } catch {}
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE Advertisement ADD COLUMN description TEXT;`);
+      } catch {}
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE Advertisement ADD COLUMN mediaType TEXT DEFAULT 'IMAGE';`);
+      } catch {}
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE Advertisement ADD COLUMN videoUrl TEXT;`);
+      } catch {}
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE Advertisement ADD COLUMN ctaText TEXT DEFAULT 'Learn More';`);
+      } catch {}
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE Advertisement ADD COLUMN badge TEXT DEFAULT 'SPONSORED';`);
+      } catch {}
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE Advertisement ADD COLUMN durationSeconds INTEGER DEFAULT 15;`);
+      } catch {}
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE Advertisement ADD COLUMN skipOffsetSeconds INTEGER DEFAULT 5;`);
       } catch {}
     }
 

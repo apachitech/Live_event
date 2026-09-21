@@ -213,16 +213,26 @@ model PlatformSetting {
 }
 
 model Advertisement {
-  id          String   @id @default(uuid())
-  title       String
-  imageUrl    String
-  targetUrl   String
-  placement   String   @default("FEED") // FEED, DIRECTORY, WATCH
-  active      Boolean  @default(true)
-  clicks      Int      @default(0)
-  impressions Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                String   @id @default(uuid())
+  title             String
+  description       String?
+  mediaType         String   @default("IMAGE") // IMAGE, VIDEO
+  imageUrl          String
+  videoUrl          String?
+  targetUrl         String
+  ctaText           String   @default("Learn More")
+  badge             String?  @default("SPONSORED")
+  placement         String   @default("FEED") // FEED, DIRECTORY, WATCH, PRE_ROLL, PLAYER_OVERLAY, STREAM_CHAT, HEADER_TOP, VOD_DIRECTORY
+  durationSeconds   Int?     @default(15)
+  skipOffsetSeconds Int?     @default(5)
+  active            Boolean  @default(true)
+  clicks            Int      @default(0)
+  impressions       Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([placement])
+  @@index([active])
 }
 
 model AuditLog {

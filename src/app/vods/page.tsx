@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Film, Play, Search, Coins, Clock, Eye, Sparkles, Filter, Plus, Edit, Trash2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import VodCrudModal, { VodData } from '@/components/vod/VodCrudModal';
+import AdPlacement from '@/components/ads/AdPlacement';
 
 interface VodItem {
   id: string;
@@ -121,6 +122,9 @@ export default function VodsDirectoryPage() {
           </button>
         </div>
       </div>
+
+      {/* Sponsored VOD Directory Banner */}
+      <AdPlacement placement="VOD_DIRECTORY" />
 
       {/* Filter & Search Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

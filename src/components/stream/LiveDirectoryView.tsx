@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Radio, Users, Coins, Search, Sparkles, Play, RefreshCw, ExternalLink, Megaphone, Film, CheckCircle2, FileText, X } from 'lucide-react';
 import LiveStreamCard, { LiveStreamItem } from './LiveStreamCard';
 import { useSiteConfig } from '@/context/SiteConfigContext';
+import AdPlacement from '@/components/ads/AdPlacement';
 
 const ADULT_CATEGORIES = ['All', 'Gaming & Music', 'Creative Arts', 'Just Chatting', 'Interactive Shows'];
 const KIDS_CATEGORIES = ['All', 'Cartoons & Animation', 'Family Gaming', 'Learning & Crafts', 'Music & Fun'];
@@ -185,45 +186,7 @@ export default function LiveDirectoryView({ initialCategory = 'All', purchasedTo
       </div>
 
       {/* Featured Sponsored Advertisement Banner */}
-      {featuredAd && (
-        <div className="mb-8 rounded-2xl overflow-hidden glass-panel border border-brandPurple/30 p-4 sm:p-5 relative bg-gradient-to-r from-brandPurple/10 via-surfaceLight/60 to-brandPink/10">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-4 w-full sm:w-auto">
-              <img
-                src={featuredAd.imageUrl}
-                alt={featuredAd.title}
-                className="w-20 h-14 sm:w-28 sm:h-16 rounded-xl object-cover border border-surfaceBorder shrink-0 bg-black"
-                onError={(e: any) => {
-                  e.target.src = 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=300';
-                }}
-              />
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-tokenGold/20 text-tokenGold text-[10px] font-black uppercase tracking-wider border border-tokenGold/30">
-                    <Megaphone className="w-3 h-3" />
-                    <span>Sponsored</span>
-                  </span>
-                </div>
-                <h3 className="text-sm sm:text-base font-black text-white line-clamp-1">{featuredAd.title}</h3>
-                <p className="text-xs text-gray-400 mt-0.5 hidden sm:block">
-                  Verified partner promotion & exclusive community perk.
-                </p>
-              </div>
-            </div>
-
-            <a
-              href={featuredAd.targetUrl}
-              target="_blank"
-              rel="noreferrer"
-              onClick={() => handleAdClick(featuredAd)}
-              className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-brandPurple to-brandPink text-white text-xs font-black shadow-lg hover:scale-105 transition"
-            >
-              <span>Learn More</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          </div>
-        </div>
-      )}
+      <AdPlacement placement="DIRECTORY" className="mb-8" />
 
       {/* Directory Search & Filters Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">

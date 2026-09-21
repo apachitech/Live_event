@@ -4,7 +4,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Room, RoomEvent, RemoteTrack } from 'livekit-client';
 import { io, Socket } from 'socket.io-client';
 import Hls from 'hls.js';
-import { Volume2, VolumeX, Maximize, Maximize2, Radio, Users, Sparkles, Wifi, Play, Globe, Camera, CameraOff, Smartphone, Laptop, Monitor } from 'lucide-react';
+import { Volume2, VolumeX, Maximize, Maximize2, Radio, Users, Sparkles, Wifi, Play, Globe, Camera, CameraOff, Smartphone, Laptop, Monitor, ExternalLink, FastForward, X } from 'lucide-react';
 
 interface VideoPlayerProps {
   streamId: string;
@@ -56,6 +56,82 @@ export default function VideoPlayer({
   const [aspectMode, setAspectMode] = useState<'AUTO' | '16:9' | '9:16' | '4:3'>('AUTO');
   const [videoFit, setVideoFit] = useState<'cover' | 'contain'>('contain');
   const [showControlsMobile, setShowControlsMobile] = useState(false);
+
+  // Advertisement states (Pre-Roll Video Ads & Lower-Third Player Overlays)
+  const [preRollAd, setPreRollAd] = useState<any | null>(null);
+  const [preRollActive, setPreRollActive] = useState(false);
+  const [preRollTimeLeft, setPreRollTimeLeft] = useState(15);
+  const [skipCountdown, setSkipCountdown] = useState(5);
+  const [canSkip, setCanSkip] = useState(false);
+  const preRollVideoRef = useRef<HTMLVideoElement>(null);
+
+  const [overlayAd, setOverlayAd] = useState<any | null>(null);
+  const [overlayDismissed, setOverlayDismissed] = useState(false);
+
+  // Fetch Pre-roll and Player Overlay ads
+  useEffect(() => {
+    // 1. Fetch PRE_ROLL ad
+    fetch('/api/ads/public?placement=PRE_ROLL')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.ads && data.ads.length > 0) {
+          const chosen = data.ads[Math.floor(Math.random() * data.ads.length)];
+          setPreRollAd(chosen);
+          setPreRollActive(true);
+          const duration = chosen.durationSeconds || 15;
+          const skipOffset = chosen.skipOffsetSeconds !== undefined && chosen.skipOffsetSeconds !== null ? chosen.skipOffsetSeconds : 5;
+          setPreRollTimeLeft(duration);
+          setSkipCountdown(skipOffset);
+          setCanSkip(skipOffset === 0);
+
+          fetch('/api/ads/public', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: chosen.id, event: 'impression' }),
+          }).catch(() => {});
+        }
+      })
+      .catch(() => {});
+
+    // 2. Fetch PLAYER_OVERLAY ad
+    fetch('/api/ads/public?placement=PLAYER_OVERLAY')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.ads && data.ads.length > 0) {
+          const chosen = data.ads[Math.floor(Math.random() * data.ads.length)];
+          setOverlayAd(chosen);
+          fetch('/api/ads/public', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: chosen.id, event: 'impression' }),
+          }).catch(() => {});
+        }
+      })
+      .catch(() => {});
+  }, [streamId]);
+
+  // Pre-roll countdown timer
+  useEffect(() => {
+    if (!preRollActive) return;
+    const interval = setInterval(() => {
+      setPreRollTimeLeft((prev) => {
+        if (prev <= 1) {
+          setPreRollActive(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+      setSkipCountdown((prev) => {
+        if (prev <= 1) {
+          setCanSkip(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [preRollActive]);
 
   useEffect(() => {
     const updateMetrics = () => {
@@ -881,6 +957,145 @@ export default function VideoPlayer({
             </button>
           </div>
         </div>
+
+        {/* Lower-Third Player Overlay Advertisement */}
+        {overlayAd && !overlayDismissed && !preRollActive && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="absolute bottom-14 sm:bottom-16 left-3 sm:left-4 right-3 sm:right-4 z-30 max-w-lg pointer-events-auto"
+          >
+            <div className="p-2.5 sm:p-3 rounded-2xl bg-black/85 backdrop-blur-md border border-white/15 shadow-2xl flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="flex items-center gap-2.5 min-w-0">
+                {overlayAd.imageUrl && (
+                  <img
+                    src={overlayAd.imageUrl}
+                    alt={overlayAd.title}
+                    className="w-10 h-10 rounded-xl object-cover bg-black border border-white/10 shrink-0"
+                  />
+                )}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="px-1.5 py-0.2 rounded bg-pink-500/20 text-pink-300 text-[9px] font-black uppercase">
+                      {overlayAd.badge || 'SPONSORED'}
+                    </span>
+                    <h4 className="text-xs font-bold text-white truncate">{overlayAd.title}</h4>
+                  </div>
+                  {overlayAd.description && (
+                    <p className="text-[11px] text-gray-300 line-clamp-1 mt-0.5">{overlayAd.description}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <a
+                  href={overlayAd.targetUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => {
+                    fetch('/api/ads/public', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ id: overlayAd.id, event: 'click' }),
+                    }).catch(() => {});
+                  }}
+                  className="px-3 py-1 rounded-xl bg-gradient-to-r from-brandPurple to-brandPink text-white text-[11px] font-bold flex items-center gap-1 hover:opacity-95 shadow"
+                >
+                  <span>{overlayAd.ctaText || 'Learn More'}</span>
+                  <ExternalLink className="w-2.5 h-2.5" />
+                </a>
+                <button
+                  onClick={() => setOverlayDismissed(true)}
+                  className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition"
+                  title="Dismiss ad"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Pre-Roll Video Advertisement Player Layer */}
+        {preRollActive && preRollAd && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="absolute inset-0 z-40 bg-black flex items-center justify-center animate-in fade-in duration-300"
+          >
+            <video
+              ref={preRollVideoRef}
+              src={preRollAd.videoUrl || 'https://vjs.zencdn.net/v/oceans.mp4'}
+              autoPlay
+              playsInline
+              // @ts-ignore
+              webkit-playsinline="true"
+              muted={muted}
+              onEnded={() => setPreRollActive(false)}
+              className="w-full h-full object-cover"
+            />
+
+            {/* Pre-roll Top Bar */}
+            <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-50 pointer-events-auto">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 rounded-full bg-yellow-500/90 text-black text-[10px] font-black uppercase tracking-wider shadow">
+                  {preRollAd.badge || 'AD'} • {preRollTimeLeft}s
+                </span>
+                <span className="text-xs font-bold text-white drop-shadow truncate max-w-[200px]">
+                  {preRollAd.title}
+                </span>
+              </div>
+              <a
+                href={preRollAd.targetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => {
+                  fetch('/api/ads/public', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: preRollAd.id, event: 'click' }),
+                  }).catch(() => {});
+                }}
+                className="px-3 py-1.5 rounded-xl bg-white/90 hover:bg-white text-black text-xs font-black flex items-center gap-1.5 shadow-lg transition hover:scale-105"
+              >
+                <span>{preRollAd.ctaText || 'Learn More'}</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+
+            {/* Pre-roll Bottom Controls & Skip Button */}
+            <div className="absolute bottom-4 right-4 z-50 flex items-center gap-2 pointer-events-auto">
+              {muted && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMuted(false);
+                    if (preRollVideoRef.current) {
+                      preRollVideoRef.current.muted = false;
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-black/70 hover:bg-black text-white text-xs font-bold border border-white/20 backdrop-blur-md flex items-center gap-1.5 transition"
+                >
+                  <VolumeX className="w-3.5 h-3.5 text-pink-400" />
+                  <span>Unmute</span>
+                </button>
+              )}
+
+              {canSkip ? (
+                <button
+                  type="button"
+                  onClick={() => setPreRollActive(false)}
+                  className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-brandPurple to-brandPink text-white text-xs font-black flex items-center gap-1.5 shadow-lg hover:scale-105 transition animate-pulse"
+                >
+                  <span>Skip Ad</span>
+                  <FastForward className="w-3.5 h-3.5" />
+                </button>
+              ) : (
+                <div className="px-3 py-1.5 rounded-xl bg-black/70 text-gray-300 text-xs font-bold border border-white/10 backdrop-blur-md">
+                  Skip Ad in {skipCountdown}s
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Viewer Sizing & Screen Mode Ribbon (Always accessible & left-right scrollable on phones/laptops) */}
