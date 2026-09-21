@@ -32,6 +32,7 @@ model User {
   moderationFlags  ModerationFlag[]  @relation("ReportedByUser")
   auditLogs        AuditLog[]
   privateSessions  PrivateSession[]  @relation("ViewerPrivateSessions")
+  advertisements   Advertisement[]
 }
 
 model StreamerProfile {
@@ -225,6 +226,9 @@ model Advertisement {
   placement         String   @default("FEED") // FEED, DIRECTORY, WATCH, PRE_ROLL, PLAYER_OVERLAY, STREAM_CHAT, HEADER_TOP, VOD_DIRECTORY
   durationSeconds   Int?     @default(15)
   skipOffsetSeconds Int?     @default(5)
+  creatorUserId     String?
+  creatorUser       User?    @relation(fields: [creatorUserId], references: [id], onDelete: SetNull)
+  tokensSpent       Int      @default(0)
   active            Boolean  @default(true)
   clicks            Int      @default(0)
   impressions       Int      @default(0)
@@ -233,6 +237,7 @@ model Advertisement {
 
   @@index([placement])
   @@index([active])
+  @@index([creatorUserId])
 }
 
 model AuditLog {

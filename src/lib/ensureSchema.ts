@@ -31,6 +31,8 @@ export async function ensureUserSchema(): Promise<void> {
       await prisma.$executeRawUnsafe(`ALTER TABLE "Advertisement" ADD COLUMN IF NOT EXISTS "badge" TEXT DEFAULT 'SPONSORED';`);
       await prisma.$executeRawUnsafe(`ALTER TABLE "Advertisement" ADD COLUMN IF NOT EXISTS "durationSeconds" INTEGER DEFAULT 15;`);
       await prisma.$executeRawUnsafe(`ALTER TABLE "Advertisement" ADD COLUMN IF NOT EXISTS "skipOffsetSeconds" INTEGER DEFAULT 5;`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Advertisement" ADD COLUMN IF NOT EXISTS "creatorUserId" TEXT;`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "Advertisement" ADD COLUMN IF NOT EXISTS "tokensSpent" INTEGER DEFAULT 0;`);
       console.log('[ensureSchema] PostgreSQL User & Advertisement schema successfully verified & updated.');
     } else {
       // SQLite fallback: columns will already exist or silently ignore if duplicate
@@ -72,6 +74,12 @@ export async function ensureUserSchema(): Promise<void> {
       } catch {}
       try {
         await prisma.$executeRawUnsafe(`ALTER TABLE Advertisement ADD COLUMN skipOffsetSeconds INTEGER DEFAULT 5;`);
+      } catch {}
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE Advertisement ADD COLUMN creatorUserId TEXT;`);
+      } catch {}
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE Advertisement ADD COLUMN tokensSpent INTEGER DEFAULT 0;`);
       } catch {}
     }
 

@@ -14,7 +14,22 @@ export async function GET() {
 
     const ads = await prisma.advertisement.findMany({
       orderBy: { createdAt: 'desc' },
+      include: {
+        creatorUser: {
+          select: {
+            id: true,
+            username: true,
+            role: true,
+            avatarUrl: true,
+          },
+        },
+      },
     });
+
+    const priceSetting = await prisma.platformSetting.findUnique({
+      where: { key: 'AD_CAMPAIGN_TOKEN_PRICE' },
+    });
+    const publishPriceTokens = priceSetting ? parseInt(priceSetting.value, 10) : 50;
 
     const statsAgg = await prisma.advertisement.aggregate({
       _sum: { clicks: true, impressions: true },
@@ -24,12 +39,56 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       ads,
+      publishPriceTokens,
       stats: {
         totalAds: statsAgg._count.id || 0,
         totalClicks: statsAgg._sum.clicks || 0,
         totalImpressions: statsAgg._sum.impressions || 0,
       },
     });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+// PATCH update ad campaign publish price in tokens
+export async function PATCH(req: Request) {
+  try {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const { tokenPrice } = body;
+
+    if (tokenPrice === undefined || isNaN(parseInt(String(tokenPrice), 10))) {
+      return NextResponse.json({ error: 'Valid token price is required' }, { status: 400 });
+    }
+
+    const price = Math.max(0, parseInt(String(tokenPrice), 10));
+
+    await prisma.platformSetting.upsert({
+      where: { key: 'AD_CAMPAIGN_TOKEN_PRICE' },
+      update: { value: String(price) },
+      create: {
+        key: 'AD_CAMPAIGN_TOKEN_PRICE',
+        value: String(price),
+        description: 'Token price for publishing an advertisement campaign',
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        actorUserId: session.userId,
+        action: 'AD_CAMPAIGN_TOKEN_PRICE_UPDATED',
+        entityType: 'PLATFORM_SETTING',
+        entityId: 'AD_CAMPAIGN_TOKEN_PRICE',
+        payload: JSON.stringify({ tokenPrice: price }),
+      },
+    });
+
+    return NextResponse.json({ success: true, tokenPrice: price });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

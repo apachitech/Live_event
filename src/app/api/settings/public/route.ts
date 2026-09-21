@@ -59,6 +59,7 @@ export async function GET() {
         tokenPackages,
         paymentMethods,
         tokenExchangeRateCents: parseInt(map['TOKEN_EXCHANGE_RATE_CENTS'] || '5', 10),
+        adCampaignTokenPrice: parseInt(map['AD_CAMPAIGN_TOKEN_PRICE'] || '50', 10),
         revenueSplitStreamerPercent: parseInt(map['REVENUE_SPLIT_STREAMER_PERCENT'] || '70', 10),
         minPayoutTokens: parseInt(map['MIN_PAYOUT_THRESHOLD_TOKENS'] || '1000', 10),
       },

@@ -52,8 +52,19 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const session = await getSession();
-    if (!session || (session.role !== 'STREAMER' && session.role !== 'ADMIN')) {
-      return NextResponse.json({ error: 'Unauthorized: Streamer role required' }, { status: 401 });
+    if (!session) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    if (session.role === 'VIEWER') {
+      return NextResponse.json(
+        { error: 'Viewers cannot publish VODs. Viewers can only create Ad campaigns!' },
+        { status: 403 }
+      );
+    }
+
+    if (session.role !== 'STREAMER' && session.role !== 'AGENCY' && session.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized: Streamer or Agency role required' }, { status: 403 });
     }
 
     let streamerProfile = await prisma.streamerProfile.findUnique({
@@ -61,13 +72,13 @@ export async function POST(req: Request) {
     });
 
     if (!streamerProfile) {
-      if (session.role === 'ADMIN') {
+      if (session.role === 'ADMIN' || session.role === 'AGENCY') {
         const user = await prisma.user.findUnique({ where: { id: session.userId } });
         streamerProfile = await prisma.streamerProfile.create({
           data: {
             userId: session.userId,
-            displayName: user?.username || 'Platform Admin',
-            bio: 'Official Platform VOD Publisher',
+            displayName: user?.agencyName || user?.username || (session.role === 'ADMIN' ? 'Platform Admin' : 'Agency Creator'),
+            bio: session.role === 'ADMIN' ? 'Official Platform VOD Publisher' : 'Verified Agency Media Publisher',
             kycStatus: 'VERIFIED',
           },
         });

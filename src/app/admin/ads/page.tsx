@@ -29,6 +29,7 @@ import {
   MessageSquare,
   Search,
   Filter,
+  Coins,
 } from 'lucide-react';
 
 export type AdPlacementType =
@@ -54,6 +55,14 @@ export interface Advertisement {
   placement: AdPlacementType;
   durationSeconds?: number | null;
   skipOffsetSeconds?: number | null;
+  creatorUserId?: string | null;
+  creatorUser?: {
+    id: string;
+    username: string;
+    role: string;
+    avatarUrl?: string | null;
+  } | null;
+  tokensSpent?: number;
   active: boolean;
   clicks: number;
   impressions: number;
@@ -115,6 +124,11 @@ export default function AdminAdvertisementsPage() {
   const [filterPlacement, setFilterPlacement] = useState<string>('ALL');
   const [filterMediaType, setFilterMediaType] = useState<string>('ALL');
 
+  // Admin Token Price Setting State
+  const [tokenPrice, setTokenPrice] = useState<number>(50);
+  const [tokenPriceInput, setTokenPriceInput] = useState<string>('50');
+  const [savingPrice, setSavingPrice] = useState(false);
+
   // Modals
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -149,11 +163,45 @@ export default function AdminAdvertisementsPage() {
       const data = await res.json();
       if (data.success && data.ads) {
         setAds(data.ads);
+        if (data.publishPriceTokens !== undefined) {
+          setTokenPrice(data.publishPriceTokens);
+          setTokenPriceInput(String(data.publishPriceTokens));
+        }
       }
     } catch {
       showNotice('error', 'Failed to load advertisements');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveTokenPrice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const price = parseInt(tokenPriceInput, 10);
+    if (isNaN(price) || price < 0) {
+      showNotice('error', 'Please enter a valid token price (>= 0)');
+      return;
+    }
+
+    setSavingPrice(true);
+    try {
+      const res = await fetch('/api/admin/advertisements', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tokenPrice: price }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setTokenPrice(data.tokenPrice);
+        setTokenPriceInput(String(data.tokenPrice));
+        showNotice('success', `Campaign publishing price updated to ${data.tokenPrice} Tokens!`);
+      } else {
+        showNotice('error', data.error || 'Failed to update token price');
+      }
+    } catch (err: any) {
+      showNotice('error', err.message || 'Network error');
+    } finally {
+      setSavingPrice(false);
     }
   };
 
@@ -454,6 +502,48 @@ export default function AdminAdvertisementsPage() {
         </div>
       )}
 
+      {/* Admin Token Price Configuration Banner */}
+      <div className="p-5 rounded-2xl glass-panel border border-tokenGold/30 bg-gradient-to-r from-tokenGold/10 via-surface/60 to-purple-950/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-lg shadow-tokenGold/5">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-xl bg-tokenGold/20 border border-tokenGold/30 flex items-center justify-center shrink-0 text-tokenGold">
+            <Coins className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-white">Campaign Publishing Token Price</h3>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-tokenGold/20 text-tokenGold border border-tokenGold/30 uppercase tracking-wider">
+                Live Pricing
+              </span>
+            </div>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Set the token cost required for Viewers, Streamers, and Agencies to publish an advertising campaign.
+            </p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSaveTokenPrice} className="flex items-center gap-2 w-full md:w-auto">
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-tokenGold font-bold text-xs">🪙</span>
+            <input
+              type="number"
+              min="0"
+              value={tokenPriceInput}
+              onChange={(e) => setTokenPriceInput(e.target.value)}
+              className="w-32 pl-8 pr-3 py-2 bg-surfaceLight border border-surfaceBorder rounded-xl text-sm font-black text-tokenGold focus:outline-none focus:border-tokenGold/50"
+              placeholder="Price"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={savingPrice || parseInt(tokenPriceInput, 10) === tokenPrice}
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-tokenGold to-amber-500 text-black font-extrabold text-xs shadow-md shadow-tokenGold/20 hover:brightness-110 transition disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+          >
+            {savingPrice ? 'Saving...' : 'Update Price'}
+          </button>
+        </form>
+      </div>
+
       {/* Metrics Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="p-5 rounded-2xl glass-panel border border-surfaceBorder">
@@ -591,8 +681,10 @@ export default function AdminAdvertisementsPage() {
               <thead className="text-[11px] text-gray-400 uppercase border-b border-surfaceBorder">
                 <tr>
                   <th className="py-3 px-2">Creative & Campaign</th>
+                  <th className="py-3 px-2">Creator</th>
                   <th className="py-3 px-2">Type</th>
                   <th className="py-3 px-2">Placement</th>
+                  <th className="py-3 px-2">Tokens Paid</th>
                   <th className="py-3 px-2">Interactive CTA</th>
                   <th className="py-3 px-2">Impressions</th>
                   <th className="py-3 px-2">Clicks</th>
@@ -664,6 +756,34 @@ export default function AdminAdvertisementsPage() {
                         </div>
                       </td>
 
+                      {/* Creator */}
+                      <td className="py-3.5 px-2">
+                        {ad.creatorUser ? (
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-white truncate max-w-[120px]">
+                              {ad.creatorUser.username}
+                            </span>
+                            <span
+                              className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded w-fit mt-0.5 ${
+                                ad.creatorUser.role === 'STREAMER'
+                                  ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                  : ad.creatorUser.role === 'AGENCY'
+                                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                  : ad.creatorUser.role === 'ADMIN'
+                                  ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                                  : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                              }`}
+                            >
+                              {ad.creatorUser.role}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-gray-400 font-medium italic">
+                            Platform Admin
+                          </span>
+                        )}
+                      </td>
+
                       {/* Media Type */}
                       <td className="py-3.5 px-2">
                         {ad.mediaType === 'VIDEO' ? (
@@ -685,6 +805,18 @@ export default function AdminAdvertisementsPage() {
                           <PlacementIcon className="w-3 h-3" />
                           <span>{placementInfo.label}</span>
                         </span>
+                      </td>
+
+                      {/* Tokens Paid */}
+                      <td className="py-3.5 px-2 font-mono">
+                        {(ad.tokensSpent ?? 0) > 0 ? (
+                          <span className="inline-flex items-center gap-1 text-tokenGold font-bold">
+                            <Coins className="w-3 h-3" />
+                            <span>{ad.tokensSpent}</span>
+                          </span>
+                        ) : (
+                          <span className="text-gray-500 text-[10px]">Free (0)</span>
+                        )}
                       </td>
 
                       {/* CTA */}

@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Film, Play, Search, Coins, Clock, Eye, Sparkles, Filter, Plus, Edit, Trash2 } from 'lucide-react';
+import { Film, Play, Search, Coins, Clock, Eye, Sparkles, Filter, Plus, Edit, Trash2, Megaphone } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import VodCrudModal, { VodData } from '@/components/vod/VodCrudModal';
 import AdPlacement from '@/components/ads/AdPlacement';
+import UserCampaignModal from '@/components/ads/UserCampaignModal';
 
 interface VodItem {
   id: string;
@@ -40,6 +41,7 @@ export default function VodsDirectoryPage() {
   // CRUD Modal State
   const [crudModalOpen, setCrudModalOpen] = useState(false);
   const [vodToEdit, setVodToEdit] = useState<VodData | null>(null);
+  const [userCampaignModalOpen, setUserCampaignModalOpen] = useState(false);
 
   useEffect(() => {
     fetchVods();
@@ -107,19 +109,40 @@ export default function VodsDirectoryPage() {
           </p>
         </div>
 
-        {/* CRUD Action Button */}
-        <div className="relative z-10 flex-shrink-0 flex items-center gap-3">
-          <button
-            onClick={() => {
-              setVodToEdit(null);
-              setCrudModalOpen(true);
-            }}
-            className="btn-glow-purple px-6 py-3.5 rounded-2xl text-sm font-black text-white flex items-center gap-2 shadow-2xl hover:scale-105 transition"
-            title="Create and publish a new VOD or edit existing catalog"
-          >
-            <Plus className="w-4 h-4 text-purple-200 stroke-[3]" />
-            <span>+ VOD CRUD</span>
-          </button>
+        {/* Action Button: Viewers can only create Ad campaigns; Streamers/Agencies can do VOD + Ads */}
+        <div className="relative z-10 flex-shrink-0 flex items-center gap-3 flex-wrap">
+          {user && (user.role === 'STREAMER' || user.role === 'AGENCY' || user.role === 'ADMIN') ? (
+            <>
+              <button
+                onClick={() => {
+                  setVodToEdit(null);
+                  setCrudModalOpen(true);
+                }}
+                className="btn-glow-purple px-5 py-3.5 rounded-2xl text-xs font-black text-white flex items-center gap-2 shadow-2xl hover:scale-105 transition"
+                title="Create and publish a new VOD as Streamer or Agency"
+              >
+                <Plus className="w-4 h-4 text-purple-200 stroke-[3]" />
+                <span>+ VOD CRUD</span>
+              </button>
+              <button
+                onClick={() => setUserCampaignModalOpen(true)}
+                className="px-4 py-3.5 rounded-2xl bg-surfaceLight border border-surfaceBorder hover:border-brandPurple text-xs font-black text-gray-200 hover:text-white flex items-center gap-2 transition"
+                title="Launch an Ad Campaign"
+              >
+                <Megaphone className="w-4 h-4 text-pink-400" />
+                <span>Launch Ad</span>
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setUserCampaignModalOpen(true)}
+              className="btn-glow-purple px-6 py-3.5 rounded-2xl text-xs font-black text-white flex items-center gap-2 shadow-2xl hover:scale-105 transition"
+              title="Viewers can launch interactive Ad campaigns across live streams and video feeds!"
+            >
+              <Megaphone className="w-4 h-4 text-pink-300" />
+              <span>🚀 Launch Ad Campaign</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -333,20 +356,37 @@ export default function VodsDirectoryPage() {
         </div>
       )}
 
-      {/* Floating VOD CRUD Action Button */}
+      {/* Floating Action Button */}
       <div className="fixed bottom-6 right-6 z-40">
-        <button
-          onClick={() => {
-            setVodToEdit(null);
-            setCrudModalOpen(true);
-          }}
-          className="btn-glow-purple px-5 py-3 rounded-2xl text-xs font-black text-white flex items-center gap-2 shadow-2xl hover:scale-110 transition border border-purple-400/40 backdrop-blur-md"
-          title="Open VOD CRUD Creator"
-        >
-          <Film className="w-4 h-4 text-purple-200 stroke-[2.5]" />
-          <span>VOD CRUD</span>
-        </button>
+        {user && (user.role === 'STREAMER' || user.role === 'AGENCY' || user.role === 'ADMIN') ? (
+          <button
+            onClick={() => {
+              setVodToEdit(null);
+              setCrudModalOpen(true);
+            }}
+            className="btn-glow-purple px-5 py-3 rounded-2xl text-xs font-black text-white flex items-center gap-2 shadow-2xl hover:scale-110 transition border border-purple-400/40 backdrop-blur-md"
+            title="Open VOD CRUD Creator"
+          >
+            <Film className="w-4 h-4 text-purple-200 stroke-[2.5]" />
+            <span>VOD CRUD</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => setUserCampaignModalOpen(true)}
+            className="btn-glow-purple px-5 py-3 rounded-2xl text-xs font-black text-white flex items-center gap-2 shadow-2xl hover:scale-110 transition border border-purple-400/40 backdrop-blur-md"
+            title="Launch an interactive Ad Campaign"
+          >
+            <Megaphone className="w-4 h-4 text-pink-300" />
+            <span>Launch Ad</span>
+          </button>
+        )}
       </div>
+
+      {/* User Campaign Modal */}
+      <UserCampaignModal
+        isOpen={userCampaignModalOpen}
+        onClose={() => setUserCampaignModalOpen(false)}
+      />
 
       {/* CRUD Modal for Create / Edit / Delete */}
       <VodCrudModal

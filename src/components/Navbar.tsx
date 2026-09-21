@@ -5,14 +5,16 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useSiteConfig } from '@/context/SiteConfigContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { Radio, Coins, Plus, Video, Shield, User, LogOut, ChevronDown, CheckCircle2, Film, Building2 } from 'lucide-react';
+import { Radio, Coins, Plus, Video, Shield, User, LogOut, ChevronDown, CheckCircle2, Film, Building2, Megaphone } from 'lucide-react';
 import AdPlacement from '@/components/ads/AdPlacement';
+import UserCampaignModal from '@/components/ads/UserCampaignModal';
 
 export default function Navbar() {
   const { user, logout, openPurchaseModal } = useAuth();
   const { siteName, siteTagline, contentRating } = useSiteConfig();
   const { t } = useLanguage();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [campaignModalOpen, setCampaignModalOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-surfaceBorder/80 glass-panel">
@@ -165,6 +167,17 @@ export default function Navbar() {
                         <span>{t('nav.getTokens', 'Get Tokens')}</span>
                       </button>
 
+                      <button
+                        onClick={() => {
+                          setDropdownOpen(false);
+                          setCampaignModalOpen(true);
+                        }}
+                        className="w-full text-left px-4 py-2 text-xs text-pink-300 hover:bg-surfaceLight hover:text-white flex items-center gap-2 transition"
+                      >
+                        <Megaphone className="w-3.5 h-3.5 text-pink-400" />
+                        <span>Launch Ad Campaign</span>
+                      </button>
+
                       {(user.role === 'STREAMER' || user.role === 'ADMIN') && (
                         <>
                           <Link
@@ -251,6 +264,12 @@ export default function Navbar() {
           )}
         </div>
       </div>
+
+      {/* User Campaign Modal */}
+      <UserCampaignModal
+        isOpen={campaignModalOpen}
+        onClose={() => setCampaignModalOpen(false)}
+      />
     </header>
   );
 }
