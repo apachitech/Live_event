@@ -6,6 +6,7 @@ import { LanguageProvider } from '@/context/LanguageContext';
 import Navbar from '@/components/Navbar';
 import TokenPurchaseModal from '@/components/wallet/TokenPurchaseModal';
 import AgeVerificationModal from '@/components/auth/AgeVerificationModal';
+import GlobalCampaignModal from '@/components/ads/GlobalCampaignModal';
 
 import { Footer } from '@/components/layout/Footer';
 
@@ -53,6 +54,7 @@ export default function RootLayout({
               <Footer />
               <TokenPurchaseModal />
               <AgeVerificationModal />
+              <GlobalCampaignModal />
             </SiteConfigProvider>
           </AuthProvider>
         </LanguageProvider>

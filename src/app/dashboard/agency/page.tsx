@@ -19,10 +19,11 @@ import {
   X,
   RefreshCw,
   Sparkles,
+  Megaphone,
 } from 'lucide-react';
 
 export default function AgencyDashboardPage() {
-  const { user } = useAuth();
+  const { user, openCampaignModal } = useAuth();
   const [agencyData, setAgencyData] = useState<any>(null);
   const [talent, setTalent] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,6 +119,14 @@ export default function AgencyDashboardPage() {
             title="Refresh statistics"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+          <button
+            onClick={openCampaignModal}
+            className="px-4 py-2.5 rounded-xl bg-pink-600 hover:bg-pink-500 text-xs font-bold text-white flex items-center gap-2 shadow-lg shadow-pink-600/20 transition"
+            title="Launch an Ad Campaign to promote your agency talent roster"
+          >
+            <Megaphone className="w-4 h-4" />
+            <span>Launch Ad Campaign</span>
           </button>
           <button
             onClick={() => setRecruitModalOpen(true)}

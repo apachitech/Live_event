@@ -7,14 +7,12 @@ import { useSiteConfig } from '@/context/SiteConfigContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { Radio, Coins, Plus, Video, Shield, User, LogOut, ChevronDown, CheckCircle2, Film, Building2, Megaphone } from 'lucide-react';
 import AdPlacement from '@/components/ads/AdPlacement';
-import UserCampaignModal from '@/components/ads/UserCampaignModal';
 
 export default function Navbar() {
-  const { user, logout, openPurchaseModal } = useAuth();
+  const { user, logout, openPurchaseModal, openCampaignModal } = useAuth();
   const { siteName, siteTagline, contentRating } = useSiteConfig();
   const { t } = useLanguage();
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [campaignModalOpen, setCampaignModalOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-surfaceBorder/80 glass-panel">
@@ -46,7 +44,7 @@ export default function Navbar() {
             </div>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
+          <nav className="hidden md:flex items-center gap-5 text-sm font-medium">
             <Link href="/" className="text-gray-200 hover:text-white transition">
               {t('nav.liveDirectory', 'Live Directory')}
             </Link>
@@ -58,6 +56,14 @@ export default function Navbar() {
               <Film className="w-3.5 h-3.5 text-brandPurple" />
               <span>{t('nav.vods', 'VODs & Replays')}</span>
             </Link>
+            <button
+              onClick={openCampaignModal}
+              className="text-pink-400/90 hover:text-pink-300 flex items-center gap-1.5 transition font-semibold"
+              title="Launch Sponsored Advertising Campaign"
+            >
+              <Megaphone className="w-3.5 h-3.5 text-pink-400" />
+              <span>{t('nav.adCampaigns', 'Ad Campaigns')}</span>
+            </button>
             <Link href="/?category=Gaming" className="text-gray-400 hover:text-gray-200 transition">
               {t('nav.gaming', 'Gaming')}
             </Link>
@@ -91,6 +97,16 @@ export default function Navbar() {
                   <Plus className="w-3.5 h-3.5 stroke-[3]" />
                 </button>
               </div>
+
+              {/* Direct Launch Ad Campaign Button on every page */}
+              <button
+                onClick={openCampaignModal}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-pink-600/20 via-purple-600/20 to-pink-600/20 border border-pink-500/40 text-pink-300 hover:from-pink-600/30 hover:to-purple-600/30 hover:text-white hover:border-pink-400 text-xs font-bold transition shadow-sm group shrink-0"
+                title="Launch Sponsored Ad Campaign"
+              >
+                <Megaphone className="w-3.5 h-3.5 text-pink-400 group-hover:scale-110 transition shrink-0" />
+                <span className="hidden sm:inline">Launch Ad</span>
+              </button>
 
               {/* Streamer Studio Button */}
               {(user.role === 'STREAMER' || user.role === 'ADMIN') && (
@@ -170,7 +186,7 @@ export default function Navbar() {
                       <button
                         onClick={() => {
                           setDropdownOpen(false);
-                          setCampaignModalOpen(true);
+                          openCampaignModal();
                         }}
                         className="w-full text-left px-4 py-2 text-xs text-pink-300 hover:bg-surfaceLight hover:text-white flex items-center gap-2 transition"
                       >
@@ -247,7 +263,15 @@ export default function Navbar() {
               </div>
             </>
           ) : (
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2 sm:gap-2.5">
+              <button
+                onClick={openCampaignModal}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-pink-600/20 to-purple-600/20 border border-pink-500/30 text-pink-300 hover:from-pink-600/30 hover:to-purple-600/30 hover:text-white text-xs font-bold transition shadow-sm group"
+                title="Advertise On Platform"
+              >
+                <Megaphone className="w-3.5 h-3.5 text-pink-400 group-hover:scale-110 transition shrink-0" />
+                <span>Advertise</span>
+              </button>
               <Link
                 href="/login"
                 className="px-3.5 py-2 rounded-xl text-xs font-semibold text-gray-300 hover:text-white hover:bg-surfaceLight transition"
@@ -264,12 +288,6 @@ export default function Navbar() {
           )}
         </div>
       </div>
-
-      {/* User Campaign Modal */}
-      <UserCampaignModal
-        isOpen={campaignModalOpen}
-        onClose={() => setCampaignModalOpen(false)}
-      />
     </header>
   );
 }

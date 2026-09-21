@@ -32,6 +32,9 @@ interface AuthContextType {
   isAgeModalOpen: boolean;
   openAgeModal: () => void;
   closeAgeModal: () => void;
+  isCampaignModalOpen: boolean;
+  openCampaignModal: () => void;
+  closeCampaignModal: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -41,6 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [isAgeModalOpen, setIsAgeModalOpen] = useState(false);
+  const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
 
   const refreshUser = async () => {
     try {
@@ -81,6 +85,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAgeModalOpen,
         openAgeModal: () => setIsAgeModalOpen(true),
         closeAgeModal: () => setIsAgeModalOpen(false),
+        isCampaignModalOpen,
+        openCampaignModal: () => setIsCampaignModalOpen(true),
+        closeCampaignModal: () => setIsCampaignModalOpen(false),
       }}
     >
       {children}

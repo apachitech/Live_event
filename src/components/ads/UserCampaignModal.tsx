@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   Megaphone,
   X,
@@ -31,7 +32,7 @@ interface UserCampaignModalProps {
 }
 
 export default function UserCampaignModal({ isOpen, onClose, onSuccess }: UserCampaignModalProps) {
-  const { user, openPurchaseModal } = useAuth();
+  const { user, openPurchaseModal, refreshUser } = useAuth();
 
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -100,7 +101,7 @@ export default function UserCampaignModal({ isOpen, onClose, onSuccess }: UserCa
 
   const isAdmin = user?.role === 'ADMIN';
   const tokensRequired = isAdmin ? 0 : publishPrice;
-  const hasEnoughTokens = isAdmin || userBalance >= tokensRequired;
+  const hasEnoughTokens = user ? (isAdmin || userBalance >= tokensRequired) : false;
 
   const applyInspiration = (type: 'creator' | 'gaming' | 'tokens' | 'agency') => {
     if (type === 'creator') {
@@ -196,6 +197,7 @@ export default function UserCampaignModal({ isOpen, onClose, onSuccess }: UserCa
       if (res.ok && data.success) {
         setSuccessMsg(data.message || 'Campaign published successfully!');
         setUserBalance(data.remainingBalance);
+        if (refreshUser) refreshUser();
         if (onSuccess) onSuccess(data.ad);
         setTimeout(() => {
           onClose();
@@ -223,7 +225,7 @@ export default function UserCampaignModal({ isOpen, onClose, onSuccess }: UserCa
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-black text-white">Launch Sponsored Ad Campaign</h3>
                 <span className="px-2 py-0.5 rounded-full bg-brandPurple/20 text-brandPurple text-[10px] font-black uppercase">
-                  {user?.role === 'VIEWER' ? 'Viewer Sponsor' : user?.role === 'AGENCY' ? 'Agency Campaign' : 'Creator Promo'}
+                  {!user ? 'Guest Advertiser' : user.role === 'VIEWER' ? 'Viewer Sponsor' : user.role === 'AGENCY' ? 'Agency Campaign' : 'Creator Promo'}
                 </span>
               </div>
               <p className="text-xs text-gray-400">
@@ -252,18 +254,32 @@ export default function UserCampaignModal({ isOpen, onClose, onSuccess }: UserCa
 
             <div className="flex items-center gap-1.5 text-xs">
               <span className="text-gray-400 font-medium">Your Balance:</span>
-              <span className={`font-black flex items-center gap-1 px-2 py-0.5 rounded-lg border ${
-                hasEnoughTokens
-                  ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                  : 'text-rose-400 bg-rose-500/10 border-rose-500/20'
-              }`}>
-                <Coins className="w-3.5 h-3.5" />
-                <span>{userBalance} Tokens</span>
-              </span>
+              {user ? (
+                <span className={`font-black flex items-center gap-1 px-2 py-0.5 rounded-lg border ${
+                  hasEnoughTokens
+                    ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                    : 'text-rose-400 bg-rose-500/10 border-rose-500/20'
+                }`}>
+                  <Coins className="w-3.5 h-3.5" />
+                  <span>{userBalance} Tokens</span>
+                </span>
+              ) : (
+                <span className="text-gray-400 italic text-[11px] bg-surface border border-surfaceBorder px-2 py-0.5 rounded-lg">
+                  Not Signed In
+                </span>
+              )}
             </div>
           </div>
 
-          {!hasEnoughTokens && (
+          {!user ? (
+            <Link
+              href="/login"
+              onClick={onClose}
+              className="btn-glow-purple px-3.5 py-1.5 rounded-xl text-xs font-black text-white flex items-center gap-1.5 shadow"
+            >
+              <span>Log In to Publish</span>
+            </Link>
+          ) : !hasEnoughTokens ? (
             <button
               type="button"
               onClick={() => openPurchaseModal()}
@@ -272,7 +288,7 @@ export default function UserCampaignModal({ isOpen, onClose, onSuccess }: UserCa
               <Plus className="w-3.5 h-3.5" />
               <span>Get Tokens (+ Top Up)</span>
             </button>
-          )}
+          ) : null}
         </div>
 
         {/* Quick Inspiration Presets */}
@@ -590,22 +606,27 @@ export default function UserCampaignModal({ isOpen, onClose, onSuccess }: UserCa
         </div>
 
         {/* Footer Actions */}
-        <div className="p-5 border-t border-surfaceBorder bg-surface/50 flex items-center justify-between shrink-0">
-          <div className="text-xs text-gray-400">
-            {hasEnoughTokens ? (
-              <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4" />
+        <div className="p-5 border-t border-surfaceBorder bg-surface/50 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+          <div className="text-xs text-gray-400 text-center sm:text-left">
+            {!user ? (
+              <span className="text-amber-400 font-semibold flex items-center gap-1.5 justify-center sm:justify-start">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>Sign in with your account to spend tokens and launch this campaign.</span>
+              </span>
+            ) : hasEnoughTokens ? (
+              <span className="text-emerald-400 font-semibold flex items-center gap-1.5 justify-center sm:justify-start">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
                 <span>Tokens verified. Ready to publish immediately.</span>
               </span>
             ) : (
-              <span className="text-rose-400 font-semibold flex items-center gap-1.5">
-                <AlertCircle className="w-4 h-4" />
+              <span className="text-rose-400 font-semibold flex items-center gap-1.5 justify-center sm:justify-start">
+                <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>Insufficient tokens ({userBalance}/{tokensRequired}). Top up wallet first.</span>
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
             <button
               type="button"
               onClick={onClose}
@@ -613,21 +634,31 @@ export default function UserCampaignModal({ isOpen, onClose, onSuccess }: UserCa
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              form="campaign-form"
-              disabled={submitting || !hasEnoughTokens}
-              className="btn-glow-purple px-6 py-2.5 rounded-xl text-xs font-black text-white flex items-center gap-2 shadow-lg hover:scale-105 transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Coins className="w-4 h-4 text-tokenGold" />
-              <span>
-                {submitting
-                  ? 'Processing Tokens...'
-                  : isAdmin
-                  ? 'Publish Campaign (Admin Free)'
-                  : `Spend ${tokensRequired} Tokens & Launch`}
-              </span>
-            </button>
+            {!user ? (
+              <Link
+                href="/login"
+                onClick={onClose}
+                className="btn-glow-purple px-6 py-2.5 rounded-xl text-xs font-black text-white flex items-center gap-2 shadow-lg hover:scale-105 transition"
+              >
+                <span>Log In & Publish</span>
+              </Link>
+            ) : (
+              <button
+                type="submit"
+                form="campaign-form"
+                disabled={submitting || !hasEnoughTokens}
+                className="btn-glow-purple px-6 py-2.5 rounded-xl text-xs font-black text-white flex items-center gap-2 shadow-lg hover:scale-105 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Coins className="w-4 h-4 text-tokenGold" />
+                <span>
+                  {submitting
+                    ? 'Processing Tokens...'
+                    : isAdmin
+                    ? 'Publish Campaign (Admin Free)'
+                    : `Spend ${tokensRequired} Tokens & Launch`}
+                </span>
+              </button>
+            )}
           </div>
         </div>
       </div>

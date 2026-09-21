@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Radio, Users, Coins, Search, Sparkles, Play, RefreshCw, ExternalLink, Megaphone, Film, CheckCircle2, FileText, X } from 'lucide-react';
 import LiveStreamCard, { LiveStreamItem } from './LiveStreamCard';
 import { useSiteConfig } from '@/context/SiteConfigContext';
+import { useAuth } from '@/context/AuthContext';
 import AdPlacement from '@/components/ads/AdPlacement';
 
 const ADULT_CATEGORIES = ['All', 'Gaming & Music', 'Creative Arts', 'Just Chatting', 'Interactive Shows'];
@@ -26,6 +27,7 @@ interface AdItem {
 }
 
 export default function LiveDirectoryView({ initialCategory = 'All', purchasedTokens, txId }: LiveDirectoryViewProps) {
+  const { openCampaignModal } = useAuth();
   const { contentRating } = useSiteConfig();
   const categories =
     contentRating === 'KIDS'
@@ -181,6 +183,31 @@ export default function LiveDirectoryView({ initialCategory = 'All', purchasedTo
               <Users className="w-4 h-4 text-brandPurple" />
               <span>Private Shows</span>
             </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 mt-6">
+            <button
+              onClick={openCampaignModal}
+              className="btn-glow-purple px-5 py-2.5 rounded-xl text-xs font-black text-white flex items-center gap-2 shadow-lg hover:scale-105 transition"
+              title="Launch a sponsored banner or video campaign"
+            >
+              <Megaphone className="w-4 h-4 text-pink-400" />
+              <span>🚀 Launch Ad Campaign</span>
+            </button>
+            <Link
+              href="/explore"
+              className="px-4 py-2.5 rounded-xl bg-surfaceLight hover:bg-surfaceLight/80 text-xs font-bold text-gray-200 flex items-center gap-1.5 border border-surfaceBorder transition"
+            >
+              <Play className="w-3.5 h-3.5 text-brandPurple" />
+              <span>Explore Swipe Feed</span>
+            </Link>
+            <Link
+              href="/vods"
+              className="px-4 py-2.5 rounded-xl bg-surfaceLight hover:bg-surfaceLight/80 text-xs font-bold text-gray-200 flex items-center gap-1.5 border border-surfaceBorder transition"
+            >
+              <Film className="w-3.5 h-3.5 text-purple-400" />
+              <span>Browse VODs</span>
+            </Link>
           </div>
         </div>
       </div>

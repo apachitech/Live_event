@@ -122,6 +122,7 @@ function ExploreSlidePlayer({
   copiedLink,
   onPiP,
 }: SlidePlayerProps) {
+  const { openCampaignModal } = useAuth();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
   const livekitRoomRef = useRef<Room | null>(null);
@@ -644,6 +645,14 @@ function ExploreSlidePlayer({
         </div>
 
         <div className="flex items-center gap-2 pointer-events-auto">
+          <button
+            onClick={openCampaignModal}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-pink-600/30 to-purple-600/30 text-pink-300 border border-pink-500/40 text-xs font-bold hover:text-white backdrop-blur-md transition shadow-md group"
+            title="Launch Sponsored Ad Campaign"
+          >
+            <Megaphone className="w-3.5 h-3.5 text-pink-400 group-hover:scale-110 transition" />
+            <span className="hidden sm:inline">Launch Ad</span>
+          </button>
           <button
             onClick={() => onPiP(videoRef.current)}
             className="p-2 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/10 hover:bg-black/80 transition"

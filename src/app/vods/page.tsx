@@ -6,7 +6,6 @@ import { Film, Play, Search, Coins, Clock, Eye, Sparkles, Filter, Plus, Edit, Tr
 import { useAuth } from '@/context/AuthContext';
 import VodCrudModal, { VodData } from '@/components/vod/VodCrudModal';
 import AdPlacement from '@/components/ads/AdPlacement';
-import UserCampaignModal from '@/components/ads/UserCampaignModal';
 
 interface VodItem {
   id: string;
@@ -32,7 +31,7 @@ interface VodItem {
 }
 
 export default function VodsDirectoryPage() {
-  const { user } = useAuth();
+  const { user, openCampaignModal } = useAuth();
   const [vods, setVods] = useState<VodItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -41,7 +40,6 @@ export default function VodsDirectoryPage() {
   // CRUD Modal State
   const [crudModalOpen, setCrudModalOpen] = useState(false);
   const [vodToEdit, setVodToEdit] = useState<VodData | null>(null);
-  const [userCampaignModalOpen, setUserCampaignModalOpen] = useState(false);
 
   useEffect(() => {
     fetchVods();
@@ -125,7 +123,7 @@ export default function VodsDirectoryPage() {
                 <span>+ VOD CRUD</span>
               </button>
               <button
-                onClick={() => setUserCampaignModalOpen(true)}
+                onClick={openCampaignModal}
                 className="px-4 py-3.5 rounded-2xl bg-surfaceLight border border-surfaceBorder hover:border-brandPurple text-xs font-black text-gray-200 hover:text-white flex items-center gap-2 transition"
                 title="Launch an Ad Campaign"
               >
@@ -135,7 +133,7 @@ export default function VodsDirectoryPage() {
             </>
           ) : (
             <button
-              onClick={() => setUserCampaignModalOpen(true)}
+              onClick={openCampaignModal}
               className="btn-glow-purple px-6 py-3.5 rounded-2xl text-xs font-black text-white flex items-center gap-2 shadow-2xl hover:scale-105 transition"
               title="Viewers can launch interactive Ad campaigns across live streams and video feeds!"
             >
@@ -372,7 +370,7 @@ export default function VodsDirectoryPage() {
           </button>
         ) : (
           <button
-            onClick={() => setUserCampaignModalOpen(true)}
+            onClick={openCampaignModal}
             className="btn-glow-purple px-5 py-3 rounded-2xl text-xs font-black text-white flex items-center gap-2 shadow-2xl hover:scale-110 transition border border-purple-400/40 backdrop-blur-md"
             title="Launch an interactive Ad Campaign"
           >
@@ -381,12 +379,6 @@ export default function VodsDirectoryPage() {
           </button>
         )}
       </div>
-
-      {/* User Campaign Modal */}
-      <UserCampaignModal
-        isOpen={userCampaignModalOpen}
-        onClose={() => setUserCampaignModalOpen(false)}
-      />
 
       {/* CRUD Modal for Create / Edit / Delete */}
       <VodCrudModal

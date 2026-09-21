@@ -22,6 +22,7 @@ import {
   Pin,
   AlertTriangle,
   Film,
+  Megaphone,
 } from 'lucide-react';
 import ChatContainer from '@/components/chat/ChatContainer';
 import PrivateShowMeterBanner from '@/components/stream/PrivateShowMeterBanner';
@@ -31,7 +32,7 @@ import { HapticsManager } from '@/lib/haptics/hapticsManager';
 import { useSiteConfig } from '@/context/SiteConfigContext';
 
 export default function StreamerStudioPage() {
-  const { user } = useAuth();
+  const { user, openCampaignModal } = useAuth();
   const { isToysAllowed } = useSiteConfig();
 
   useEffect(() => {
@@ -412,6 +413,16 @@ export default function StreamerStudioPage() {
             <Film className="w-4 h-4 text-purple-200" />
             <span>VOD CRUD</span>
           </Link>
+
+          <button
+            type="button"
+            onClick={openCampaignModal}
+            className="px-3.5 py-2 rounded-xl bg-pink-600/20 hover:bg-pink-600/30 text-pink-300 border border-pink-500/30 text-xs font-bold flex items-center gap-1.5 shadow transition hover:scale-105"
+            title="Launch an Ad Campaign to promote your stream across the platform"
+          >
+            <Megaphone className="w-4 h-4 text-pink-400" />
+            <span>Launch Ad</span>
+          </button>
 
           <Link
             href="/dashboard/streamer/payouts"

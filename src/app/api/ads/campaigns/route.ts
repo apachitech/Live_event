@@ -7,16 +7,22 @@ export const dynamic = 'force-dynamic';
 // GET: Current user's campaigns and active publishing price
 export async function GET() {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
-
     // 1. Fetch current campaign publishing token price from PlatformSetting (default 50)
     const priceSetting = await prisma.platformSetting.findUnique({
       where: { key: 'AD_CAMPAIGN_TOKEN_PRICE' },
     });
     const publishPriceTokens = priceSetting ? parseInt(priceSetting.value, 10) : 50;
+
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({
+        success: true,
+        publishPriceTokens,
+        userBalance: 0,
+        ads: [],
+        authenticated: false,
+      });
+    }
 
     // 2. Fetch user's wallet balance
     const wallet = await prisma.wallet.findUnique({
@@ -35,6 +41,7 @@ export async function GET() {
       publishPriceTokens,
       userBalance: wallet?.balance || 0,
       ads: userAds,
+      authenticated: true,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
