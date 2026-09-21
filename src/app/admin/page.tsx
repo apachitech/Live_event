@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { Shield, DollarSign, Users, Video, Clock, Check, X, AlertCircle, Settings, Flag, Megaphone, Coins, Gift, Globe, Film } from 'lucide-react';
+import { Shield, DollarSign, Users, Video, Clock, Check, X, AlertCircle, Settings, Flag, Megaphone, Coins, Gift, Globe, Film, Radio } from 'lucide-react';
 
 export default function AdminOverviewPage() {
   const { user } = useAuth();
@@ -69,42 +69,59 @@ export default function AdminOverviewPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link
+            href="/admin/users"
+            className="px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder hover:border-brandPurple/60 text-xs font-bold text-gray-200 hover:text-white flex items-center gap-1.5 transition shadow"
+            title="Create, Read, Update, Delete users and manage balances"
+          >
+            <Users className="w-3.5 h-3.5 text-brandPurple" />
+            <span>Users (CRUD)</span>
+          </Link>
+          <Link
+            href="/admin/streamers"
+            className="px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder hover:border-pink-500/60 text-xs font-bold text-gray-200 hover:text-white flex items-center gap-1.5 transition shadow"
+            title="Review mandatory KYC compliance submissions & manage streamers"
+          >
+            <Video className="w-3.5 h-3.5 text-pink-400" />
+            <span>Streamers & KYC</span>
+          </Link>
+          <Link
+            href="/admin/rooms"
+            className="px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder hover:border-red-500/60 text-xs font-bold text-gray-200 hover:text-white flex items-center gap-1.5 transition shadow"
+            title="Monitor rooms, edit streams, and force-terminate live broadcasts"
+          >
+            <Radio className="w-3.5 h-3.5 text-red-400" />
+            <span>Live Rooms (CRUD)</span>
+          </Link>
           <Link
             href="/vods"
-            className="px-3.5 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder hover:border-brandPurple/60 text-xs font-bold text-gray-300 hover:text-white flex items-center gap-1.5 transition shadow"
+            className="px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder hover:border-purple-500/60 text-xs font-bold text-gray-300 hover:text-white flex items-center gap-1.5 transition shadow"
             title="Manage and CRUD all platform VOD recordings"
           >
             <Film className="w-3.5 h-3.5 text-purple-400" />
-            <span>VOD Media (CRUD)</span>
+            <span>VODs</span>
           </Link>
           <Link
             href="/admin/ads"
-            className="px-3.5 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder hover:border-gray-600 text-xs font-bold text-gray-300 flex items-center gap-1.5 transition"
+            className="px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder hover:border-gray-600 text-xs font-bold text-gray-300 flex items-center gap-1.5 transition"
           >
             <Megaphone className="w-3.5 h-3.5 text-tokenGold" />
-            <span>Advertisements</span>
-          </Link>
-          <Link
-            href="/admin/audit"
-            className="px-3.5 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder hover:border-gray-600 text-xs font-bold text-gray-300 flex items-center gap-1.5 transition"
-          >
-            <Shield className="w-3.5 h-3.5 text-brandPurple" />
-            <span>Change Data Logs</span>
+            <span>Ads</span>
           </Link>
           <Link
             href="/admin/moderation"
-            className="px-3.5 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder hover:border-gray-600 text-xs font-bold text-gray-300 flex items-center gap-1.5 transition"
+            className="px-3 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder hover:border-gray-600 text-xs font-bold text-gray-300 flex items-center gap-1.5 transition"
           >
             <Flag className="w-3.5 h-3.5 text-red-400" />
-            <span>Moderation Queue</span>
+            <span>Moderation</span>
           </Link>
           <Link
             href="/admin/settings"
-            className="btn-glow-purple px-4 py-2 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 transition shadow"
+            className="btn-glow-purple px-3.5 py-2 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 transition shadow"
           >
             <Settings className="w-3.5 h-3.5" />
-            <span>Platform Settings</span>
+            <span>Settings</span>
           </Link>
         </div>
       </div>
@@ -189,32 +206,41 @@ export default function AdminOverviewPage() {
           <p className="text-[11px] text-gray-400 mt-2">All token purchases to date</p>
         </div>
 
-        <div className="p-5 rounded-2xl glass-panel border border-surfaceBorder">
+        <Link
+          href="/admin/users"
+          className="p-5 rounded-2xl glass-panel border border-surfaceBorder hover:border-brandPurple/60 transition group block"
+        >
           <div className="flex items-center justify-between text-xs text-gray-400 font-semibold mb-2">
             <span>Total Registered Users</span>
-            <Users className="w-4 h-4 text-brandPurple" />
+            <Users className="w-4 h-4 text-brandPurple group-hover:scale-110 transition" />
           </div>
-          <div className="text-3xl font-black text-white">{stats?.totalUsers || 0}</div>
-          <p className="text-[11px] text-gray-400 mt-2">18+ verified platform members</p>
-        </div>
+          <div className="text-3xl font-black text-white group-hover:text-brandPurple transition">{stats?.totalUsers || 0}</div>
+          <p className="text-[11px] text-gray-400 mt-2">Manage members & CRUD users →</p>
+        </Link>
 
-        <div className="p-5 rounded-2xl glass-panel border border-surfaceBorder">
+        <Link
+          href="/admin/streamers"
+          className="p-5 rounded-2xl glass-panel border border-surfaceBorder hover:border-pink-500/60 transition group block"
+        >
           <div className="flex items-center justify-between text-xs text-gray-400 font-semibold mb-2">
             <span>Active Streamers</span>
-            <Video className="w-4 h-4 text-pink-400" />
+            <Video className="w-4 h-4 text-pink-400 group-hover:scale-110 transition" />
           </div>
-          <div className="text-3xl font-black text-white">{stats?.totalStreamers || 0}</div>
-          <p className="text-[11px] text-gray-400 mt-2">Registered broadcaster profiles</p>
-        </div>
+          <div className="text-3xl font-black text-white group-hover:text-pink-400 transition">{stats?.totalStreamers || 0}</div>
+          <p className="text-[11px] text-gray-400 mt-2">Review KYC & profiles →</p>
+        </Link>
 
-        <div className="p-5 rounded-2xl glass-panel border border-surfaceBorder">
+        <Link
+          href="/admin/rooms"
+          className="p-5 rounded-2xl glass-panel border border-surfaceBorder hover:border-red-500/60 transition group block"
+        >
           <div className="flex items-center justify-between text-xs text-gray-400 font-semibold mb-2">
             <span>Currently Live Rooms</span>
             <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
           </div>
-          <div className="text-3xl font-black text-red-400">{stats?.liveStreams || 0}</div>
-          <p className="text-[11px] text-gray-400 mt-2">Public & private active streams</p>
-        </div>
+          <div className="text-3xl font-black text-red-400 group-hover:scale-105 transition">{stats?.liveStreams || 0}</div>
+          <p className="text-[11px] text-gray-400 mt-2">Live stream manager & control →</p>
+        </Link>
       </div>
 
       {/* Payout Approval Queue */}

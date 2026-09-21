@@ -15,7 +15,8 @@ model User {
   googleId             String?           @unique
   resetPasswordToken   String?           @unique
   resetPasswordExpires DateTime?
-  role                 String            @default("VIEWER") // VIEWER, STREAMER, MODERATOR, ADMIN
+  role                 String            @default("VIEWER") // VIEWER, STREAMER, MODERATOR, ADMIN, AGENCY
+  agencyName           String?
   ageVerifiedAt        DateTime?
   dob                  DateTime?
   avatarUrl        String?
@@ -44,6 +45,8 @@ model StreamerProfile {
   kycStatus             String          @default("NOT_SUBMITTED") // NOT_SUBMITTED, PENDING, VERIFIED, REJECTED
   kycSubmittedAt        DateTime?
   kycVerifiedAt         DateTime?
+  kycDetails            String?         // JSON string for KYC identity documents & verification notes
+  agencyId              String?         // Linked Agency user ID
   externalDeviceWebhook String?         // Generic external event trigger URL (e.g. interactive toy/hardware)
   
   streams               Stream[]

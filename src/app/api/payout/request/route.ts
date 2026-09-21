@@ -30,6 +30,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Streamer account not found' }, { status: 404 });
     }
 
+    // Strict KYC compliance enforcement: Only verified streamers can cash out
+    if (streamer.kycStatus !== 'VERIFIED') {
+      return NextResponse.json({
+        error: 'KYC identity verification must be completed and approved before requesting cashouts. Please submit your identity documents for compliance approval in the streamer dashboard.',
+        requiresKyc: true,
+        currentKycStatus: streamer.kycStatus,
+      }, { status: 403 });
+    }
+
     if (streamer.user.wallet.earnedBalance < tokens) {
       return NextResponse.json({ error: 'Insufficient earned tokens for this payout amount' }, { status: 400 });
     }

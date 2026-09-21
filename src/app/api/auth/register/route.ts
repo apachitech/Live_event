@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     }
 
     const passwordHash = await hashPassword(cleanPassword);
-    const assignedRole = role === 'STREAMER' ? 'STREAMER' : 'VIEWER';
+    const assignedRole = role === 'STREAMER' ? 'STREAMER' : role === 'AGENCY' ? 'AGENCY' : 'VIEWER';
 
     const user = await prisma.user.create({
       data: {
@@ -50,6 +50,7 @@ export async function POST(req: Request) {
         username: cleanUsername,
         passwordHash,
         role: assignedRole,
+        agencyName: assignedRole === 'AGENCY' ? cleanUsername : undefined,
         ageVerifiedAt: new Date(),
         dob,
         wallet: {
@@ -64,8 +65,8 @@ export async function POST(req: Request) {
                 create: {
                   displayName: username,
                   bio: `Hey, I'm ${username}! Welcome to my stream.`,
-                  kycStatus: 'VERIFIED',
-                  kycVerifiedAt: new Date(),
+                  kycStatus: 'NOT_SUBMITTED',
+                  kycVerifiedAt: null,
                 },
               }
             : undefined,

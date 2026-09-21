@@ -1,5 +1,19 @@
-export type UserRole = 'VIEWER' | 'STREAMER' | 'MODERATOR' | 'ADMIN';
+export type UserRole = 'VIEWER' | 'STREAMER' | 'MODERATOR' | 'ADMIN' | 'AGENCY';
 export type KYCStatus = 'NOT_SUBMITTED' | 'PENDING' | 'VERIFIED' | 'REJECTED';
+
+export interface KycSubmissionDetails {
+  legalFirstName: string;
+  legalLastName: string;
+  country: string;
+  idType: 'PASSPORT' | 'NATIONAL_ID' | 'DRIVERS_LICENSE';
+  idNumber: string;
+  documentUrl?: string;
+  residentialAddress: string;
+  dateOfBirth?: string;
+  rejectionReason?: string;
+  submittedAt?: string;
+  reviewedAt?: string;
+}
 export type StreamStatus = 'OFFLINE' | 'LIVE' | 'PRIVATE' | 'ENDED';
 export type TransactionType =
   | 'PURCHASE'

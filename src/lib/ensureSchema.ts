@@ -18,6 +18,9 @@ export async function ensureUserSchema(): Promise<void> {
       await prisma.$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "googleId" TEXT;`);
       await prisma.$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "resetPasswordToken" TEXT;`);
       await prisma.$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "resetPasswordExpires" TIMESTAMP(3);`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "agencyName" TEXT;`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "StreamerProfile" ADD COLUMN IF NOT EXISTS "kycDetails" TEXT;`);
+      await prisma.$executeRawUnsafe(`ALTER TABLE "StreamerProfile" ADD COLUMN IF NOT EXISTS "agencyId" TEXT;`);
       await prisma.$executeRawUnsafe(`ALTER TABLE "User" ALTER COLUMN "passwordHash" DROP NOT NULL;`);
       await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "User_googleId_key" ON "User"("googleId");`);
       await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "User_resetPasswordToken_key" ON "User"("resetPasswordToken");`);
@@ -26,19 +29,22 @@ export async function ensureUserSchema(): Promise<void> {
       // SQLite fallback: columns will already exist or silently ignore if duplicate
       try {
         await prisma.$executeRawUnsafe(`ALTER TABLE User ADD COLUMN googleId TEXT;`);
-      } catch {
-        // already exists
-      }
+      } catch {}
       try {
         await prisma.$executeRawUnsafe(`ALTER TABLE User ADD COLUMN resetPasswordToken TEXT;`);
-      } catch {
-        // already exists
-      }
+      } catch {}
       try {
         await prisma.$executeRawUnsafe(`ALTER TABLE User ADD COLUMN resetPasswordExpires DATETIME;`);
-      } catch {
-        // already exists
-      }
+      } catch {}
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE User ADD COLUMN agencyName TEXT;`);
+      } catch {}
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE StreamerProfile ADD COLUMN kycDetails TEXT;`);
+      } catch {}
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE StreamerProfile ADD COLUMN agencyId TEXT;`);
+      } catch {}
     }
 
     schemaEnsured = true;

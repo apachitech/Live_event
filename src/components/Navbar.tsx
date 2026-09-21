@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useSiteConfig } from '@/context/SiteConfigContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { Radio, Coins, Plus, Video, Shield, User, LogOut, ChevronDown, CheckCircle2, Film } from 'lucide-react';
+import { Radio, Coins, Plus, Video, Shield, User, LogOut, ChevronDown, CheckCircle2, Film, Building2 } from 'lucide-react';
 
 export default function Navbar() {
   const { user, logout, openPurchaseModal } = useAuth();
@@ -99,6 +99,17 @@ export default function Navbar() {
                 </Link>
               )}
 
+              {/* Agency Portal Button */}
+              {(user.role === 'AGENCY' || user.role === 'ADMIN') && (
+                <Link
+                  href="/dashboard/agency"
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-600/20 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-600/30 hover:text-white text-xs font-bold transition shadow-sm"
+                >
+                  <Building2 className="w-3.5 h-3.5" />
+                  <span>Agency Portal</span>
+                </Link>
+              )}
+
               {/* Admin Panel Button */}
               {user.role === 'ADMIN' && (
                 <Link
@@ -179,6 +190,17 @@ export default function Navbar() {
                             <span>{t('nav.vodManager', 'VOD Manager')}</span>
                           </Link>
                         </>
+                      )}
+
+                      {(user.role === 'AGENCY' || user.role === 'ADMIN') && (
+                        <Link
+                          href="/dashboard/agency"
+                          onClick={() => setDropdownOpen(false)}
+                          className="block px-4 py-2 text-xs text-cyan-300 hover:bg-surfaceLight hover:text-white flex items-center gap-2 transition"
+                        >
+                          <Building2 className="w-3.5 h-3.5 text-cyan-400" />
+                          <span>Agency Portal</span>
+                        </Link>
                       )}
 
                       {user.role === 'ADMIN' && (
