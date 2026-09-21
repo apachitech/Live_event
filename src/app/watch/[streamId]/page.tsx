@@ -16,12 +16,12 @@ import SubscribeModal from '@/components/subscription/SubscribeModal';
 import PrivateShowRequestModal from '@/components/stream/PrivateShowRequestModal';
 import PrivateShowMeterBanner from '@/components/stream/PrivateShowMeterBanner';
 import { TipAlertPayload, TipGoalPayload } from '@/types';
-import { Coins, Heart, Lock, Flag, Share2, Users, Radio, Sparkles, Trophy, Check, Megaphone } from 'lucide-react';
+import { Coins, Heart, Lock, Flag, Share2, Users, Radio, Sparkles, Trophy, Check } from 'lucide-react';
 
 export default function WatchPage() {
   const params = useParams();
   const streamId = params?.streamId as string;
-  const { user, openPurchaseModal, openCampaignModal } = useAuth();
+  const { user, openPurchaseModal } = useAuth();
 
   const [stream, setStream] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -281,15 +281,6 @@ export default function WatchPage() {
                       <span>Private ({stream.privateRatePerMin || 60}🪙/m)</span>
                     </button>
                   )}
-
-                  <button
-                    onClick={openCampaignModal}
-                    className="shrink-0 px-3.5 py-2.5 rounded-xl bg-pink-600/20 hover:bg-pink-600/30 text-pink-300 border border-pink-500/30 text-xs font-bold flex items-center gap-1.5 transition hover:scale-105"
-                    title="Launch a sponsored Ad Campaign"
-                  >
-                    <Megaphone className="w-4 h-4 text-pink-400" />
-                    <span>Launch Ad</span>
-                  </button>
 
                   <button
                     onClick={handleShare}

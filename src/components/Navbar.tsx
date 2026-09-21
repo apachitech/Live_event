@@ -56,14 +56,6 @@ export default function Navbar() {
               <Film className="w-3.5 h-3.5 text-brandPurple" />
               <span>{t('nav.vods', 'VODs & Replays')}</span>
             </Link>
-            <button
-              onClick={openCampaignModal}
-              className="text-pink-400/90 hover:text-pink-300 flex items-center gap-1.5 transition font-semibold"
-              title="Launch Sponsored Advertising Campaign"
-            >
-              <Megaphone className="w-3.5 h-3.5 text-pink-400" />
-              <span>{t('nav.adCampaigns', 'Ad Campaigns')}</span>
-            </button>
             <Link href="/?category=Gaming" className="text-gray-400 hover:text-gray-200 transition">
               {t('nav.gaming', 'Gaming')}
             </Link>
@@ -97,16 +89,6 @@ export default function Navbar() {
                   <Plus className="w-3.5 h-3.5 stroke-[3]" />
                 </button>
               </div>
-
-              {/* Direct Launch Ad Campaign Button on every page */}
-              <button
-                onClick={openCampaignModal}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-pink-600/20 via-purple-600/20 to-pink-600/20 border border-pink-500/40 text-pink-300 hover:from-pink-600/30 hover:to-purple-600/30 hover:text-white hover:border-pink-400 text-xs font-bold transition shadow-sm group shrink-0"
-                title="Launch Sponsored Ad Campaign"
-              >
-                <Megaphone className="w-3.5 h-3.5 text-pink-400 group-hover:scale-110 transition shrink-0" />
-                <span className="hidden sm:inline">Launch Ad</span>
-              </button>
 
               {/* Streamer Studio Button */}
               {(user.role === 'STREAMER' || user.role === 'ADMIN') && (

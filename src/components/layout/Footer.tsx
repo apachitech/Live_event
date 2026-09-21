@@ -1,14 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useAuth } from '@/context/AuthContext';
 import { useSiteConfig } from '@/context/SiteConfigContext';
 import { useLanguage } from '@/context/LanguageContext';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher';
-import { Megaphone } from 'lucide-react';
 
 export function Footer() {
-  const { openCampaignModal } = useAuth();
   const { siteName, siteDescription, contentRating } = useSiteConfig();
   const { t } = useLanguage();
 
@@ -74,14 +71,6 @@ export function Footer() {
           <Link href="/vods" className="hover:text-white transition-colors">
             {t('footer.vods', 'VOD Directory')}
           </Link>
-          <button
-            onClick={openCampaignModal}
-            className="flex items-center gap-1 text-pink-400 hover:text-pink-300 transition-colors font-semibold"
-            title="Launch Sponsored Advertising Campaign"
-          >
-            <Megaphone className="w-3.5 h-3.5" />
-            <span>Launch Ad Campaign</span>
-          </button>
           <a href="/api/health" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-emerald-400 transition-colors">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             {t('footer.health', 'System Health')}

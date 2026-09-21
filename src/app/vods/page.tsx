@@ -110,27 +110,17 @@ export default function VodsDirectoryPage() {
         {/* Action Button: Viewers can only create Ad campaigns; Streamers/Agencies can do VOD + Ads */}
         <div className="relative z-10 flex-shrink-0 flex items-center gap-3 flex-wrap">
           {user && (user.role === 'STREAMER' || user.role === 'AGENCY' || user.role === 'ADMIN') ? (
-            <>
-              <button
-                onClick={() => {
-                  setVodToEdit(null);
-                  setCrudModalOpen(true);
-                }}
-                className="btn-glow-purple px-5 py-3.5 rounded-2xl text-xs font-black text-white flex items-center gap-2 shadow-2xl hover:scale-105 transition"
-                title="Create and publish a new VOD as Streamer or Agency"
-              >
-                <Plus className="w-4 h-4 text-purple-200 stroke-[3]" />
-                <span>+ VOD CRUD</span>
-              </button>
-              <button
-                onClick={openCampaignModal}
-                className="px-4 py-3.5 rounded-2xl bg-surfaceLight border border-surfaceBorder hover:border-brandPurple text-xs font-black text-gray-200 hover:text-white flex items-center gap-2 transition"
-                title="Launch an Ad Campaign"
-              >
-                <Megaphone className="w-4 h-4 text-pink-400" />
-                <span>Launch Ad</span>
-              </button>
-            </>
+            <button
+              onClick={() => {
+                setVodToEdit(null);
+                setCrudModalOpen(true);
+              }}
+              className="btn-glow-purple px-5 py-3.5 rounded-2xl text-xs font-black text-white flex items-center gap-2 shadow-2xl hover:scale-105 transition"
+              title="Create and publish a new VOD as Streamer or Agency"
+            >
+              <Plus className="w-4 h-4 text-purple-200 stroke-[3]" />
+              <span>+ VOD CRUD</span>
+            </button>
           ) : (
             <button
               onClick={openCampaignModal}
