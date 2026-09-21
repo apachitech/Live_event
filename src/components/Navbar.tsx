@@ -263,15 +263,7 @@ export default function Navbar() {
               </div>
             </>
           ) : (
-            <div className="flex items-center gap-2 sm:gap-2.5">
-              <button
-                onClick={openCampaignModal}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-pink-600/20 to-purple-600/20 border border-pink-500/30 text-pink-300 hover:from-pink-600/30 hover:to-purple-600/30 hover:text-white text-xs font-bold transition shadow-sm group"
-                title="Advertise On Platform"
-              >
-                <Megaphone className="w-3.5 h-3.5 text-pink-400 group-hover:scale-110 transition shrink-0" />
-                <span>Advertise</span>
-              </button>
+            <div className="flex items-center gap-2.5">
               <Link
                 href="/login"
                 className="px-3.5 py-2 rounded-xl text-xs font-semibold text-gray-300 hover:text-white hover:bg-surfaceLight transition"

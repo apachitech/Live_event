@@ -15,13 +15,10 @@ export async function GET() {
 
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({
-        success: true,
-        publishPriceTokens,
-        userBalance: 0,
-        ads: [],
-        authenticated: false,
-      });
+      return NextResponse.json(
+        { error: 'Authentication required. Only logged-in users can run ad campaigns.', authenticated: false },
+        { status: 401 }
+      );
     }
 
     // 2. Fetch user's wallet balance
@@ -53,7 +50,10 @@ export async function POST(req: Request) {
   try {
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Authentication required. Only logged-in users can run ad campaigns.' },
+        { status: 401 }
+      );
     }
 
     // Viewers, Streamers, Agencies, and Admins can all create campaigns!

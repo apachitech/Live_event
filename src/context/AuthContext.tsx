@@ -86,7 +86,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         openAgeModal: () => setIsAgeModalOpen(true),
         closeAgeModal: () => setIsAgeModalOpen(false),
         isCampaignModalOpen,
-        openCampaignModal: () => setIsCampaignModalOpen(true),
+        openCampaignModal: () => {
+          if (!user) {
+            if (typeof window !== 'undefined') {
+              window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+            }
+            return;
+          }
+          setIsCampaignModalOpen(true);
+        },
         closeCampaignModal: () => setIsCampaignModalOpen(false),
       }}
     >
