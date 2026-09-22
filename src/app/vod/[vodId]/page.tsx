@@ -273,34 +273,52 @@ export default function SingleVodWatchPage() {
               </div>
             )}
 
-            <div className="relative z-10 flex flex-col sm:flex-row items-center gap-3 pt-2">
-              {hasEnoughTokens ? (
-                <button
-                  onClick={handleUnlock}
-                  disabled={unlocking}
-                  className="btn-glow-gold px-7 py-3 rounded-xl text-xs font-black text-black flex items-center gap-2 shadow-xl hover:scale-105 transition"
+            {!user ? (
+              <div className="relative z-10 flex flex-col items-center gap-3 pt-2">
+                <Link
+                  href={`/login?redirect=/vod/${vod.id}`}
+                  className="btn-glow-purple px-7 py-3.5 rounded-xl text-xs font-black text-white flex items-center gap-2 shadow-xl hover:scale-105 transition"
                 >
-                  <Coins className="w-4 h-4 text-black" />
-                  <span>
-                    {unlocking ? 'Deducting Tokens & Unlocking...' : `Unlock Now (${vod.priceTokens} Tokens)`}
-                  </span>
-                </button>
-              ) : (
-                <button
-                  onClick={openPurchaseModal}
-                  className="btn-glow-gold px-7 py-3 rounded-xl text-xs font-black text-black flex items-center gap-2 shadow-xl hover:scale-105 transition"
-                >
-                  <Coins className="w-4 h-4 text-black" />
-                  <span>Get Tokens ({userBalance} / {vod.priceTokens} Available)</span>
-                </button>
-              )}
+                  <Lock className="w-4 h-4 text-purple-200" />
+                  <span>Log In to Unlock & Watch ({vod.priceTokens} Tokens)</span>
+                </Link>
+                <p className="text-[11px] text-gray-400">
+                  New to platform?{' '}
+                  <Link href="/register" className="text-brandPurple font-bold hover:underline">
+                    Create Account (18+)
+                  </Link>
+                </p>
+              </div>
+            ) : (
+              <div className="relative z-10 flex flex-col sm:flex-row items-center gap-3 pt-2">
+                {hasEnoughTokens ? (
+                  <button
+                    onClick={handleUnlock}
+                    disabled={unlocking}
+                    className="btn-glow-gold px-7 py-3 rounded-xl text-xs font-black text-black flex items-center gap-2 shadow-xl hover:scale-105 transition"
+                  >
+                    <Coins className="w-4 h-4 text-black" />
+                    <span>
+                      {unlocking ? 'Deducting Tokens & Unlocking...' : `Unlock Now (${vod.priceTokens} Tokens)`}
+                    </span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={openPurchaseModal}
+                    className="btn-glow-gold px-7 py-3 rounded-xl text-xs font-black text-black flex items-center gap-2 shadow-xl hover:scale-105 transition"
+                  >
+                    <Coins className="w-4 h-4 text-black" />
+                    <span>Get Tokens ({userBalance} / {vod.priceTokens} Available)</span>
+                  </button>
+                )}
 
-              {user && hasEnoughTokens && (
-                <span className="text-[11px] text-gray-400">
-                  {vod.priceTokens} Tokens will be deducted
-                </span>
-              )}
-            </div>
+                {hasEnoughTokens && (
+                  <span className="text-[11px] text-gray-400">
+                    {vod.priceTokens} Tokens will be deducted
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

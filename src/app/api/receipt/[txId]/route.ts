@@ -9,6 +9,11 @@ export async function GET(
   { params }: { params: { txId: string } }
 ) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Authentication required. Please log in to view this receipt.' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const isPayout = searchParams.get('type') === 'payout';
 
@@ -25,6 +30,10 @@ export async function GET(
 
       if (!payout) {
         return NextResponse.json({ error: 'Payout slip not found' }, { status: 404 });
+      }
+
+      if (session.role !== 'ADMIN' && session.userId !== payout.streamer.userId) {
+        return NextResponse.json({ error: 'Forbidden: You do not have permission to view this payout slip' }, { status: 403 });
       }
 
       return NextResponse.json({
@@ -62,6 +71,15 @@ export async function GET(
 
     if (!tx) {
       return NextResponse.json({ error: 'Payment transaction slip not found' }, { status: 404 });
+    }
+
+    const isParticipant =
+      session.role === 'ADMIN' ||
+      session.userId === tx.senderId ||
+      session.userId === tx.recipientId;
+
+    if (!isParticipant) {
+      return NextResponse.json({ error: 'Forbidden: You do not have permission to view this transaction slip' }, { status: 403 });
     }
 
     let meta: any = {};

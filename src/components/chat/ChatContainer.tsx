@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/context/AuthContext';
 import { ChatMessagePayload } from '@/types';
@@ -234,27 +235,38 @@ export default function ChatContainer({ streamId, initialMessages = [] }: ChatCo
       )}
 
       {/* Chat Input Bar */}
-      <form
-        onSubmit={handleSendMessage}
-        className="p-2.5 border-t border-surfaceBorder bg-surfaceLight/30 flex items-center gap-2"
-      >
-        <input
-          type="text"
-          maxLength={200}
-          value={inputText}
-          onChange={(e) => setInputText(e.target.value)}
-          placeholder={user ? 'Send a message...' : 'Sign in to chat...'}
-          disabled={!user}
-          className="flex-1 px-3.5 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs placeholder:text-gray-500 focus:outline-none focus:border-brandPurple transition disabled:opacity-50"
-        />
-        <button
-          type="submit"
-          disabled={!user || !inputText.trim()}
-          className="btn-glow-purple p-2 rounded-xl text-white disabled:opacity-40 disabled:pointer-events-none transition"
+      {!user ? (
+        <div className="p-2.5 border-t border-surfaceBorder bg-surfaceLight/40 flex items-center justify-between gap-2">
+          <span className="text-xs text-gray-400">Join the live conversation:</span>
+          <Link
+            href="/login"
+            className="btn-glow-purple px-3.5 py-1.5 rounded-xl text-xs font-bold text-white transition shadow-sm"
+          >
+            Log In to Chat
+          </Link>
+        </div>
+      ) : (
+        <form
+          onSubmit={handleSendMessage}
+          className="p-2.5 border-t border-surfaceBorder bg-surfaceLight/30 flex items-center gap-2"
         >
-          <Send className="w-3.5 h-3.5" />
-        </button>
-      </form>
+          <input
+            type="text"
+            maxLength={200}
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            placeholder="Send a message..."
+            className="flex-1 px-3.5 py-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-white text-xs placeholder:text-gray-500 focus:outline-none focus:border-brandPurple transition"
+          />
+          <button
+            type="submit"
+            disabled={!inputText.trim()}
+            className="btn-glow-purple p-2 rounded-xl text-white disabled:opacity-40 disabled:pointer-events-none transition"
+          >
+            <Send className="w-3.5 h-3.5" />
+          </button>
+        </form>
+      )}
     </div>
   );
 }

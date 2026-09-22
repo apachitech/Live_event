@@ -59,8 +59,14 @@ export async function GET(
       }
     }
 
+    // Security Guard: Never leak raw videoUrl if content is locked (requires login / token unlock)
+    const sanitizedVod = {
+      ...vod,
+      videoUrl: isUnlocked ? vod.videoUrl : null,
+    };
+
     return NextResponse.json({
-      vod,
+      vod: sanitizedVod,
       isUnlocked,
       isOwner,
     });

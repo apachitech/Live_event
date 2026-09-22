@@ -3,12 +3,20 @@ import type { NextRequest } from 'next/server';
 
 const PROTECTED_STREAMER_ROUTES = [
   '/dashboard/streamer',
-  '/dashboard/streamer/payouts',
-  '/dashboard/streamer/vods',
+];
+
+const PROTECTED_AGENCY_ROUTES = [
+  '/dashboard/agency',
 ];
 
 const PROTECTED_ADMIN_ROUTES = [
   '/admin',
+];
+
+const PROTECTED_AUTHENTICATED_ROUTES = [
+  '/dashboard',
+  '/checkout',
+  '/receipt',
 ];
 
 export function middleware(req: NextRequest) {
@@ -16,9 +24,16 @@ export function middleware(req: NextRequest) {
   const token = req.cookies.get('live_session_token')?.value;
 
   const isStreamerRoute = PROTECTED_STREAMER_ROUTES.some((route) => pathname.startsWith(route));
+  const isAgencyRoute = PROTECTED_AGENCY_ROUTES.some((route) => pathname.startsWith(route));
   const isAdminRoute = PROTECTED_ADMIN_ROUTES.some((route) => pathname.startsWith(route));
+  const isAuthenticatedRoute =
+    PROTECTED_AUTHENTICATED_ROUTES.some((route) => pathname.startsWith(route)) ||
+    isStreamerRoute ||
+    isAgencyRoute ||
+    isAdminRoute;
 
-  if (!isStreamerRoute && !isAdminRoute) {
+  // If not a protected route, continue
+  if (!isAuthenticatedRoute) {
     return NextResponse.next();
   }
 
@@ -32,19 +47,19 @@ export function middleware(req: NextRequest) {
     return url;
   };
 
-  // Not authenticated
+  // 1. Not authenticated: Immediately redirect unauthenticated visitors to /login
   if (!token) {
     const loginUrl = getRedirectUrl('/login');
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Decode JWT payload without crypto overhead in Edge runtime
+  // 2. Decode JWT payload without crypto overhead in Edge runtime
   try {
     const parts = token.split('.');
     if (parts.length === 3) {
       const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
-      
+
       // Check expiration
       if (payload.exp && Date.now() >= payload.exp * 1000) {
         const loginUrl = getRedirectUrl('/login');
@@ -61,9 +76,19 @@ export function middleware(req: NextRequest) {
       if (isStreamerRoute && payload.role !== 'STREAMER' && payload.role !== 'ADMIN') {
         return NextResponse.redirect(getRedirectUrl('/'));
       }
+
+      // Check agency permissions
+      if (isAgencyRoute && payload.role !== 'AGENCY' && payload.role !== 'ADMIN') {
+        return NextResponse.redirect(getRedirectUrl('/'));
+      }
+    } else {
+      const loginUrl = getRedirectUrl('/login');
+      loginUrl.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(loginUrl);
     }
   } catch {
     const loginUrl = getRedirectUrl('/login');
+    loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
@@ -72,7 +97,9 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    '/dashboard/streamer/:path*',
+    '/dashboard/:path*',
     '/admin/:path*',
+    '/checkout/:path*',
+    '/receipt/:path*',
   ],
 };
