@@ -16,6 +16,8 @@ export const TRANSLATIONS: Translations = {
   'nav.liveDirectory': { en: 'Live Directory', fr: 'Répertoire en Direct' },
   'nav.explore': { en: 'Explore (Swipe Feed)', fr: 'Explorer (Flux Vidéo)' },
   'nav.vods': { en: 'VODs & Replays', fr: 'Vidéos & Rediffusions' },
+  'nav.categories': { en: 'Categories', fr: 'Catégories' },
+  'nav.allCategories': { en: 'All Categories', fr: 'Toutes les catégories' },
   'nav.gaming': { en: 'Gaming', fr: 'Jeux Vidéo' },
   'nav.chat': { en: 'Chat', fr: 'Discussion' },
   'nav.creative': { en: 'Creative', fr: 'Créatif' },

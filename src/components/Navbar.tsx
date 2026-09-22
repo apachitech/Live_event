@@ -1,18 +1,94 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useSiteConfig } from '@/context/SiteConfigContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { Radio, Coins, Plus, Video, Shield, User, LogOut, ChevronDown, CheckCircle2, Film, Building2, Megaphone } from 'lucide-react';
+import {
+  Radio,
+  Coins,
+  Plus,
+  Video,
+  Shield,
+  User,
+  LogOut,
+  ChevronDown,
+  CheckCircle2,
+  Film,
+  Building2,
+  Megaphone,
+  LayoutGrid,
+  Gamepad2,
+  MessageSquare,
+  Palette,
+  Sparkles,
+  Music,
+  Tv,
+  Menu,
+  X,
+} from 'lucide-react';
 import AdPlacement from '@/components/ads/AdPlacement';
+
+const ADULT_CATEGORIES = ['Gaming & Music', 'Creative Arts', 'Just Chatting', 'Interactive Shows'];
+const KIDS_CATEGORIES = ['Cartoons & Animation', 'Family Gaming', 'Learning & Crafts', 'Music & Fun'];
+const GENERAL_CATEGORIES = ['Gaming & Esports', 'Creative & Art', 'Music & Performance', 'Podcasts & Tech'];
+
+const getCategoryIcon = (category: string) => {
+  const lower = category.toLowerCase();
+  if (lower.includes('game') || lower.includes('gaming') || lower.includes('esport')) return Gamepad2;
+  if (lower.includes('chat') || lower.includes('discussion')) return MessageSquare;
+  if (lower.includes('art') || lower.includes('creative') || lower.includes('craft')) return Palette;
+  if (lower.includes('music') || lower.includes('fun')) return Music;
+  if (lower.includes('cartoon') || lower.includes('show') || lower.includes('podcast')) return Tv;
+  return Sparkles;
+};
 
 export default function Navbar() {
   const { user, logout, openPurchaseModal, openCampaignModal } = useAuth();
   const { siteName, siteTagline, contentRating } = useSiteConfig();
   const { t } = useLanguage();
+
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const categoriesRef = useRef<HTMLDivElement>(null);
+  const userDropdownRef = useRef<HTMLDivElement>(null);
+
+  const categories =
+    contentRating === 'KIDS'
+      ? KIDS_CATEGORIES
+      : contentRating === 'GENERAL'
+      ? GENERAL_CATEGORIES
+      : ADULT_CATEGORIES;
+
+  // Handle click outside and Escape key to close dropdowns
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (categoriesRef.current && !categoriesRef.current.contains(event.target as Node)) {
+        setCategoriesOpen(false);
+      }
+      if (userDropdownRef.current && !userDropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setCategoriesOpen(false);
+        setDropdownOpen(false);
+        setMobileMenuOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-surfaceBorder/80 glass-panel">
@@ -44,6 +120,7 @@ export default function Navbar() {
             </div>
           </Link>
 
+          {/* Desktop Navigation Links */}
           <nav className="hidden md:flex items-center gap-5 text-sm font-medium">
             <Link href="/" className="text-gray-200 hover:text-white transition">
               {t('nav.liveDirectory', 'Live Directory')}
@@ -56,19 +133,71 @@ export default function Navbar() {
               <Film className="w-3.5 h-3.5 text-brandPurple" />
               <span>{t('nav.vods', 'VODs & Replays')}</span>
             </Link>
-            <Link href="/?category=Gaming" className="text-gray-400 hover:text-gray-200 transition">
-              {t('nav.gaming', 'Gaming')}
-            </Link>
-            <Link href="/?category=Chat" className="text-gray-400 hover:text-gray-200 transition">
-              {t('nav.chat', 'Chat')}
-            </Link>
-            <Link href="/?category=Creative" className="text-gray-400 hover:text-gray-200 transition">
-              {t('nav.creative', 'Creative')}
-            </Link>
+
+            {/* Categories Dropdown Menu */}
+            <div className="relative" ref={categoriesRef}>
+              <button
+                type="button"
+                onClick={() => setCategoriesOpen((prev) => !prev)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium transition ${
+                  categoriesOpen
+                    ? 'text-white bg-surfaceLight border border-surfaceBorder shadow-inner'
+                    : 'text-gray-300 hover:text-white hover:bg-surfaceLight/60'
+                }`}
+                aria-expanded={categoriesOpen}
+                aria-haspopup="true"
+              >
+                <LayoutGrid className="w-3.5 h-3.5 text-brandPurple" />
+                <span>{t('nav.categories', 'Categories')}</span>
+                <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${categoriesOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {categoriesOpen && (
+                <div className="absolute left-0 mt-2 w-64 rounded-2xl glass-dropdown shadow-2xl p-2 z-50 animate-fade-in border border-surfaceBorder/80">
+                  <div className="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-gray-400">
+                    {contentRating === 'KIDS' ? 'Kids Categories' : contentRating === 'GENERAL' ? 'Browse Categories' : 'Live Categories'}
+                  </div>
+                  <div className="space-y-0.5 mt-1">
+                    <Link
+                      href="/"
+                      onClick={() => setCategoriesOpen(false)}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-gray-200 hover:text-white hover:bg-surfaceLight transition group"
+                    >
+                      <div className="w-7 h-7 rounded-lg bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-brandPurple group-hover:scale-105 transition">
+                        <Radio className="w-3.5 h-3.5 animate-pulse" />
+                      </div>
+                      <div>
+                        <div className="font-bold text-white">{t('nav.allCategories', 'All Categories')}</div>
+                        <div className="text-[10px] text-gray-400">Explore all live rooms</div>
+                      </div>
+                    </Link>
+
+                    <div className="h-px bg-surfaceBorder/60 my-1" />
+
+                    {categories.map((cat) => {
+                      const Icon = getCategoryIcon(cat);
+                      return (
+                        <Link
+                          key={cat}
+                          href={`/?category=${encodeURIComponent(cat)}`}
+                          onClick={() => setCategoriesOpen(false)}
+                          className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-gray-300 hover:text-white hover:bg-surfaceLight transition group"
+                        >
+                          <div className="w-7 h-7 rounded-lg bg-surfaceLight border border-surfaceBorder flex items-center justify-center text-gray-400 group-hover:text-brandPurple group-hover:border-purple-500/30 transition">
+                            <Icon className="w-3.5 h-3.5" />
+                          </div>
+                          <span className="font-semibold">{cat}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
           </nav>
         </div>
 
-        {/* Right: Actions, Wallet, Studio, and User Menu */}
+        {/* Right: Actions, Wallet, Studio, User Menu & Mobile Toggle */}
         <div className="flex items-center gap-2.5 sm:gap-3.5">
           {user ? (
             <>
@@ -124,20 +253,21 @@ export default function Navbar() {
               )}
 
               {/* User Dropdown */}
-              <div className="relative">
+              <div className="relative" ref={userDropdownRef}>
                 <button
                   onClick={() => setDropdownOpen(!dropdownOpen)}
                   className="flex items-center gap-2 p-1.5 pr-2.5 rounded-xl bg-surfaceLight border border-surfaceBorder hover:border-gray-600 transition"
+                  aria-expanded={dropdownOpen}
                 >
                   <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-purple-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white shadow-sm">
                     {user.username.substring(0, 2).toUpperCase()}
                   </div>
                   <span className="text-xs font-semibold text-gray-200 hidden md:inline">{user.username}</span>
-                  <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                  <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {dropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-56 rounded-2xl glass-dropdown shadow-2xl py-2 z-50 animate-fade-in">
+                  <div className="absolute right-0 mt-2 w-56 rounded-2xl glass-dropdown shadow-2xl py-2 z-50 animate-fade-in border border-surfaceBorder/80">
                     <div className="px-4 py-2 border-b border-surfaceBorder/60">
                       <p className="text-xs font-bold text-white flex items-center gap-1">
                         {user.username}
@@ -260,8 +390,82 @@ export default function Navbar() {
               </Link>
             </div>
           )}
+
+          {/* Mobile Menu Toggle Button */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 rounded-xl bg-surfaceLight border border-surfaceBorder text-gray-300 hover:text-white transition"
+            aria-label="Toggle navigation menu"
+            aria-expanded={mobileMenuOpen}
+          >
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile Navigation Drawer */}
+      {mobileMenuOpen && (
+        <div className="md:hidden border-t border-surfaceBorder/80 glass-dropdown p-4 space-y-3 animate-fade-in shadow-2xl">
+          <div className="space-y-1">
+            <Link
+              href="/"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-semibold text-gray-200 hover:bg-surfaceLight transition"
+            >
+              <Radio className="w-4 h-4 text-brandPurple" />
+              <span>{t('nav.liveDirectory', 'Live Directory')}</span>
+            </Link>
+            <Link
+              href="/explore"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-semibold text-pink-400 hover:bg-surfaceLight transition"
+            >
+              <Radio className="w-4 h-4 text-pink-400 animate-pulse" />
+              <span>{t('nav.explore', 'Explore (Swipe Feed)')}</span>
+            </Link>
+            <Link
+              href="/vods"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-semibold text-purple-300 hover:bg-surfaceLight transition"
+            >
+              <Film className="w-4 h-4 text-brandPurple" />
+              <span>{t('nav.vods', 'VODs & Replays')}</span>
+            </Link>
+          </div>
+
+          <div className="pt-2 border-t border-surfaceBorder/60">
+            <div className="px-3 pb-2 text-[10px] font-extrabold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+              <LayoutGrid className="w-3 h-3 text-brandPurple" />
+              <span>{t('nav.categories', 'Categories')}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              <Link
+                href="/"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 p-2 rounded-xl text-xs font-semibold text-gray-300 hover:bg-surfaceLight hover:text-white transition"
+              >
+                <Radio className="w-3.5 h-3.5 text-brandPurple" />
+                <span>{t('nav.allCategories', 'All Categories')}</span>
+              </Link>
+              {categories.map((cat) => {
+                const Icon = getCategoryIcon(cat);
+                return (
+                  <Link
+                    key={cat}
+                    href={`/?category=${encodeURIComponent(cat)}`}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 p-2 rounded-xl text-xs font-semibold text-gray-300 hover:bg-surfaceLight hover:text-white transition"
+                  >
+                    <Icon className="w-3.5 h-3.5 text-gray-400" />
+                    <span className="truncate">{cat}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
