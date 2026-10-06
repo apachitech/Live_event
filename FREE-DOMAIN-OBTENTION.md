@@ -14,21 +14,22 @@ Below are the **real, active, and verified free domain options** available today
 
 ---
 
-## 1. Top 4 Permanent 100% Free Domain Providers
+## 1. Top 5 Permanent 100% Free Domain Providers
 
 These services provide free domains or subdomains with **full DNS control** (A, CNAME, TXT records), allowing you to link them directly to Render.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │                           AVAILABLE 100% FREE OPTIONS                           │
-├──────────────────────┬──────────────────────┬───────────────────────────────────┤
-│ Provider             │ Domain Format        │ Best Feature                      │
-├──────────────────────┼──────────────────────┼───────────────────────────────────┤
-│ FreeDNS (afraid.org) │ yourname.us.to       │ 50,000+ domain options, instant   │
-│ DuckDNS.org          │ yourname.duckdns.org │ 1-click GitHub login, high uptime │
-│ EU.org               │ yourname.eu.org      │ Treated like a real top-level TLD │
-│ is-a.dev             │ yourname.is-a.dev    │ Professional dev prefix via Git   │
-└──────────────────────┴──────────────────────┴───────────────────────────────────┘
+├──────────────────────┬─────────────────────────┬────────────────────────────────┤
+│ Provider             │ Domain Format           │ Best Feature                   │
+├──────────────────────┼─────────────────────────┼────────────────────────────────┤
+│ FreeDNS (afraid.org) │ yourname.us.to          │ 50,000+ domain options, instant│
+│ DuckDNS.org          │ yourname.duckdns.org    │ 1-click GitHub login, high up  │
+│ EU.org               │ yourname.eu.org         │ Treated like a real top-level  │
+│ is-a.dev             │ yourname.is-a.dev       │ Professional dev prefix via Git│
+│ FreeDomain.one       │ yourname.freedomain.one │ NetDorm backed, dynamic DNS    │
+└──────────────────────┴─────────────────────────┴────────────────────────────────┘
 ```
 
 ---
@@ -130,6 +131,36 @@ If your PulseStream code is hosted on a public or private GitHub repository, you
 
 ---
 
+### Option E: FreeDomain.one ([freedomain.one](https://freedomain.one))
+
+FreeDomain.one is a free subdomain and Dynamic DNS routing service.
+
+#### Legitimacy & Background:
+- Operated by **NetDorm, Inc.**, an established ICANN-accredited registrar founded in 1998 (the parent company behind DnsExit).
+- **Legitimate service**: Unlike fraudulent Freenom clones, FreeDomain.one is an active, functional service.
+
+#### Advantages:
+- **100% Free** with no credit card required upfront.
+- Gives you a free subdomain: `yourname.freedomain.one`.
+- Supports standard DNS records (CNAME, A) to connect to Render.
+- Includes basic email forwarding and dynamic DNS update tools.
+
+#### Drawbacks & Considerations for PulseStream:
+- **Subdomain only**: You do not legally own the root domain; NetDorm owns `freedomain.one`.
+- **Heavy upselling**: Prompts users with advertisements and paid WordPress hosting upsells.
+- **Lower commercial trust**: For a live video and monetized token platform like PulseStream (where viewers buy tokens and creators cash out money), a `.freedomain.one` address can look like a test/throwaway site. FreeDNS (`.us.to`) or a $0.99 `.live` domain offers much cleaner branding.
+
+#### Step-by-Step Setup:
+1. Open [freedomain.one](https://freedomain.one).
+2. Register a free account.
+3. Choose your desired subdomain name (e.g., `pulsestream`).
+4. Under DNS Management, add a **CNAME** record:
+   - **Host**: `@` (or leave blank)
+   - **Target**: `pulsestream-live.onrender.com`
+5. In Render Dashboard, add `pulsestream.freedomain.one` under **Custom Domains**.
+
+---
+
 ## 2. Free 1-Year Top-Level Domain (.me, .tech, .live) via Student Pack
 
 If you have a school/university email address (`.edu`, `.ac.uk`, etc.) or a student ID card:
@@ -202,5 +233,6 @@ In your free domain registrar (e.g. FreeDNS / afraid.org):
 | **DuckDNS** | **$0.00** | 2 mins | A Record (IP) | Automatic | Quick testing with minimal setup |
 | **EU.org** | **$0.00** | 1–3 weeks | Full (Custom NS) | Automatic | Best for true TLD appearance |
 | **is-a.dev** | **$0.00** | 24 hours | CNAME | Annual PR verification | Best for public GitHub projects |
+| **FreeDomain.one** | **$0.00** | 5 mins | CNAME / A | Automatic (free account) | Quick staging / personal testing |
 | **GitHub Student Pack** | **$0.00** | 10 mins | Full Registrar | 1-year free (then standard rate) | Best for real `.me` / `.live` domains |
 | **Porkbun / Namecheap** | **$0.99** | 2 mins | Full Registrar | 1-year promo (renew or transfer) | Best for professional commercial look |
